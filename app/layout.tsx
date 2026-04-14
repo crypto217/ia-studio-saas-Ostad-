@@ -1,0 +1,30 @@
+import type {Metadata} from 'next';
+import { Nunito } from 'next/font/google';
+import './globals.css';
+
+const font = Nunito({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800', '900'] });
+
+export const metadata: Metadata = {
+  title: 'OSTAD - Teacher Operating System',
+  description: 'A modern SaaS platform for teachers',
+};
+
+import { AuthProvider } from '@/components/AuthProvider';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ClientLayout } from '@/components/layout/ClientLayout';
+
+export default function RootLayout({children}: {children: React.ReactNode}) {
+  return (
+    <html lang="en" className={font.className}>
+      <body className="flex h-screen overflow-hidden bg-slate-100/80 text-slate-900 antialiased selection:bg-sky-100 selection:text-sky-900" suppressHydrationWarning>
+        <ErrorBoundary>
+          <AuthProvider>
+            <ClientLayout>
+              {children}
+            </ClientLayout>
+          </AuthProvider>
+        </ErrorBoundary>
+      </body>
+    </html>
+  );
+}

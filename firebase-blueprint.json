@@ -1,0 +1,120 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A teacher using the app.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The user's Firebase Auth UID." },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "cycle": { "type": "string", "enum": ["primaire", "moyen", "lycee"] },
+        "subject": { "type": "string", "enum": ["francais", "arabe", "tamazight", "anglais", "sport"] },
+        "onboardingCompleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "onboardingCompleted", "createdAt"]
+    },
+    "Class": {
+      "title": "Class",
+      "description": "A class taught by a teacher.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "name": { "type": "string" },
+        "cycle": { "type": "string" },
+        "theme": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "teacherId", "name", "theme", "createdAt"]
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "A recent activity in the system.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["grade", "document", "schedule", "task"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "teacherId", "title", "description", "type", "createdAt"]
+    },
+    "Student": {
+      "description": "A student in a class.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "classId": { "type": "string" },
+        "name": { "type": "string" },
+        "gender": { "type": "string", "enum": ["M", "F"] },
+        "score": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "teacherId", "classId", "name", "createdAt"]
+    },
+    "Lesson": {
+      "title": "Lesson",
+      "description": "A scheduled lesson.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "classId": { "type": "string" },
+        "taskType": { "type": "string" },
+        "title": { "type": "string" },
+        "day": { "type": "number" },
+        "start": { "type": "number" },
+        "duration": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "teacherId", "classId", "taskType", "title", "day", "start", "duration", "createdAt"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A task for the teacher.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "title": { "type": "string" },
+        "deadline": { "type": "string" },
+        "urgent": { "type": "boolean" },
+        "color": { "type": "string", "enum": ["rose", "sky", "amber"] },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "teacherId", "title", "deadline", "urgent", "color", "completed", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles."
+    },
+    "classes/{classId}": {
+      "schema": { "$ref": "#/entities/Class" },
+      "description": "Classes created by teachers."
+    },
+    "students/{studentId}": {
+      "schema": { "$ref": "#/entities/Student" },
+      "description": "Students in classes."
+    },
+    "lessons/{lessonId}": {
+      "schema": { "$ref": "#/entities/Lesson" },
+      "description": "Scheduled lessons."
+    },
+    "tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "Teacher tasks."
+    },
+    "activities/{activityId}": {
+      "schema": { "$ref": "#/entities/Activity" },
+      "description": "Recent activities of teachers."
+    }
+  }
+}

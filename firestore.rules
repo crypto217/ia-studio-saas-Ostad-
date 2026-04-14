@@ -1,0 +1,175 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.teacherId;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+    
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'email', 'onboardingCompleted', 'createdAt']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.onboardingCompleted is bool &&
+             data.createdAt is string &&
+             (!('displayName' in data) || data.displayName is string) &&
+             (!('cycle' in data) || data.cycle in ['primaire', 'moyen', 'lycee']) &&
+             (!('subject' in data) || data.subject in ['francais', 'arabe', 'tamazight', 'anglais', 'sport']);
+    }
+
+    function isValidClass(data) {
+      return hasRequiredFields(['id', 'teacherId', 'name', 'theme', 'createdAt']) &&
+             data.id is string &&
+             data.teacherId is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.theme is string && data.theme.size() < 50 &&
+             data.createdAt is string &&
+             (!('cycle' in data) || data.cycle is string);
+    }
+
+    function isValidStudent(data) {
+      return hasRequiredFields(['id', 'teacherId', 'classId', 'name', 'createdAt']) &&
+             data.id is string &&
+             data.teacherId is string &&
+             data.classId is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.createdAt is string &&
+             (!('gender' in data) || data.gender in ['M', 'F']) &&
+             (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 20));
+    }
+
+    function isValidLesson(data) {
+      return hasRequiredFields(['id', 'teacherId', 'classId', 'taskType', 'title', 'day', 'start', 'duration', 'createdAt']) &&
+             data.id is string &&
+             data.teacherId is string &&
+             data.classId is string &&
+             data.taskType is string && data.taskType.size() < 50 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.day is number && data.day >= 0 && data.day <= 6 &&
+             data.start is number && data.start >= 0 && data.start <= 23 &&
+             data.duration is number && data.duration > 0 && data.duration <= 24 &&
+             data.createdAt is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    function isValidActivity(data) {
+      return hasRequiredFields(['id', 'teacherId', 'title', 'description', 'type', 'createdAt']) &&
+             data.id is string &&
+             data.teacherId is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.description is string && data.description.size() < 500 &&
+             data.type in ['grade', 'document', 'schedule', 'task'] &&
+             data.createdAt is string;
+    }
+
+    function isValidCourse(data) {
+      return hasRequiredFields(['teacherId', 'title', 'type', 'className', 'term', 'content', 'createdAt']) &&
+             data.teacherId is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.type in ['Cours', 'Exercice', 'Examen'] &&
+             data.className is string && data.className.size() > 0 && data.className.size() < 50 &&
+             data.term is string && data.term.size() > 0 && data.term.size() < 50 &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 100000 &&
+             (!('color' in data) || data.color is string) &&
+             (!('iconColor' in data) || data.iconColor is string) &&
+             (!('bgColor' in data) || data.bgColor is string);
+    }
+
+    function isValidAttendance(data) {
+      return hasRequiredFields(['teacherId', 'classId', 'date', 'records', 'createdAt']) &&
+             data.teacherId is string &&
+             data.classId is string &&
+             data.date is string &&
+             data.records is map &&
+             data.createdAt is string;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.uid == userId;
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && areImmutableFieldsUnchanged(['uid', 'createdAt']);
+      allow delete: if isOwner(userId);
+    }
+
+    match /classes/{classId} {
+      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidClass(request.resource.data) && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isDocOwner() && isValidClass(request.resource.data) && areImmutableFieldsUnchanged(['id', 'teacherId', 'createdAt']);
+      allow delete: if isDocOwner();
+    }
+
+    match /students/{studentId} {
+      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidStudent(request.resource.data) && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isDocOwner() && isValidStudent(request.resource.data) && areImmutableFieldsUnchanged(['id', 'teacherId', 'createdAt']);
+      allow delete: if isDocOwner();
+    }
+
+    match /lessons/{lessonId} {
+      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidLesson(request.resource.data) && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isDocOwner() && isValidLesson(request.resource.data) && areImmutableFieldsUnchanged(['id', 'teacherId', 'createdAt']);
+      allow delete: if isDocOwner();
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isDocOwner() && areImmutableFieldsUnchanged(['id', 'teacherId', 'createdAt']);
+      allow delete: if isDocOwner();
+    }
+
+    match /activities/{activityId} {
+      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidActivity(request.resource.data) && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isDocOwner() && isValidActivity(request.resource.data) && areImmutableFieldsUnchanged(['id', 'teacherId', 'createdAt']);
+      allow delete: if isDocOwner();
+    }
+
+    match /courses/{courseId} {
+      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidCourse(request.resource.data) && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isDocOwner() && isValidCourse(request.resource.data) && areImmutableFieldsUnchanged(['teacherId', 'createdAt']);
+      allow delete: if isDocOwner();
+    }
+
+    match /attendances/{attendanceId} {
+      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidAttendance(request.resource.data) && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isDocOwner() && isValidAttendance(request.resource.data) && areImmutableFieldsUnchanged(['teacherId', 'classId', 'date', 'createdAt']);
+      allow delete: if isDocOwner();
+    }
+  }
+}
