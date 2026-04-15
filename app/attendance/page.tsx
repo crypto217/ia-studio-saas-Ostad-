@@ -201,7 +201,7 @@ export default function AttendancePage() {
               transition={{ delay: 0.2 }}
               className="text-emerald-100 text-base md:text-lg font-semibold max-w-2xl"
             >
-              Gérez l'assiduité de vos élèves rapidement et efficacement.
+              Gérez l&apos;assiduité de vos élèves rapidement et efficacement.
             </motion.p>
           </div>
         </div>

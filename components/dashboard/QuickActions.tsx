@@ -48,13 +48,13 @@ export function QuickActions() {
       <div className="flex items-center justify-between mb-5 px-1">
         <h3 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Accès Rapide</h3>
       </div>
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:flex lg:flex-wrap gap-4 md:gap-6">
+      <div className="flex flex-row overflow-x-auto gap-4 md:gap-6 pb-4 px-1 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {actions.map((action, index) => (
-          <Link key={action.name} href={action.href} className="outline-none">
+          <Link key={action.name} href={action.href} className="outline-none shrink-0 snap-start w-24 sm:w-28 md:w-32">
             <motion.div
               whileHover={{ y: -5, scale: 1.02 }}
               whileTap={{ scale: 0.95 }}
-              className="flex flex-col items-center gap-3 group cursor-pointer"
+              className="flex flex-col items-center gap-3 group cursor-pointer w-full"
             >
               <div className={`flex h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20 md:h-22 md:w-22 items-center justify-center rounded-[1.25rem] sm:rounded-[1.5rem] text-white shadow-lg group-hover:shadow-xl transition-all duration-300 bg-gradient-to-br ${action.color} ${action.shadow} border border-white/40 relative overflow-hidden`}>
                 {/* Shine effect on hover */}
@@ -65,7 +65,7 @@ export function QuickActions() {
                 
                 <action.icon className="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 relative z-10 drop-shadow-md group-hover:scale-110 transition-transform duration-300" strokeWidth={2.5} />
               </div>
-              <span className="text-[11px] sm:text-xs md:text-sm font-semibold text-slate-600 group-hover:text-slate-900 transition-colors text-center leading-tight px-1">
+              <span className="text-[11px] sm:text-xs md:text-sm font-semibold text-slate-600 group-hover:text-slate-900 transition-colors text-center leading-tight px-1 whitespace-nowrap">
                 {action.name}
               </span>
             </motion.div>

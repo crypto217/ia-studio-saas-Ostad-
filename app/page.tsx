@@ -4,11 +4,17 @@ import { TasksPanel } from "@/components/dashboard/TasksPanel"
 import { StatsPreview } from "@/components/dashboard/StatsPreview"
 import { QuickActions } from "@/components/dashboard/QuickActions"
 import { MiniCalendarWidget } from "@/components/dashboard/MiniCalendarWidget"
+import { MobileTeacherWidgets } from "@/components/dashboard/MobileTeacherWidgets"
 
 export default function DashboardPage() {
   return (
     <div className="space-y-6 md:space-y-8 max-w-7xl mx-auto pb-24 md:pb-12">
       <WelcomeBanner />
+
+      {/* Mobile-only Teacher Widgets */}
+      <div className="block lg:hidden">
+        <MobileTeacherWidgets />
+      </div>
 
       {/* Quick Actions (Universal) */}
       <QuickActions />
