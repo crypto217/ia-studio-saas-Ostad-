@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "motion/react"
 import { Bot, Send, ArrowLeft, Paperclip, Sparkles, MoreHorizontal } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 type Message = {
   id: string
@@ -12,9 +13,9 @@ type Message = {
 }
 
 const QUICK_PROMPTS = [
-  "Gérer une classe dissipée 🌪️",
-  "Idée de jeu de rôle 🎭",
-  "Expliquer les fractions 🍕"
+  "🎭 Idée de jeu de rôle (Séquence 1)",
+  "📝 Corriger un texte d'élève",
+  "💡 Expliquer les fractions"
 ]
 
 const INITIAL_MESSAGE: Message = {
@@ -28,6 +29,8 @@ export default function ChatPage() {
   const [inputValue, setInputValue] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  
+  const isMobile = useIsMobile()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -63,140 +66,131 @@ export default function ChatPage() {
     }, 1500)
   }
 
-  return (
-    <div className="flex flex-col h-[calc(100dvh-11rem)] md:h-[calc(100dvh-8rem)] bg-slate-50 rounded-[2rem] border-4 border-slate-200 overflow-hidden shadow-sm">
-      
-      {/* Header */}
-      <header className="flex items-center justify-between p-4 bg-white border-b-4 border-slate-200 shrink-0 z-10">
-        <div className="flex items-center gap-3 sm:gap-4">
-          <Link 
-            href="/" 
-            className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors active:scale-95"
-          >
-            <ArrowLeft className="w-5 h-5 text-slate-600" />
-          </Link>
-          
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-violet-100 rounded-full flex items-center justify-center border-2 border-violet-200">
-                <Bot className="w-6 h-6 sm:w-7 sm:h-7 text-violet-600" />
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
-            </div>
-            <div>
-              <h2 className="font-black text-slate-800 text-base sm:text-lg leading-tight">Assistant Ostad</h2>
-              <p className="text-xs text-green-600 font-bold flex items-center gap-1">
-                En ligne
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-violet-50 text-violet-600 rounded-xl font-bold text-sm border-2 border-violet-100">
-          <Sparkles className="w-4 h-4" />
-          <span>IA Pédagogique</span>
-        </div>
-      </header>
+  const renderHeader = () => (
+    <header className="flex items-center p-4 bg-white shadow-sm shrink-0 w-full z-10 sticky top-0 relative">
+      <Link 
+        href="/ai-generator" 
+        className="p-2 sm:p-3 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-xl transition-all mr-2 flex items-center justify-center gap-2"
+      >
+        <ArrowLeft className="w-5 h-5" />
+        <span className="font-medium hidden sm:inline">Retour</span>
+      </Link>
+      <h1 className="text-lg md:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center gap-2">
+        Assistant Libre Ostad ✨
+      </h1>
+    </header>
+  )
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-repeat opacity-95">
-        <AnimatePresence initial={false}>
-          {messages.map((msg) => {
-            const isUser = msg.role === "user"
-            
-            return (
-              <motion.div
-                key={msg.id}
-                initial={{ opacity: 0, scale: 0.8, y: 20, originX: isUser ? 1 : 0 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                className={`flex gap-2 sm:gap-3 max-w-[90%] sm:max-w-[80%] ${isUser ? 'ml-auto flex-row-reverse' : ''}`}
-              >
-                {!isUser && (
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 bg-violet-100 rounded-full flex items-center justify-center border-2 border-violet-200 mt-1">
-                    <Bot className="w-5 h-5 text-violet-600" />
-                  </div>
-                )}
-                
-                <div 
-                  className={`px-4 py-3 sm:px-5 sm:py-4 text-sm sm:text-base font-medium ${
-                    isUser 
-                      ? 'bg-indigo-500 text-white border-2 border-indigo-600 border-b-4 rounded-2xl rounded-tr-sm' 
-                      : 'bg-white text-slate-700 border-2 border-slate-200 border-b-4 rounded-2xl rounded-tl-sm shadow-sm'
-                  }`}
-                >
-                  {msg.content}
-                </div>
-              </motion.div>
-            )
-          })}
+  const renderMessages = () => (
+    <>
+      <AnimatePresence initial={false}>
+        {messages.map((msg) => {
+          const isUser = msg.role === "user"
           
-          {isTyping && (
+          return (
             <motion.div
-              initial={{ opacity: 0, scale: 0.8, y: 20, originX: 0 }}
+              key={msg.id}
+              initial={{ opacity: 0, scale: 0.95, y: 15, originX: isUser ? 1 : 0 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="flex gap-3 max-w-[80%]"
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              className={`flex gap-3 w-full ${isUser ? 'justify-end' : 'justify-start'}`}
             >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 bg-violet-100 rounded-full flex items-center justify-center border-2 border-violet-200 mt-1">
-                <Bot className="w-5 h-5 text-violet-600" />
-              </div>
-              <div className="px-5 py-4 bg-white text-slate-700 border-2 border-slate-200 border-b-4 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-1">
-                <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="w-2 h-2 bg-slate-400 rounded-full" />
-                <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-2 h-2 bg-slate-400 rounded-full" />
-                <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="w-2 h-2 bg-slate-400 rounded-full" />
+              {!isUser && (
+                <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 bg-purple-100 rounded-full flex items-center justify-center mt-1">
+                  <Sparkles className="w-5 h-5 text-indigo-600" />
+                </div>
+              )}
+              
+              <div 
+                className={`max-w-[85%] sm:max-w-[75%] ${
+                  isUser 
+                    ? 'bg-indigo-600 text-white rounded-2xl rounded-tr-none p-4 md:p-5 shadow-md leading-relaxed text-[15px]' 
+                    : 'bg-white border border-slate-100 rounded-2xl rounded-tl-none p-4 md:p-5 shadow-sm text-slate-700 leading-relaxed text-[15px]'
+                }`}
+              >
+                {msg.content}
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-        <div ref={messagesEndRef} className="h-2" />
-      </div>
-
-      {/* Input Area */}
-      <div className="p-3 sm:p-4 bg-white border-t-4 border-slate-200 shrink-0">
+          )
+        })}
         
-        {/* Quick Prompts */}
-        <div className="flex gap-2 overflow-x-auto pb-3 mb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {QUICK_PROMPTS.map((prompt, idx) => (
-            <button 
-              key={idx}
-              onClick={() => {
-                setInputValue(prompt)
-              }}
-              className="shrink-0 px-4 py-2 bg-white border-2 border-slate-200 border-b-4 rounded-2xl text-xs sm:text-sm font-bold text-slate-600 hover:border-violet-300 hover:text-violet-600 hover:bg-violet-50 active:border-b-2 active:translate-y-[2px] transition-all whitespace-nowrap"
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
-
-        {/* Input Form */}
-        <form onSubmit={handleSend} className="flex items-end gap-2">
-          <div className="flex-1 relative">
-            <input 
-              type="text" 
-              value={inputValue} 
-              onChange={e => setInputValue(e.target.value)} 
-              placeholder="Posez votre question pédagogique..." 
-              className="w-full pl-4 sm:pl-5 pr-12 py-3 sm:py-4 bg-slate-100 border-2 border-slate-200 rounded-3xl font-medium text-slate-700 focus:outline-none focus:border-violet-400 focus:bg-white transition-colors"
-            />
-            <button 
-              type="button" 
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-violet-500 transition-colors"
-            >
-              <Paperclip className="w-5 h-5" />
-            </button>
-          </div>
-          
-          <button 
-            type="submit" 
-            disabled={!inputValue.trim() || isTyping} 
-            className="w-12 h-12 sm:w-14 sm:h-14 shrink-0 bg-violet-500 hover:bg-violet-600 disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400 border-b-4 border-violet-700 rounded-full flex items-center justify-center text-white transition-all active:border-b-0 active:translate-y-[4px]"
+        {isTyping && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15, originX: 0 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="flex gap-3 justify-start w-full"
           >
-            <Send className="w-5 h-5 sm:w-6 sm:h-6 ml-1" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 bg-purple-100 rounded-full flex items-center justify-center mt-1">
+              <Sparkles className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div className="px-5 py-4 bg-white border border-slate-100 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-1">
+              <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="w-2 h-2 bg-slate-400 rounded-full" />
+              <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-2 h-2 bg-slate-400 rounded-full" />
+              <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="w-2 h-2 bg-slate-400 rounded-full" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div ref={messagesEndRef} className="h-1" />
+    </>
+  )
+
+  const renderInputArea = () => (
+    <>
+      <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar mb-2">
+        {QUICK_PROMPTS.map((prompt, idx) => (
+          <button 
+            key={idx}
+            onClick={() => setInputValue(prompt)}
+            className="bg-white text-indigo-700 text-sm font-medium px-4 py-2 rounded-full border border-indigo-100 shadow-sm hover:bg-indigo-50 transition-colors cursor-pointer whitespace-nowrap"
+          >
+            {prompt}
           </button>
-        </form>
+        ))}
       </div>
 
+      <form onSubmit={handleSend} className="bg-white rounded-[2rem] md:rounded-full shadow-lg border border-slate-200 flex items-center p-2">
+        <input 
+          type="text" 
+          value={inputValue} 
+          onChange={e => setInputValue(e.target.value)} 
+          placeholder="Posez votre question pédagogique..." 
+          className="flex-1 bg-transparent border-none outline-none px-4 md:px-6 text-slate-700 placeholder:text-slate-400"
+        />
+        <button 
+          type="submit" 
+          disabled={!inputValue.trim() || isTyping} 
+          className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-3 md:p-4 transition-transform hover:scale-105 shadow-md flex items-center justify-center shrink-0 disabled:opacity-50 disabled:hover:scale-100"
+        >
+          <Send className="w-5 h-5" />
+        </button>
+      </form>
+    </>
+  )
+
+  if (isMobile) {
+    return (
+      <div className="fixed inset-0 z-[100] flex flex-col h-[100dvh] w-full bg-[#FFFAF3] overflow-hidden">
+        {renderHeader()}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {renderMessages()}
+        </div>
+        <div className="w-full p-4 pb-6 bg-[#FFFAF3] border-t border-slate-100 shrink-0">
+          {renderInputArea()}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col h-[calc(100dvh-11rem)] md:h-[calc(100dvh-6rem)] max-w-5xl mx-auto bg-[#FFFAF3] rounded-2xl shadow-sm overflow-hidden border border-slate-100 mt-4">
+      {renderHeader()}
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+        {renderMessages()}
+      </div>
+      <div className="w-full p-4 pb-6 md:pb-8 shrink-0 bg-[#FFFAF3]">
+        {renderInputArea()}
+      </div>
     </div>
   )
 }
