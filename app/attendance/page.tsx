@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "motion/react"
+import { motion, AnimatePresence, Variants } from "motion/react"
 import { Users, Calendar, CheckCircle2, XCircle, Clock, Save, AlertCircle, Sparkles, UserCheck } from "lucide-react"
 import { db } from "@/firebase"
 import { collection, query, where, getDocs, setDoc, doc, serverTimestamp } from "firebase/firestore"
@@ -31,7 +31,7 @@ const MOCK_STUDENTS: Student[] = [
   { id: 'mock8', name: 'Wassim Aït' },
 ]
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
@@ -39,7 +39,7 @@ const containerVariants = {
   }
 }
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 }

@@ -2,354 +2,250 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { X, FileText, Upload, CheckCircle, XCircle, BookOpen, MessageSquare, Clock, Users } from "lucide-react"
+import { CheckCircle2, XCircle, Clock, MessageSquare, ShieldAlert, Star, BookX, ChevronUp, ChevronDown, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
-type Student = {
-  id: number
-  name: string
-  status: "present" | "absent" | null
-  remark?: string
-}
-
-const initialStudents: Student[] = [
-  { id: 1, name: "Amine K.", status: "present" },
-  { id: 2, name: "Lina M.", status: "absent" },
-  { id: 3, name: "Sami R.", status: "present" },
-  { id: 4, name: "Ines H.", status: null },
-  { id: 5, name: "Yanis B.", status: null },
-]
-
-const QUICK_TAGS = [
-  "📚 Oubli de livre",
-  "✍️ Pas d'exercice",
-  "🗣️ Bavardage",
-  "⭐ Excellente participation"
+const mockStudents = [
+  { id: 1, name: "Amine K.", avatar: "bg-blue-100 text-blue-600" },
+  { id: 2, name: "Lina M.", avatar: "bg-rose-100 text-rose-600" },
+  { id: 3, name: "Sami R.", avatar: "bg-emerald-100 text-emerald-600" },
+  { id: 4, name: "Ines H.", avatar: "bg-amber-100 text-amber-600" },
+  { id: 5, name: "Yanis B.", avatar: "bg-purple-100 text-purple-600" },
 ]
 
 export default function LiveSessionPage() {
-  const [hasFile, setHasFile] = useState(false)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [mobileView, setMobileView] = useState<"eleves" | "cours">("eleves")
-  const [activeRightTab, setActiveRightTab] = useState<"appel" | "remarques">("appel")
-  const [students, setStudents] = useState<Student[]>(initialStudents)
-  const [expandedStudentId, setExpandedStudentId] = useState<number | null>(null)
+  const router = useRouter()
+  const [attendances, setAttendances] = useState<Record<number, "present" | "absent">>({})
+  const [remarks, setRemarks] = useState<Record<number, string[]>>({})
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [customRemarks, setCustomRemarks] = useState<Record<number, string>>({})
+  
+  const [isEnding, setIsEnding] = useState(false)
+  const [saveStep, setSaveStep] = useState<"confirm" | "saving" | "success">("confirm")
 
-  const updateStatus = (id: number, status: "present" | "absent") => {
-    setStudents(students.map(s => s.id === id ? { ...s, status } : s))
+  const handleEndSession = () => {
+    setSaveStep("saving");
+    // Simule le délai réseau vers Firebase
+    setTimeout(() => {
+      setSaveStep("success");
+      setTimeout(() => {
+        router.push("/");
+      }, 1000);
+    }, 2000);
+  };
+
+  const toggleAttendance = (id: number, status: "present" | "absent") => {
+    setAttendances(prev => ({ ...prev, [id]: status }))
   }
 
-  const addTag = (id: number, tag: string) => {
-    setStudents(students.map(s => {
-      if (s.id === id) {
-        return { ...s, remark: s.remark ? `${s.remark} ${tag}` : tag }
+  const toggleRemark = (id: number, remark: string) => {
+    setRemarks(prev => {
+      const studentRemarks = prev[id] || []
+      if (studentRemarks.includes(remark)) {
+        return { ...prev, [id]: studentRemarks.filter(r => r !== remark) }
+      } else {
+        return { ...prev, [id]: [...studentRemarks, remark] }
       }
-      return s
-    }))
+    })
   }
 
   return (
-    <div className="h-screen w-full bg-slate-50 flex flex-col overflow-hidden">
-      {/* 1. HEADER GLASSMORPHISM */}
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+      {/* HEADER */}
       <header className="relative z-50 flex items-center justify-between px-4 md:px-8 py-3 md:py-4 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm shrink-0">
-        
-        {/* Chrono Centré */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-full shadow-sm">
+            <span className="w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
+            <span className="text-xs font-black text-rose-600 tracking-wider uppercase">Live</span>
+          </div>
+          <h1 className="text-lg md:text-xl font-black text-slate-800 line-clamp-1">CE2 - Mathématiques</h1>
+        </div>
+
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block">
           <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 border border-slate-200 rounded-full shadow-inner">
             <Clock className="w-4 h-4 text-slate-400" />
-            <span className="font-mono text-sm md:text-base font-bold text-slate-700 tracking-wider">09:41</span>
+            <span className="font-mono text-base font-bold text-slate-700 tracking-wider">09:41</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 relative z-10">
-          {/* Badge LIVE moderne */}
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 border border-rose-100 rounded-full shadow-sm">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
-            </span>
-            <span className="text-[10px] sm:text-xs font-black text-rose-600 uppercase tracking-widest">En direct</span>
-          </div>
-          
-          {/* Titre du cours */}
-          <div className="hidden sm:flex flex-col">
-            <h1 className="text-base md:text-lg font-black text-slate-800 leading-tight">5ème AP</h1>
-            <span className="text-xs md:text-sm font-medium text-slate-500">La Phrase Déclarative</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 relative z-10">
-          {/* Bouton Tiroir */}
+        <div className="flex items-center gap-3">
           <button 
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="hidden md:flex items-center gap-2 bg-white border border-slate-200 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 px-4 py-2 rounded-xl transition-all duration-300 font-bold text-sm shadow-sm"
+            onClick={() => { setIsEnding(true); setSaveStep("confirm"); }}
+            className="flex items-center gap-2 bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600 text-white px-4 py-2 rounded-xl transition-all shadow-md shadow-rose-500/20 font-bold text-sm"
           >
-            <Users className="w-4 h-4" />
-            <span className="hidden lg:inline">{isSidebarOpen ? "Cacher les élèves" : "Voir les élèves"}</span>
+            <span className="hidden sm:inline">Terminer</span>
+            <XCircle className="w-4 h-4 sm:hidden" />
           </button>
-
-          {/* Bouton Terminer */}
-          <Link href="/">
-            <button className="flex items-center gap-2 bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600 text-white px-4 py-2 rounded-xl transition-all shadow-md shadow-rose-500/20 font-bold text-sm">
-              <span className="hidden sm:inline">Terminer</span>
-              <XCircle className="w-4 h-4 sm:hidden" />
-            </button>
-          </Link>
         </div>
       </header>
 
-      {/* SÉLECTEUR MOBILE */}
-      <div className="px-4 mt-2 md:hidden shrink-0">
-        <div className="flex bg-slate-100/80 backdrop-blur-md p-1 rounded-xl shadow-inner border border-slate-200">
-          <button 
-            onClick={() => setMobileView("cours")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${mobileView === "cours" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:bg-slate-200/50"}`}
-          >
-            <FileText className="w-4 h-4" /> La Fiche
-          </button>
-          <button 
-            onClick={() => setMobileView("eleves")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${mobileView === "eleves" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:bg-slate-200/50"}`}
-          >
-            <Users className="w-4 h-4" /> La Classe
-          </button>
+      {/* BODY */}
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto w-full max-w-7xl mx-auto">
+        <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-black text-slate-800 mb-2">Appel & Comportement</h2>
+            <p className="text-slate-500 font-medium text-sm md:text-base">Gérez la présence et attribuez des remarques rapides.</p>
+          </div>
+          <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-slate-200 inline-flex shrink-0">
+            <div className="px-3 py-1.5 md:px-4 md:py-2 rounded-lg flex items-center gap-2">
+               <span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-emerald-500"></span>
+               <span className="font-bold text-slate-700 text-sm">{Object.values(attendances).filter(a => a === 'present').length} Présents</span>
+            </div>
+            <div className="w-px h-6 bg-slate-200"></div>
+            <div className="px-3 py-1.5 md:px-4 md:py-2 rounded-lg flex items-center gap-2">
+               <span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-rose-500"></span>
+               <span className="font-bold text-slate-700 text-sm">{Object.values(attendances).filter(a => a === 'absent').length} Absents</span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* 2. LE SPLIT-SCREEN */}
-      <div className="flex-1 flex overflow-hidden">
-        
-        {/* 3. PANNEAU GAUCHE : LE COURS (70%) */}
-        <div className={`${mobileView === "cours" ? "flex" : "hidden"} md:flex flex-1 flex-col p-4 md:p-6 bg-slate-100/50 overflow-hidden relative`}>
-          {!hasFile ? (
-            <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-2xl bg-white/50 m-4">
-              <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
-                <Upload className="w-10 h-10 text-indigo-500" />
-              </div>
-              <h2 className="text-xl font-black text-slate-700 mb-2">Aucune fiche active</h2>
-              <p className="text-slate-500 mb-6 font-medium text-center max-w-sm">Déposez un document PDF ici ou choisissez une fiche de préparation existante.</p>
-              <button 
-                onClick={() => setHasFile(true)}
-                className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition-colors"
+        {/* GRID ELEVES */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+          {mockStudents.map(student => {
+            const isPresent = attendances[student.id] === "present"
+            const isAbsent = attendances[student.id] === "absent"
+            const studentRemarks = remarks[student.id] || []
+            const isExpanded = expandedId === student.id
+
+            return (
+              <motion.div 
+                layout
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                key={student.id} 
+                className={`bg-white rounded-[2rem] border-2 transition-all duration-300 overflow-hidden shadow-sm hover:shadow-md ${
+                  isExpanded ? 'border-indigo-200' : 'border-slate-100'
+                }`}
               >
-                Choisir une fiche existante
-              </button>
-            </div>
-          ) : (
-            <div className="bg-white shadow-lg rounded-xl flex-1 flex flex-col overflow-hidden border border-slate-200">
-              {/* Fake PDF Toolbar */}
-              <div className="h-12 border-b border-slate-200 bg-slate-50 flex items-center justify-between px-4 shrink-0">
-                <div className="flex items-center gap-2 text-slate-600 font-medium text-sm">
-                  <FileText className="w-4 h-4" />
-                  <span className="truncate max-w-[150px] sm:max-w-[250px]">fiche_grammaire_phrase_declarative.pdf</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="hidden sm:inline text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded font-bold">Page 1 / 2</span>
-                  <button 
-                    onClick={() => setHasFile(false)}
-                    className="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg font-bold transition-colors"
-                  >
-                    Changer de fiche
-                  </button>
-                </div>
-              </div>
-              {/* Fake PDF Content Area */}
-              <div className="flex-1 bg-slate-200/50 overflow-y-auto p-4 md:p-8 flex justify-center">
-                <div className="bg-white w-full max-w-3xl aspect-[1/1.4] shadow-md rounded-sm p-8 sm:p-12 border border-slate-200">
-                  {/* Faux contenu de la fiche */}
-                  <h1 className="text-3xl font-black text-center text-slate-800 mb-8 border-b-2 border-slate-100 pb-4">La Phrase Déclarative</h1>
-                  <h2 className="text-xl font-bold text-indigo-600 mb-4 flex items-center gap-2">
-                    <span className="bg-indigo-100 text-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm">1</span>
-                    Phase de découverte
-                  </h2>
-                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 mb-8">
-                    <p className="text-lg font-medium text-slate-700 mb-4">Écrire au tableau :</p>
-                    <p className="text-2xl font-serif text-slate-900 font-bold bg-white p-4 border border-slate-200 rounded-lg shadow-sm">
-                      Le chat dort sur le canapé.
-                    </p>
-                  </div>
-                  <h2 className="text-xl font-bold text-indigo-600 mb-4 flex items-center gap-2">
-                    <span className="bg-indigo-100 text-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm">2</span>
-                    Je retiens
-                  </h2>
-                  <div className="bg-amber-50 p-6 rounded-xl border border-amber-100">
-                    <p className="text-lg font-medium text-slate-800 leading-relaxed">
-                      La phrase déclarative sert à raconter, expliquer ou donner une information.
-                      <br /><br />
-                      Elle commence toujours par une <strong>majuscule</strong> et se termine par un <strong>point</strong> (.).
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 4. PANNEAU DROIT : GESTION DES ÉLÈVES (30%) */}
-        <AnimatePresence initial={false}>
-          {(isSidebarOpen || mobileView === "eleves") && (
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: "auto" }}
-              exit={{ width: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className={`${mobileView === "eleves" ? "flex" : "hidden"} md:flex h-full flex-col shadow-2xl z-10 shrink-0 overflow-hidden md:border-l border-slate-200 w-full md:w-auto`}
-            >
-              <div className="w-full md:w-80 lg:w-96 flex flex-col h-full bg-white">
-                {/* Tabs header */}
-                <div className="flex p-2 gap-1 bg-slate-50 border-b border-slate-200 shrink-0">
-                  <button
-                    onClick={() => setActiveRightTab("appel")}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors ${
-                      activeRightTab === "appel" 
-                        ? "bg-white text-slate-800 shadow-sm border border-slate-200" 
-                        : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                    }`}
-                  >
-                    <Users className="w-4 h-4" />
-                    Appel
-                  </button>
-                  <button
-                    onClick={() => setActiveRightTab("remarques")}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors ${
-                      activeRightTab === "remarques" 
-                        ? "bg-white text-slate-800 shadow-sm border border-slate-200" 
-                        : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                    }`}
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    Remarques
-                  </button>
-                </div>
-
-                {/* Tab Content Area (Scrollable independently) */}
-                <div className="flex-1 overflow-y-auto p-4 bg-slate-50/50 custom-scrollbar">
-                  
-                  <AnimatePresence mode="wait">
-              {/* --- VUE APPEL --- */}
-              {activeRightTab === "appel" && (
-                <motion.div 
-                  key="appel" 
-                  initial={{ opacity: 0, x: -10 }} 
-                  animate={{ opacity: 1, x: 0 }} 
-                  exit={{ opacity: 0, x: -10 }}
-                  className="space-y-3"
+                {/* Haut de la carte : Cliquable pour ouvrir/fermer les remarques */}
+                <div 
+                  onClick={() => setExpandedId(isExpanded ? null : student.id)}
+                  className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
                 >
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-1">Liste des élèves ({students.length})</p>
-                  {students.map((student) => {
-                    const isPresent = student.status === "present"
-                    const isAbsent = student.status === "absent"
-                    return (
-                      <div key={student.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                        isPresent ? 'bg-emerald-50 border-emerald-100' : 
-                        isAbsent ? 'bg-rose-50 border-rose-100' : 
-                        'bg-white border-slate-200 shadow-sm'
-                      }`}>
-                        <span className={`font-bold text-sm ${
-                          isPresent ? 'text-emerald-900' :
-                          isAbsent ? 'text-rose-900' :
-                          'text-slate-700'
-                        }`}>
-                          {student.name}
-                        </span>
-                        <div className="flex gap-1.5">
-                          <button 
-                            onClick={() => updateStatus(student.id, "present")}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors ${
-                              isPresent 
-                                ? 'bg-emerald-500 text-white shadow-sm' 
-                                : 'bg-slate-100 text-slate-500 hover:bg-emerald-100 hover:text-emerald-700'
-                            }`}
-                          >
-                            <CheckCircle className={`w-3.5 h-3.5 ${isPresent ? 'text-white' : 'text-slate-400'}`} />
-                            Présent
-                          </button>
-                          <button 
-                            onClick={() => updateStatus(student.id, "absent")}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors ${
-                              isAbsent 
-                                ? 'bg-rose-500 text-white shadow-sm' 
-                                : 'bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-700'
-                            }`}
-                          >
-                            <XCircle className={`w-3.5 h-3.5 ${isAbsent ? 'text-white' : 'text-slate-400'}`} />
-                            Absent
-                          </button>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black ${student.avatar}`}>
+                      {student.name.charAt(0)}
+                    </div>
+                    <span className="font-bold text-slate-800 text-lg">{student.name}</span>
+                  </div>
+                  <div className="text-slate-400">
+                    {isExpanded ? <ChevronUp /> : <ChevronDown />}
+                  </div>
+                </div>
+
+                {/* Ligne d'actions rapides : Toujours visible (Présences) */}
+                <div className="px-4 pb-4">
+                  <div className="flex bg-slate-100 p-1 rounded-xl">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); toggleAttendance(student.id, "present") }}
+                      className={`flex-1 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all ${isPresent ? "bg-emerald-500 text-white shadow-md" : "text-slate-500 hover:bg-slate-200"}`}
+                    >
+                      <CheckCircle2 className="w-4 h-4" /> Présent
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); toggleAttendance(student.id, "absent") }}
+                      className={`flex-1 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all ${isAbsent ? "bg-rose-500 text-white shadow-md" : "text-slate-500 hover:bg-slate-200"}`}
+                    >
+                      <XCircle className="w-4 h-4" /> Absent
+                    </button>
+                  </div>
+                </div>
+
+                {/* Tiroir d'Observations */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div 
+                      initial={{ height: 0, opacity: 0 }} 
+                      animate={{ height: "auto", opacity: 1 }} 
+                      exit={{ height: 0, opacity: 0 }}
+                      className="bg-indigo-50/50 border-t border-indigo-100"
+                    >
+                      <div className="p-4 space-y-4">
+                        {/* Tags rapides */}
+                        <div>
+                          <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2 block">Tags rapides</span>
+                          <div className="flex flex-wrap gap-2">
+                            <button onClick={() => toggleRemark(student.id, "sans_livre")} className={`border text-xs px-3 py-1.5 rounded-lg font-bold transition-colors ${studentRemarks.includes("sans_livre") ? "bg-amber-100 border-amber-300 text-amber-800" : "bg-white border-slate-200 text-slate-600 hover:border-amber-300 hover:bg-amber-50"}`}>📚 Sans livre</button>
+                            <button onClick={() => toggleRemark(student.id, "pas_exercice")} className={`border text-xs px-3 py-1.5 rounded-lg font-bold transition-colors ${studentRemarks.includes("pas_exercice") ? "bg-blue-100 border-blue-300 text-blue-800" : "bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50"}`}>✍️ Pas d&apos;exercice</button>
+                            <button onClick={() => toggleRemark(student.id, "bavardage")} className={`border text-xs px-3 py-1.5 rounded-lg font-bold transition-colors ${studentRemarks.includes("bavardage") ? "bg-purple-100 border-purple-300 text-purple-800" : "bg-white border-slate-200 text-slate-600 hover:border-purple-300 hover:bg-purple-50"}`}>🗣️ Bavardage</button>
+                            <button onClick={() => toggleRemark(student.id, "participation")} className={`border text-xs px-3 py-1.5 rounded-lg font-bold transition-colors ${studentRemarks.includes("participation") ? "bg-emerald-100 border-emerald-300 text-emerald-800" : "bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50"}`}>⭐ Excellente participation</button>
+                          </div>
+                        </div>
+
+                        {/* Remarque personnalisée */}
+                        <div>
+                          <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2 block">Remarque personnalisée</span>
+                          <textarea
+                            value={customRemarks[student.id] || ""}
+                            onChange={(e) => setCustomRemarks({ ...customRemarks, [student.id]: e.target.value })}
+                            placeholder="Tapez ici pour ajouter un commentaire spécifique..."
+                            className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none h-20"
+                          />
                         </div>
                       </div>
-                    )
-                  })}
-                </motion.div>
-              )}
-
-              {/* --- VUE REMARQUES --- */}
-              {activeRightTab === "remarques" && (
-                <motion.div 
-                  key="remarques" 
-                  initial={{ opacity: 0, x: 10 }} 
-                  animate={{ opacity: 1, x: 0 }} 
-                  exit={{ opacity: 0, x: 10 }}
-                  className="space-y-3"
-                >
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-1">Observations rapides</p>
-                  {students.map((student) => {
-                    const isExpanded = expandedStudentId === student.id
-                    return (
-                      <div key={student.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm transition-all focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-300">
-                        <button 
-                          onClick={() => setExpandedStudentId(isExpanded ? null : student.id)}
-                          className="w-full flex items-center justify-between p-3.5 hover:bg-slate-50 transition-colors"
-                        >
-                          <span className="font-bold text-slate-700">{student.name}</span>
-                          <span className={`text-[10px] sm:text-xs font-bold px-2 py-1 rounded-md max-w-[120px] truncate ${
-                            student.remark ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400'
-                          }`}>
-                            {student.remark ? "📝 Noté" : "Ajouter +"}
-                          </span>
-                        </button>
-                        
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div 
-                              initial={{ height: 0 }} 
-                              animate={{ height: "auto" }} 
-                              exit={{ height: 0 }}
-                              className="overflow-hidden bg-slate-50 border-t border-slate-100"
-                            >
-                              <div className="p-3">
-                                {student.remark && (
-                                  <p className="text-sm text-slate-600 bg-white p-2 rounded border border-slate-200 mb-3 italic">
-                                    {student.remark}
-                                  </p>
-                                )}
-                                <div className="flex flex-wrap gap-2">
-                                  {QUICK_TAGS.map(tag => (
-                                    <button
-                                      key={tag}
-                                      onClick={() => addTag(student.id, tag)}
-                                      className="text-xs font-medium bg-white text-slate-600 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 transition-colors shadow-sm"
-                                    >
-                                      {tag}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    )
-                  })}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-                  </div>
-                </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
-            )}
-          </AnimatePresence>
-      </div>
+            )
+          })}
+        </div>
+      </main>
+
+      {/* MODAL FIN DE SESSION */}
+      <AnimatePresence>
+        {isEnding && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              className="bg-white rounded-[2rem] p-6 md:p-8 shadow-2xl max-w-md w-full border border-slate-100 flex flex-col items-center text-center overflow-hidden relative"
+            >
+              {saveStep === "confirm" && (
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="w-full flex flex-col items-center">
+                  <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-4">
+                    <ShieldAlert className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-800 mb-2">Terminer le cours ?</h3>
+                  <p className="text-slate-500 mb-8 font-medium text-sm md:text-base">Les présences et les remarques seront enregistrées de manière permanente dans le dossier des élèves.</p>
+                  <div className="flex gap-3 w-full">
+                    <button onClick={() => setIsEnding(false)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Annuler</button>
+                    <button onClick={handleEndSession} className="flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600 shadow-lg shadow-rose-500/30 transition-all active:scale-95">Oui, terminer</button>
+                  </div>
+                </motion.div>
+              )}
+
+              {saveStep === "saving" && (
+                <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="py-8 flex flex-col items-center w-full">
+                  <Loader2 className="w-12 h-12 text-indigo-500 animate-spin mb-6" />
+                  <h3 className="text-xl font-black text-slate-800 mb-2">Sauvegarde en cours...</h3>
+                  <p className="text-sm text-slate-500">Synchronisation avec les profils des élèves</p>
+                </motion.div>
+              )}
+
+              {saveStep === "success" && (
+                <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring" }} className="py-4 flex flex-col items-center w-full">
+                  <div className="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mb-6">
+                    <CheckCircle2 className="w-10 h-10" />
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-800 mb-2">Cours terminé !</h3>
+                  <p className="text-slate-500 mb-8 font-medium">Toutes les données ont été sauvegardées avec succès.</p>
+                  {/* Remarque: La redirection est déjà gérée dans handleEndSession, 
+                      mais si le Link est demandé, le voici : */}
+                  <Link href="/" className="w-full py-3 md:py-4 rounded-xl font-black text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-600/30 transition-all block active:scale-95">
+                    Retour au tableau de bord
+                  </Link>
+                </motion.div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
