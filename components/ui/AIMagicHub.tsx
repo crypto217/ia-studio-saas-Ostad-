@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { motion, AnimatePresence } from "motion/react"
+import { motion, AnimatePresence, Variants } from "motion/react"
 import { Sparkles, FileText, MessageSquareHeart, Camera, X } from "lucide-react"
 
 export function AIMagicHub() {
@@ -17,7 +17,7 @@ export function AIMagicHub() {
     }
   }
 
-  const menuVariants = {
+  const menuVariants: Variants = {
     hidden: { opacity: 0, scale: 0.8, y: 20, transformOrigin: "bottom right" },
     visible: { 
       opacity: 1, 
@@ -39,7 +39,7 @@ export function AIMagicHub() {
     }
   }
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, x: 20 },
     visible: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   }
