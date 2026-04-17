@@ -30,6 +30,7 @@ const QUICK_TAGS = [
 export default function LiveSessionPage() {
   const [hasFile, setHasFile] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [mobileView, setMobileView] = useState<"eleves" | "cours">("eleves")
   const [activeRightTab, setActiveRightTab] = useState<"appel" | "remarques">("appel")
   const [students, setStudents] = useState<Student[]>(initialStudents)
   const [expandedStudentId, setExpandedStudentId] = useState<number | null>(null)
@@ -51,7 +52,16 @@ export default function LiveSessionPage() {
     <div className="h-screen w-full bg-slate-50 flex flex-col overflow-hidden">
       {/* 1. HEADER GLASSMORPHISM */}
       <header className="relative z-50 flex items-center justify-between px-4 md:px-8 py-3 md:py-4 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm shrink-0">
-        <div className="flex items-center gap-4">
+        
+        {/* Chrono Centré */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block">
+          <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 border border-slate-200 rounded-full shadow-inner">
+            <Clock className="w-4 h-4 text-slate-400" />
+            <span className="font-mono text-sm md:text-base font-bold text-slate-700 tracking-wider">09:41</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 relative z-10">
           {/* Badge LIVE moderne */}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 border border-rose-100 rounded-full shadow-sm">
             <span className="relative flex h-2 w-2">
@@ -68,32 +78,49 @@ export default function LiveSessionPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="hidden md:flex items-center gap-2 font-medium text-sm text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-full shadow-sm">
-            <Clock className="w-4 h-4 text-slate-400" />
-            <span>09:41</span>
-          </div>
+        <div className="flex items-center gap-3 relative z-10">
+          {/* Bouton Tiroir */}
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 hover:text-indigo-600 text-slate-700 px-4 py-2 rounded-xl transition-all shadow-sm font-bold"
+            className="hidden md:flex items-center gap-2 bg-white border border-slate-200 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 px-4 py-2 rounded-xl transition-all duration-300 font-bold text-sm shadow-sm"
           >
             <Users className="w-4 h-4" />
-            <span className="hidden sm:inline">{isSidebarOpen ? "Cacher les élèves" : "Voir les élèves"}</span>
+            <span className="hidden lg:inline">{isSidebarOpen ? "Cacher les élèves" : "Voir les élèves"}</span>
           </button>
+
+          {/* Bouton Terminer */}
           <Link href="/">
-            <button className="bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 hover:border-rose-300 px-4 py-2 rounded-xl font-bold transition-all shadow-sm flex items-center gap-2">
-              <span className="hidden sm:inline">Terminer le cours</span>
-              <X className="w-4 h-4 sm:hidden" />
+            <button className="flex items-center gap-2 bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600 text-white px-4 py-2 rounded-xl transition-all shadow-md shadow-rose-500/20 font-bold text-sm">
+              <span className="hidden sm:inline">Terminer</span>
+              <XCircle className="w-4 h-4 sm:hidden" />
             </button>
           </Link>
         </div>
       </header>
 
+      {/* SÉLECTEUR MOBILE */}
+      <div className="px-4 mt-2 md:hidden shrink-0">
+        <div className="flex bg-slate-100/80 backdrop-blur-md p-1 rounded-xl shadow-inner border border-slate-200">
+          <button 
+            onClick={() => setMobileView("cours")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${mobileView === "cours" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:bg-slate-200/50"}`}
+          >
+            <FileText className="w-4 h-4" /> La Fiche
+          </button>
+          <button 
+            onClick={() => setMobileView("eleves")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${mobileView === "eleves" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:bg-slate-200/50"}`}
+          >
+            <Users className="w-4 h-4" /> La Classe
+          </button>
+        </div>
+      </div>
+
       {/* 2. LE SPLIT-SCREEN */}
       <div className="flex-1 flex overflow-hidden">
         
         {/* 3. PANNEAU GAUCHE : LE COURS (70%) */}
-        <div className="flex-1 flex flex-col p-4 md:p-6 bg-slate-100/50 overflow-hidden relative">
+        <div className={`${mobileView === "cours" ? "flex" : "hidden"} md:flex flex-1 flex-col p-4 md:p-6 bg-slate-100/50 overflow-hidden relative`}>
           {!hasFile ? (
             <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-2xl bg-white/50 m-4">
               <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
@@ -160,15 +187,15 @@ export default function LiveSessionPage() {
 
         {/* 4. PANNEAU DROIT : GESTION DES ÉLÈVES (30%) */}
         <AnimatePresence initial={false}>
-          {isSidebarOpen && (
+          {(isSidebarOpen || mobileView === "eleves") && (
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: "auto" }}
               exit={{ width: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="h-full flex flex-col shadow-2xl z-10 shrink-0 overflow-hidden border-l border-slate-200"
+              className={`${mobileView === "eleves" ? "flex" : "hidden"} md:flex h-full flex-col shadow-2xl z-10 shrink-0 overflow-hidden md:border-l border-slate-200 w-full md:w-auto`}
             >
-              <div className="w-80 md:w-96 flex flex-col h-full bg-white">
+              <div className="w-full md:w-80 lg:w-96 flex flex-col h-full bg-white">
                 {/* Tabs header */}
                 <div className="flex p-2 gap-1 bg-slate-50 border-b border-slate-200 shrink-0">
                   <button
