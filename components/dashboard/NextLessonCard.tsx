@@ -7,7 +7,7 @@ import { motion } from "motion/react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { useAuth } from "@/components/AuthProvider"
 import { db } from "@/firebase"
-import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from "firebase/firestore"
+import { collection, query, where, getDocs, orderBy, doc, getDoc } from "firebase/firestore"
 import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
 
 type Lesson = {
@@ -28,23 +28,53 @@ export function NextLessonCard() {
 
   useEffect(() => {
     const fetchNextLesson = async () => {
-      if (!isAuthReady || !user) return
+      if (!isAuthReady || !user?.uid) return
 
       try {
-        // In a real app, we would filter by current day and time.
-        // For now, just get the first lesson sorted by day and start time.
+        // En vrai: filtrer par jour (actuel ou après) et trier par début
         const q = query(
           collection(db, "lessons"),
           where("teacherId", "==", user.uid),
-          orderBy("day"),
-          orderBy("start"),
-          limit(1)
+          orderBy("day", "asc"),
+          orderBy("start", "asc")
         )
         const snapshot = await getDocs(q)
         
         if (!snapshot.empty) {
-          const lessonDoc = snapshot.docs[0]
-          const lessonData = lessonDoc.data()
+          const now = new Date()
+          const currentDay = now.getDay() // 0 = Dimanche, 1 = Lundi, etc.
+          const currentHour = now.getHours() + now.getMinutes() / 60
+
+          let upcomingLessonDoc = null
+
+          // Chercher le prochain cours d'aujourd'hui
+          for (const doc of snapshot.docs) {
+            const data = doc.data()
+            if (data.day === currentDay && data.start + data.duration > currentHour) {
+              upcomingLessonDoc = doc
+              break
+            }
+          }
+
+          // Si plus de cours aujourd'hui, prendre le premier cours du jour suivant disponible
+          if (!upcomingLessonDoc) {
+             for (const doc of snapshot.docs) {
+               const data = doc.data()
+               if (data.day !== currentDay) { // simplifie on prend les jours qui suivent vu qu'on a trié
+                 upcomingLessonDoc = doc
+                 break
+               }
+             }
+          }
+
+          // Si c'est très vide, on retourne à rien
+          if (!upcomingLessonDoc) {
+             setNextLesson(null)
+             setIsLoading(false)
+             return
+          }
+          
+          const lessonData = upcomingLessonDoc.data()
           
           let className = "Classe"
           let studentCount = 0
@@ -71,7 +101,7 @@ export function NextLessonCard() {
           }
 
           setNextLesson({
-            id: lessonDoc.id,
+            id: upcomingLessonDoc.id,
             title: lessonData.title,
             taskType: lessonData.taskType,
             classId: lessonData.classId,
@@ -105,10 +135,19 @@ export function NextLessonCard() {
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-white/50 mb-4">
           <BookOpen className="h-8 w-8" />
         </div>
-        <h2 className="text-2xl font-black tracking-tight mb-2">Aucun cours prévu</h2>
+        <h2 className="text-2xl font-black tracking-tight mb-2">Plus de cours aujourd&apos;hui !</h2>
         <p className="text-slate-400 font-medium max-w-[300px]">
-          Ajoutez vos cours dans le planning pour voir votre prochain cours ici.
+          Ajoutez vos cours dans le planning pour voir votre prochain créneau ici.
         </p>
+        <Link href="/schedule" className="mt-6 outline-none block">
+           <motion.div
+             whileHover={{ scale: 1.05 }}
+             whileTap={{ scale: 0.95 }}
+             className="w-full flex items-center justify-center bg-white text-slate-800 border-b-4 border-slate-300 hover:border-slate-400 hover:bg-slate-50 rounded-xl px-6 py-2 shadow-xl transition-colors cursor-pointer font-bold text-sm"
+           >
+             Voir mon Planning
+           </motion.div>
+        </Link>
       </Card>
     )
   }
@@ -225,3 +264,4 @@ export function NextLessonCard() {
     </Card>
   )
 }
+

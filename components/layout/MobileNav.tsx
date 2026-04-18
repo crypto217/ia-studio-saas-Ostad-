@@ -11,13 +11,22 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { LucideIcon } from "lucide-react"
 
-const leftItems = [
+interface NavItem {
+  name: string
+  href: string
+  icon: LucideIcon
+  color: string
+  bgActive: string
+}
+
+const leftItems: NavItem[] = [
   { name: "Accueil", href: "/", icon: LayoutDashboard, color: "text-sky-500", bgActive: "bg-sky-100" },
   { name: "Planning", href: "/planning", icon: Calendar, color: "text-pink-500", bgActive: "bg-pink-100" },
 ]
 
-const rightItems = [
+const rightItems: NavItem[] = [
   { name: "Classes", href: "/classes", icon: Users, color: "text-emerald-500", bgActive: "bg-emerald-100" },
   { name: "Présences", href: "/attendance", icon: CheckCircle2, color: "text-teal-500", bgActive: "bg-teal-100" },
 ]
@@ -25,7 +34,7 @@ const rightItems = [
 export function MobileNav() {
   const pathname = usePathname()
 
-  const renderItem = (item: any) => {
+  const renderItem = (item: NavItem) => {
     const isActive = pathname === item.href
     return (
       <Link

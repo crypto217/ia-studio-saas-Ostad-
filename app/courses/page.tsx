@@ -37,6 +37,7 @@ interface GeneratedDoc {
   className: string
   term: string
   content: string
+  imageUrl?: string | null
   createdAt: any
   color: string
   iconColor: string
@@ -349,14 +350,25 @@ export default function CoursesLibraryPage() {
                   whileHover={{ y: -5 }}
                   className="bg-white rounded-[2rem] border-2 border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group flex flex-col"
                 >
-                  {/* Card Header (Colored) */}
-                  <div className={`h-24 bg-gradient-to-r ${doc.color || 'from-slate-400 to-slate-500'} p-6 relative overflow-hidden shrink-0`}>
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+                  {/* Card Header (Colored or Image) */}
+                  <div className={`h-32 ${!doc.imageUrl ? 'bg-gradient-to-r ' + (doc.color || 'from-slate-400 to-slate-500') : ''} p-6 relative overflow-hidden shrink-0`}>
+                    {!doc.imageUrl && (
+                      <>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+                      </>
+                    )}
+                    {doc.imageUrl && (
+                      <>
+                        <img src={doc.imageUrl} alt={doc.title} className="absolute inset-0 w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent mix-blend-multiply" />
+                      </>
+                    )}
                     <div className="relative z-10 flex justify-between items-start">
-                      <div className="bg-white/20 backdrop-blur-md p-3 rounded-2xl text-white shadow-inner">
+                      <div className="bg-white/20 backdrop-blur-md p-3 rounded-2xl text-white shadow-inner border border-white/20">
                         {getIcon(doc.type)}
                       </div>
-                      <div className="bg-white/90 backdrop-blur-sm text-slate-800 text-xs font-black px-3 py-1.5 rounded-xl shadow-sm">
+                      <div className="bg-white/90 backdrop-blur-sm text-slate-800 text-xs font-black px-3 py-1.5 rounded-xl shadow-sm border border-white/50">
                         {doc.className}
                       </div>
                     </div>

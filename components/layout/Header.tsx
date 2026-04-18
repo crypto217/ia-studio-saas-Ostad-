@@ -42,7 +42,7 @@ export function Header() {
 
   return (
     <>
-      <header className="relative z-50 flex h-20 items-center justify-between border-b border-indigo-50 bg-white/50 px-4 md:px-8 backdrop-blur-xl">
+      <header className="fixed top-0 right-0 left-0 md:left-64 z-30 flex h-20 items-center justify-between border-b border-indigo-50 bg-white/80 px-4 md:px-8 backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />

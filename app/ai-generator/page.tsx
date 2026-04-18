@@ -21,6 +21,7 @@ export default function AIGeneratorPage() {
   const [selectedType, setSelectedType] = useState('lesson')
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedContent, setGeneratedContent] = useState<string | null>(null)
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null)
   
   // Nouveaux états UX (Étape 1 & 2)
   const [step, setStep] = useState<1 | 2>(1)
@@ -97,6 +98,7 @@ export default function AIGeneratorPage() {
         className: saveClass,
         term: saveTerm,
         content: generatedContent,
+        imageUrl: generatedImage,
         createdAt: serverTimestamp(),
         color,
         iconColor,
@@ -121,6 +123,7 @@ export default function AIGeneratorPage() {
     setError("")
     setIsGenerating(true)
     setGeneratedContent(null)
+    setGeneratedImage(null)
 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
@@ -230,19 +233,50 @@ Voici les paramètres du document à générer :
 ${paramsText}
 `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite-preview",
-        contents: basePrompt,
-        config: {
-          maxOutputTokens: 8192,
-        }
-      });
+      const imagePromptText = `Course Theme: ${topic || selectedType}. Class level: ${classLevel}.
+REQUIREMENTS:
+- Style visuel : Playful 3D UI, bright and cheerful, highly inspired by Duolingo aesthetic, NOT too childish.
+- Personnage : If a teacher is present, they MUST wear a white professional lab coat (like a doctor's coat), NEVER a cooking apron.
+- Texte : DO NOT generate any text, words, or letters inside the image. Leave empty space.`;
+
+      const [textResponse, imageResponse] = await Promise.all([
+        ai.models.generateContent({
+          model: "gemini-3.1-flash-lite-preview",
+          contents: basePrompt,
+          config: {
+            maxOutputTokens: 8192,
+          }
+        }),
+        ai.models.generateContent({
+          model: "gemini-2.5-flash-image",
+          contents: imagePromptText,
+          config: {
+            imageConfig: {
+              aspectRatio: "16:9"
+            }
+          }
+        }).catch(err => {
+          console.error("Erreur génération image:", err);
+          return null;
+        })
+      ]);
 
       // Nettoyer la réponse au cas où l'IA ajouterait des balises markdown ```html
-      let htmlContent = response.text || "";
+      let htmlContent = textResponse.text || "";
       htmlContent = htmlContent.replace(/```html/gi, "").replace(/```/gi, "").trim();
 
       setGeneratedContent(htmlContent);
+
+      if (imageResponse && imageResponse.candidates && imageResponse.candidates.length > 0) {
+        for (const part of imageResponse.candidates[0].content.parts) {
+          if (part.inlineData) {
+             const base64 = part.inlineData.data;
+             setGeneratedImage(`data:image/jpeg;base64,${base64}`);
+             break;
+          }
+        }
+      }
+
     } catch (err) {
       console.error(err);
       setError("Une erreur s'est produite lors de la génération du contenu. Veuillez réessayer.");
@@ -609,7 +643,27 @@ ${paramsText}
           </div>
 
           {/* Content */}
-          <div className="relative w-full">
+          <div className="relative w-full flex flex-col gap-6">
+            
+            {/* Affiche de cours générée par l'IA */}
+            {generatedImage && !isEcoMode && (
+              <div className="w-full h-48 sm:h-64 md:h-80 relative rounded-2xl overflow-hidden shadow-md border border-slate-200 print:hidden shrink-0 mt-2">
+                <img 
+                  src={generatedImage} 
+                  alt="Affiche du cours" 
+                  className="object-cover w-full h-full rounded-2xl"
+                />
+                <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent rounded-b-2xl">
+                  <h2 className="text-2xl sm:text-3xl font-black text-white drop-shadow-md tracking-tight">
+                    {topic || magicTools.find(t => t.id === selectedType)?.name.replace(/📝 |📖 |✍️ |📋 /g, '')}
+                  </h2>
+                  <p className="text-white/90 font-medium mt-1 drop-shadow-sm">
+                    {classLevel} • {term}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {isModifying && (
               <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl">
                 <Loader2 className="w-12 h-12 text-violet-600 animate-spin mb-4" />

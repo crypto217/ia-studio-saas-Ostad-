@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence, Variants } from "motion/react"
 import { Users, Calendar, CheckCircle2, XCircle, Clock, Save, AlertCircle, Sparkles, UserCheck } from "lucide-react"
 import { db } from "@/firebase"
-import { collection, query, where, getDocs, setDoc, doc, serverTimestamp } from "firebase/firestore"
+import { collection, query, where, getDocs, setDoc, doc } from "firebase/firestore"
 import { useAuth } from "@/components/AuthProvider"
 import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
 
@@ -19,17 +19,6 @@ interface Student {
 }
 
 type AttendanceStatus = 'present' | 'absent' | 'late'
-
-const MOCK_STUDENTS: Student[] = [
-  { id: 'mock1', name: 'Amira Benali' },
-  { id: 'mock2', name: 'Yanis Mansouri' },
-  { id: 'mock3', name: 'Lina Kaddour' },
-  { id: 'mock4', name: 'Sami Touati' },
-  { id: 'mock5', name: 'Rania Lounis' },
-  { id: 'mock6', name: 'Karim Djebbar' },
-  { id: 'mock7', name: 'Aya Mahdi' },
-  { id: 'mock8', name: 'Wassim Aït' },
-]
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -59,7 +48,7 @@ export default function AttendancePage() {
   // Fetch classes
   useEffect(() => {
     const fetchClasses = async () => {
-      if (!isAuthReady || !user) return
+      if (!isAuthReady || !user?.uid) return
       try {
         const q = query(collection(db, "classes"), where("teacherId", "==", user.uid))
         const snapshot = await getDocs(q)
@@ -80,7 +69,7 @@ export default function AttendancePage() {
   // Fetch students and existing attendance when class or date changes
   useEffect(() => {
     const fetchStudentsAndAttendance = async () => {
-      if (!selectedClass || !user) return
+      if (!selectedClass || !user?.uid) return
       setIsLoading(true)
       setSaveMessage({ text: "", type: "" })
       
@@ -90,14 +79,10 @@ export default function AttendancePage() {
         const studentSnap = await getDocs(sq)
         let studentList = studentSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name }))
         
-        if (studentList.length === 0) {
-          // Use mock data for demonstration
-          studentList = MOCK_STUDENTS;
-        }
         setStudents(studentList)
 
         // 2. Fetch existing attendance for this date
-        const attendanceId = `${selectedClass}_${date}`
+        // On utilise la collection "attendances" définie dans firestore.rules
         const aq = query(collection(db, "attendances"), where("teacherId", "==", user.uid), where("classId", "==", selectedClass), where("date", "==", date))
         const attendanceSnap = await getDocs(aq)
         
@@ -127,13 +112,11 @@ export default function AttendancePage() {
   }
 
   const handleSave = async () => {
-    if (!user || !selectedClass) return
+    if (!user?.uid || !selectedClass) return
     setIsSaving(true)
     setSaveMessage({ text: "", type: "" })
 
     try {
-      // We use a composite ID to easily find/update it, or we can just query and update.
-      // Let's find if it exists first.
       const aq = query(collection(db, "attendances"), where("teacherId", "==", user.uid), where("classId", "==", selectedClass), where("date", "==", date))
       const attendanceSnap = await getDocs(aq)
       
@@ -172,7 +155,7 @@ export default function AttendancePage() {
     <div className="min-h-screen pb-24 bg-slate-50/50">
       {/* HERO SECTION */}
       <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-8 mb-8">
-        <div className="relative overflow-hidden rounded-[2rem] bg-emerald-500 px-6 py-8 md:px-10 md:py-12 text-white shadow-sm border border-emerald-600 flex items-center justify-between">
+        <div className="relative overflow-hidden rounded-[2rem] bg-emerald-500 px-6 py-8 md:px-10 md:py-12 text-white shadow-sm border-b-8 border-emerald-600 flex items-center justify-between">
           {/* Background decorative blobs */}
           <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
           <div className="absolute right-0 bottom-0 h-64 w-64 rounded-full bg-emerald-700/30 blur-3xl" />
@@ -199,7 +182,7 @@ export default function AttendancePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-emerald-100 text-base md:text-lg font-semibold max-w-2xl"
+              className="text-emerald-100 text-base md:text-lg font-bold max-w-2xl"
             >
               Gérez l&apos;assiduité de vos élèves rapidement et efficacement.
             </motion.p>
@@ -209,71 +192,78 @@ export default function AttendancePage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-8">
         {/* CONTROLS */}
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200 mb-8 flex flex-col sm:flex-row gap-6 items-end">
+        <div className="bg-white p-6 rounded-[2rem] shadow-sm border-2 border-slate-200 border-b-4 mb-8 flex flex-col sm:flex-row gap-6 items-end">
           <div className="flex-1 w-full">
-            <label className="block text-sm font-bold text-slate-700 mb-2">Classe</label>
+            <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wide">Classe</label>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-medium text-slate-700 focus:outline-none focus:border-emerald-300 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+              className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-bold text-slate-700 focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer"
             >
               {classes.length === 0 && <option value="">Aucune classe</option>}
               {classes.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+               <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </div>
           <div className="flex-1 w-full">
-            <label className="block text-sm font-bold text-slate-700 mb-2">Date</label>
+            <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wide">Date</label>
             <div className="relative">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl pl-10 pr-4 py-3 font-medium text-slate-700 focus:outline-none focus:border-emerald-300 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl pl-10 pr-4 py-3 font-bold text-slate-700 focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer"
               />
             </div>
           </div>
         </div>
 
         {/* ATTENDANCE LIST */}
-        <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
+        <div className="bg-white rounded-[2rem] shadow-sm border-2 border-slate-200 border-b-8 overflow-hidden">
+          <div className="p-6 border-b-2 border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
             <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-              <Users className="w-5 h-5 text-slate-400" />
+              <Users className="w-6 h-6 text-emerald-500" />
               Liste des élèves
             </h2>
-            <div className="flex flex-wrap gap-3 text-sm font-bold">
-              <div className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl border-b-2 border-emerald-200">
-                <CheckCircle2 className="w-4 h-4" />
+            <div className="flex flex-wrap gap-3 text-sm font-black uppercase tracking-wide">
+              <div className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-2xl border-b-4 border-emerald-200">
+                <CheckCircle2 className="w-5 h-5" />
                 <span>{stats.present} Présents</span>
               </div>
-              <div className="flex items-center gap-2 bg-rose-100 text-rose-700 px-4 py-2 rounded-xl border-b-2 border-rose-200">
-                <XCircle className="w-4 h-4" />
+              <div className="flex items-center gap-2 bg-rose-100 text-rose-700 px-4 py-2 rounded-2xl border-b-4 border-rose-200">
+                <XCircle className="w-5 h-5" />
                 <span>{stats.absent} Absents</span>
               </div>
-              <div className="flex items-center gap-2 bg-amber-100 text-amber-700 px-4 py-2 rounded-xl border-b-2 border-amber-200">
-                <Clock className="w-4 h-4" />
+              <div className="flex items-center gap-2 bg-amber-100 text-amber-700 px-4 py-2 rounded-2xl border-b-4 border-amber-200">
+                <Clock className="w-5 h-5" />
                 <span>{stats.late} Retards</span>
               </div>
             </div>
           </div>
 
           {isLoading ? (
-            <div className="p-12 flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+            <div className="p-16 flex flex-col items-center justify-center gap-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-emerald-500"></div>
+              <p className="text-slate-400 font-bold">Chargement des élèves...</p>
             </div>
           ) : students.length === 0 ? (
-            <div className="p-12 text-center text-slate-500 font-medium">
-              Aucun élève trouvé pour cette classe.
+            <div className="p-16 text-center flex flex-col items-center">
+              <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-4 rotate-12">
+                <Users className="w-10 h-10 text-slate-300" />
+              </div>
+              <h3 className="text-xl font-black text-slate-700 mb-2">Classe vide !</h3>
+              <p className="text-slate-500 font-medium max-w-[300px]">
+                Vous n&apos;avez ajouté aucun élève dans cette classe. Allez dans la section Étudiants pour commencer.
+              </p>
             </div>
           ) : (
             <motion.div 
               variants={containerVariants}
               initial="hidden"
               animate="show"
-              className="divide-y divide-slate-100"
+              className="p-4 sm:p-6 grid gap-4"
             >
               {students.map(student => {
                 const status = attendance[student.id];
@@ -285,49 +275,55 @@ export default function AttendancePage() {
                   <motion.div 
                     key={student.id} 
                     variants={itemVariants}
-                    className="p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors group"
+                    className="p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border-2 border-slate-200 border-b-4 rounded-[1.5rem] hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors group"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center font-black text-lg border-b-4 border-slate-200 group-hover:scale-110 transition-transform">
+                      {/* Avatar */}
+                      <div className="w-14 h-14 rounded-[1rem] bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-xl border-b-4 border-indigo-200 group-hover:scale-110 transition-transform">
                         {student.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                       </div>
-                      <span className="font-bold text-slate-700 text-lg">{student.name}</span>
+                      <span className="font-black text-slate-700 text-xl">{student.name}</span>
                     </div>
                     
-                    <div className="flex bg-slate-100/50 p-1.5 rounded-2xl gap-1.5 self-start sm:self-auto border border-slate-200/50">
-                      <button
+                    <div className="flex gap-2 self-start sm:self-auto">
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => handleStatusChange(student.id, 'present')}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${
+                        className={`flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-black text-sm transition-all duration-200 ${
                           isPresent 
-                            ? 'bg-emerald-500 text-white shadow-md border-b-4 border-emerald-600 translate-y-0' 
-                            : 'bg-white text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 border-b-4 border-transparent hover:border-emerald-200 translate-y-0.5'
+                            ? 'bg-emerald-500 text-white shadow-lg border-b-4 border-emerald-600 translate-y-0' 
+                            : 'bg-slate-100 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 border-b-4 border-slate-200 hover:border-emerald-200 translate-y-0.5'
                         }`}
                       >
-                        <CheckCircle2 className={`w-5 h-5 ${isPresent ? 'text-white' : ''}`} /> 
-                        <span className="hidden sm:inline">Présent</span>
-                      </button>
-                      <button
+                        <CheckCircle2 className={`w-6 h-6 ${isPresent ? 'text-white' : ''}`} /> 
+                        <span className="hidden sm:inline uppercase">Présent</span>
+                      </motion.button>
+
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => handleStatusChange(student.id, 'absent')}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${
+                        className={`flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-black text-sm transition-all duration-200 ${
                           isAbsent 
-                            ? 'bg-rose-500 text-white shadow-md border-b-4 border-rose-600 translate-y-0' 
-                            : 'bg-white text-slate-500 hover:text-rose-600 hover:bg-rose-50 border-b-4 border-transparent hover:border-rose-200 translate-y-0.5'
+                            ? 'bg-rose-500 text-white shadow-lg border-b-4 border-rose-600 translate-y-0' 
+                            : 'bg-slate-100 text-slate-500 hover:text-rose-600 hover:bg-rose-50 border-b-4 border-slate-200 hover:border-rose-200 translate-y-0.5'
                         }`}
                       >
-                        <XCircle className={`w-5 h-5 ${isAbsent ? 'text-white' : ''}`} /> 
-                        <span className="hidden sm:inline">Absent</span>
-                      </button>
-                      <button
+                        <XCircle className={`w-6 h-6 ${isAbsent ? 'text-white' : ''}`} /> 
+                        <span className="hidden sm:inline uppercase">Absent</span>
+                      </motion.button>
+
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => handleStatusChange(student.id, 'late')}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${
+                        className={`flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-black text-sm transition-all duration-200 ${
                           isLate 
-                            ? 'bg-amber-500 text-white shadow-md border-b-4 border-amber-600 translate-y-0' 
-                            : 'bg-white text-slate-500 hover:text-amber-600 hover:bg-amber-50 border-b-4 border-transparent hover:border-amber-200 translate-y-0.5'
+                            ? 'bg-amber-500 text-white shadow-lg border-b-4 border-amber-600 translate-y-0' 
+                            : 'bg-slate-100 text-slate-500 hover:text-amber-600 hover:bg-amber-50 border-b-4 border-slate-200 hover:border-amber-200 translate-y-0.5'
                         }`}
                       >
-                        <Clock className={`w-5 h-5 ${isLate ? 'text-white' : ''}`} /> 
-                        <span className="hidden sm:inline">Retard</span>
-                      </button>
+                        <Clock className={`w-6 h-6 ${isLate ? 'text-white' : ''}`} /> 
+                        <span className="hidden sm:inline uppercase">Retard</span>
+                      </motion.button>
                     </div>
                   </motion.div>
                 )
@@ -336,26 +332,35 @@ export default function AttendancePage() {
           )}
           
           {students.length > 0 && (
-            <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-              <div>
-                {saveMessage.text && (
-                  <span className={`font-bold text-sm flex items-center gap-2 ${saveMessage.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {saveMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                    {saveMessage.text}
-                  </span>
-                )}
+            <div className="p-6 sm:px-8 sm:py-6 bg-slate-50 border-t-2 border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="w-full sm:w-auto text-center sm:text-left">
+                <AnimatePresence mode="wait">
+                  {saveMessage.text && (
+                    <motion.span 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className={`font-black uppercase tracking-wide text-sm flex items-center justify-center sm:justify-start gap-2 ${saveMessage.type === 'success' ? 'text-emerald-500' : 'text-rose-500'}`}
+                    >
+                      {saveMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                      {saveMessage.text}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </div>
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-emerald-600/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+                className="w-full sm:w-auto flex flex-row items-center justify-center gap-3 bg-indigo-500 hover:bg-indigo-600 border-b-4 border-indigo-700 text-white px-8 py-4 rounded-2xl font-black text-lg uppercase tracking-wide shadow-xl shadow-indigo-500/20 active:border-b-0 active:translate-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSaving ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
                 ) : (
-                  <><Save className="w-5 h-5" /> Enregistrer</>
+                  <><Save className="w-6 h-6" /> Valider l&apos;appel</>
                 )}
-              </button>
+              </motion.button>
             </div>
           )}
         </div>

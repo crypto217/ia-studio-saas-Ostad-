@@ -1,11 +1,51 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { motion } from "motion/react"
 import { Sparkles, BookOpen, Star, Pencil, Heart } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/components/AuthProvider"
+import { db } from "@/firebase"
+import { collection, query, where, onSnapshot } from "firebase/firestore"
 
 export function WelcomeBanner() {
+  const { user, isAuthReady } = useAuth()
+  const [tasksCount, setTasksCount] = useState(0)
+  const [classesCount, setClassesCount] = useState(0)
+
+  useEffect(() => {
+    if (!isAuthReady || !user?.uid) return
+
+    const tasksQuery = query(
+      collection(db, "tasks"), 
+      where("teacherId", "==", user.uid)
+    )
+    
+    const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
+      // Extraction explicite du tableau de données comme demandé
+      const tasksData = snapshot.docs.map(doc => doc.data())
+      const pendingTasks = tasksData.filter(task => task.completed === false)
+      setTasksCount(pendingTasks.length)
+    })
+
+    const classesQuery = query(
+      collection(db, "classes"), 
+      where("teacherId", "==", user.uid)
+    )
+    
+    const unsubscribeClasses = onSnapshot(classesQuery, (snapshot) => {
+      // Utilisation du tableau récupéré pour la propriété .length
+      const classesData = snapshot.docs.map(doc => doc.data())
+      setClassesCount(classesData.length)
+    })
+
+    return () => {
+      unsubscribeTasks()
+      unsubscribeClasses()
+    }
+  }, [user, isAuthReady])
+
   return (
     <div className="relative overflow-hidden rounded-[2rem] bg-indigo-500 px-5 py-6 md:px-8 md:py-10 text-white shadow-sm border border-indigo-600 flex items-center justify-between">
       {/* Background decorative blobs */}
@@ -30,7 +70,7 @@ export function WelcomeBanner() {
           className="text-indigo-100 font-semibold mb-5 md:mb-8 text-sm sm:text-base md:text-lg leading-relaxed cursor-default"
         >
           Vous avez <span className="relative text-amber-950 font-black bg-amber-400 px-2 py-0.5 md:px-3 md:py-1 rounded-xl shadow-sm inline-block -rotate-1 hover:rotate-0 transition-transform">
-            <span className="relative z-10">3 tâches</span>
+            <span className="relative z-10">{tasksCount} tâche{tasksCount > 1 ? 's' : ''}</span>
             <motion.svg 
               className="absolute -bottom-2 -left-1 w-[110%] h-4 text-red-500 z-20 overflow-visible" 
               viewBox="0 0 100 20" 
@@ -49,7 +89,7 @@ export function WelcomeBanner() {
               />
             </motion.svg>
           </span> et <span className="relative text-emerald-950 font-black bg-emerald-400 px-2 py-0.5 md:px-3 md:py-1 rounded-xl shadow-sm inline-block rotate-1 hover:rotate-0 transition-transform">
-            <span className="relative z-10">2 classes</span>
+            <span className="relative z-10">{classesCount} classe{classesCount > 1 ? 's' : ''}</span>
             <motion.svg 
               className="absolute -bottom-2 -left-1 w-[110%] h-4 text-red-500 z-20 overflow-visible rotate-2" 
               viewBox="0 0 100 20" 

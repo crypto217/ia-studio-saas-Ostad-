@@ -1,12 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight, Plus, BookOpen, Pencil, Star, Calendar as CalendarIcon, Clock, Sparkles, X, Coffee, Trash2, CheckCircle2, Circle, AlertCircle, Flag, Check, ListTodo } from "lucide-react"
-import { format, addDays, startOfWeek, subDays } from "date-fns"
+import { ChevronLeft, ChevronRight, Plus, BookOpen, Pencil, Star, Calendar as CalendarIcon, Clock, Sparkles, X, Coffee, Trash2, CheckCircle2, Circle, AlertCircle, Flag, Check, ListTodo, Sun, MapPin } from "lucide-react"
+import { format, addDays, startOfWeek, subDays, isSameDay } from "date-fns"
 import { fr } from "date-fns/locale"
 import { motion, AnimatePresence } from "motion/react"
 
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/components/AuthProvider"
+import { db } from "@/firebase"
+import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore"
+import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
 
 const CLASSES = [
   { id: "c1", name: "5ème AP - A", color: "bg-sky-400", border: "border-sky-500", text: "text-sky-950", lightBg: "bg-sky-100", lightText: "text-sky-700" },
@@ -21,6 +25,25 @@ const TASK_TYPES = {
 }
 
 type TaskPriority = 'high' | 'medium' | 'low';
+
+const THEME_PALETTE = [
+  { color: "bg-sky-400", border: "border-sky-500" },
+  { color: "bg-rose-400", border: "border-rose-500" },
+  { color: "bg-emerald-400", border: "border-emerald-500" },
+  { color: "bg-amber-400", border: "border-amber-500" },
+  { color: "bg-violet-400", border: "border-violet-500" },
+  { color: "bg-fuchsia-400", border: "border-fuchsia-500" },
+  { color: "bg-indigo-400", border: "border-indigo-500" },
+];
+
+function getThemeForString(str: string) {
+  if (!str) return THEME_PALETTE[0];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return THEME_PALETTE[Math.abs(hash) % THEME_PALETTE.length];
+}
 
 interface TodoTask {
   id: number;
@@ -48,17 +71,37 @@ const initialLessons = [
 ]
 
 export default function PlanningPage() {
+  const { user, isAuthReady } = useAuth()
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [lessons, setLessons] = useState(initialLessons)
+  const [lessons, setLessons] = useState<any[]>([])
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [newActivity, setNewActivity] = useState({
-    title: "",
+    title: "Cours",
     classId: CLASSES[0].id,
     taskType: "cours",
+    room: "Salle 01",
     day: 0,
     start: 8,
     duration: 1
   })
+
+  // Data fetching
+  useEffect(() => {
+    if (!isAuthReady || !user?.uid) return
+
+    const lessonsQuery = query(collection(db, "lessons"), where("teacherId", "==", user.uid))
+    const unsubscribeLessons = onSnapshot(lessonsQuery, (snapshot) => {
+      const lessonsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      setLessons(lessonsData)
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "lessons")
+    })
+
+    return () => unsubscribeLessons()
+  }, [user, isAuthReady])
 
   // Task State
   const [tasks, setTasks] = useState<TodoTask[]>(initialTasks)
@@ -83,34 +126,47 @@ export default function PlanningPage() {
   // Sunday to Thursday (5 days)
   const weekDays = Array.from({ length: 5 }, (_, i) => addDays(startDate, i))
 
-  const handleAddActivity = () => {
-    if (!newActivity.title.trim()) return
-    const newLesson = {
-      id: Date.now(),
-      ...newActivity
+  const handleAddActivity = async () => {
+    if (!user?.uid) return
+    const lessonData = {
+      ...newActivity,
+      id: Date.now().toString(),
+      teacherId: user.uid,
+      createdAt: new Date().toISOString()
     }
-    setLessons([...lessons, newLesson])
-    setIsAddModalOpen(false)
-    setNewActivity({
-      title: "",
-      classId: CLASSES[0].id,
-      taskType: "cours",
-      day: 0,
-      start: 8,
-      duration: 1
-    })
+    
+    try {
+      await addDoc(collection(db, "lessons"), lessonData)
+      setIsAddModalOpen(false)
+      setNewActivity({
+        title: "Cours",
+        classId: CLASSES[0].id,
+        taskType: "cours",
+        room: "Salle 01",
+        day: 0,
+        start: 8,
+        duration: 1
+      })
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, "lessons")
+    }
   }
 
-  const handleDeleteActivity = (e: React.MouseEvent, id: number) => {
+  const handleDeleteActivity = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
-    setLessons(lessons.filter(l => l.id !== id))
+    try {
+      await deleteDoc(doc(db, "lessons", id))
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `lessons/${id}`)
+    }
   }
 
   const handleEmptySlotClick = (dayIndex: number, hour: number) => {
     setNewActivity({
-      title: "",
+      title: "Cours",
       classId: CLASSES[0].id,
       taskType: "cours",
+      room: "Salle 01",
       day: dayIndex,
       start: hour,
       duration: 1
@@ -193,28 +249,32 @@ export default function PlanningPage() {
         <div className="flex gap-3 overflow-x-auto pb-4 pt-2 px-1 snap-x no-scrollbar">
           {weekDays.map((day, dayIndex) => {
             const isSelected = selectedMobileDay === dayIndex;
-            const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+            const isToday = isSameDay(day, new Date());
             return (
               <button 
                 key={dayIndex}
                 onClick={() => setSelectedMobileDay(dayIndex)}
                 className={`snap-center shrink-0 flex flex-col items-center justify-center w-[4.5rem] h-20 sm:w-20 sm:h-24 rounded-[1.5rem] sm:rounded-[2rem] border-b-4 transition-all relative ${
                   isSelected 
-                    ? 'bg-gradient-to-b from-orange-400 to-orange-500 border-orange-600 text-white shadow-lg shadow-orange-500/30 scale-105 z-10' 
+                    ? 'bg-indigo-600 border-indigo-800 text-white shadow-lg shadow-indigo-500/30 scale-105 z-10' 
                     : isToday 
-                      ? 'bg-orange-50 border-orange-200 text-orange-600'
+                      ? 'bg-amber-50 border-amber-200 text-amber-900'
                       : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                 }`}
               >
                 {isSelected && isToday && (
-                  <div className="absolute -top-2 bg-white text-orange-500 text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-orange-100 flex items-center gap-0.5">
+                  <div className="absolute -top-2 bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-amber-100 flex items-center gap-0.5">
                     <Sparkles className="w-2 h-2" /> AUJ
                   </div>
                 )}
-                <span className={`text-[10px] sm:text-xs font-black uppercase tracking-widest mb-0.5 sm:mb-1 ${isSelected ? 'text-orange-100' : ''}`}>
+                {!isSelected && isToday && (
+                  <div className="absolute -top-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-white shadow-sm" />
+                )}
+                <span className={`text-[10px] sm:text-xs font-black uppercase tracking-widest mb-0.5 sm:mb-1 ${isSelected ? 'text-indigo-200' : ''}`}>
                   {format(day, "EEE", { locale: fr })}
                 </span>
-                <span className="text-2xl sm:text-3xl font-black">{format(day, "d")}</span>
+                {/* The Today Circle */}
+                <div className={`text-2xl sm:text-3xl font-black flex items-center justify-center ${isToday ? 'w-10 h-10 bg-amber-500 text-white rounded-full shadow-md' : ''}`}>{format(day, "d")}</div>
               </button>
             )
           })}
@@ -235,13 +295,24 @@ export default function PlanningPage() {
               return (
                 <>
                   {todaysLessons.length === 0 && (
-                    <div className="py-8 text-center flex flex-col items-center justify-center">
-                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-3 border-2 border-slate-100">
-                        <Sparkles className="w-8 h-8 text-slate-300" />
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="py-12 text-center flex flex-col items-center justify-center bg-sky-50/50 rounded-3xl border-2 border-dashed border-sky-200 mt-8 relative overflow-hidden"
+                    >
+                      <motion.div 
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                        className="absolute -right-8 -top-8 text-sky-200 opacity-50"
+                      >
+                        <Sun className="w-32 h-32" />
+                      </motion.div>
+                      <div className="w-20 h-20 bg-sky-100 rounded-[2rem] flex items-center justify-center mb-4 border-b-4 border-sky-200 shadow-sm relative z-10 transform -rotate-6">
+                        <Coffee className="w-10 h-10 text-sky-500" />
                       </div>
-                      <p className="text-slate-500 font-bold">Aucune activité prévue ce jour.</p>
-                      <p className="text-slate-400 text-sm mt-1">Profitez de votre temps libre !</p>
-                    </div>
+                      <h3 className="text-xl font-black text-sky-700 mb-1 relative z-10">Journée libre !</h3>
+                      <p className="text-sky-600/70 font-bold relative z-10">Reposez-vous ☕</p>
+                    </motion.div>
                   )}
                   {todaysEvents.map(event => {
                     if (event.isLunch) {
@@ -263,55 +334,50 @@ export default function PlanningPage() {
                     }
 
                     const lesson = event as typeof lessons[0];
-                    const classInfo = CLASSES.find(c => c.id === lesson.classId)!
-                    const taskInfo = TASK_TYPES[lesson.taskType as keyof typeof TASK_TYPES]
+                    const classInfo = CLASSES.find(c => c.id === lesson.classId)
+                    const taskInfo = TASK_TYPES[lesson.taskType as keyof typeof TASK_TYPES] || { label: 'Inconnu', icon: BookOpen }
                     const TaskIcon = taskInfo.icon
+                    const theme = classInfo ? { color: classInfo.color, border: classInfo.border } : getThemeForString(lesson.classId)
                     
                     // Format time
                     const startTime = `${Math.floor(lesson.start)}h${(lesson.start % 1) * 60 === 0 ? '00' : (lesson.start % 1) * 60}`
-                    const endTimeNum = lesson.start + lesson.duration
-                    const endTime = `${Math.floor(endTimeNum)}h${(endTimeNum % 1) * 60 === 0 ? '00' : (endTimeNum % 1) * 60}`
 
                     return (
                       <div key={lesson.id} className="flex gap-3 sm:gap-4 items-start">
                         {/* Time Indicator */}
-                        <div className="w-12 sm:w-16 shrink-0 text-right pt-2">
+                        <div className="w-12 sm:w-16 shrink-0 text-right pt-4">
                           <span className="text-sm sm:text-base font-black text-slate-800 block">{startTime}</span>
-                          <span className="text-[10px] sm:text-xs font-bold text-slate-400 block">{endTime}</span>
                         </div>
                         
                         {/* Timeline Dot */}
-                        <div className="relative mt-3">
-                          <div className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full ${classInfo.color} border-4 border-white shadow-sm relative z-10`} />
+                        <div className="relative mt-5">
+                          <div className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full ${theme.color} border-4 border-white shadow-sm relative z-10`} />
                         </div>
 
                         {/* Card */}
                         <motion.div 
                           whileTap={{ scale: 0.98 }}
-                          className={`flex-1 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-sm border-b-4 ${classInfo.color} ${classInfo.border} text-white`}
+                          className={`flex-1 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-sm border-b-4 ${theme.color} ${theme.border} text-white`}
                         >
-                          <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
-                            <h3 className="font-black text-base sm:text-lg leading-tight drop-shadow-sm">{lesson.title}</h3>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0 pr-2 pb-1">
+                              <h3 className="font-black text-2xl sm:text-3xl leading-none drop-shadow-sm mb-2">
+                                {classInfo?.name || 'Classe inconnue'}
+                              </h3>
+                              <div className="flex items-center gap-1.5 text-white/90 font-black text-sm sm:text-base">
+                                <MapPin className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                                <span>{lesson.room || "Salle --"}</span>
+                              </div>
+                            </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                               <button 
                                 onClick={(e) => handleDeleteActivity(e, lesson.id)}
-                                className="bg-white/20 hover:bg-rose-500/80 p-1.5 sm:p-2 rounded-xl backdrop-blur-sm transition-colors"
+                                className="bg-white/20 hover:bg-rose-500/80 p-2 sm:p-2.5 rounded-xl backdrop-blur-sm transition-colors"
                                 title="Supprimer"
                               >
-                                <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
                               </button>
-                              <div className="bg-white/20 p-1.5 sm:p-2 rounded-xl backdrop-blur-sm">
-                                <TaskIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs sm:text-sm font-bold bg-black/20 backdrop-blur-sm px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl shadow-inner">
-                              {classInfo.name}
-                            </span>
-                            <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider opacity-90 drop-shadow-sm">
-                              {taskInfo.label}
-                            </span>
                           </div>
                         </motion.div>
                       </div>
@@ -349,31 +415,31 @@ export default function PlanningPage() {
           {/* Days Columns */}
           <div className="flex-1 grid grid-cols-5 gap-6">
             {weekDays.map((day, dayIndex) => {
-              const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+              const isToday = isSameDay(day, new Date())
               
               return (
                 <div key={day.toISOString()} className="flex flex-col">
                   {/* Day Header */}
                   <div className={`h-24 flex flex-col items-center justify-center mb-6 rounded-[2rem] border-b-4 transition-all relative ${
                     isToday
-                    ? 'bg-gradient-to-b from-orange-400 to-orange-500 border-orange-600 text-white shadow-xl shadow-orange-500/30 scale-110 origin-bottom z-10'
+                    ? 'bg-amber-100 border-amber-300 text-amber-800 shadow-xl scale-110 origin-bottom z-10'
                     : 'bg-white border-slate-200 text-slate-600 shadow-sm'
                   }`}>
                     {isToday && (
-                      <div className="absolute -top-3 bg-white text-orange-500 text-[10px] font-black px-3 py-1 rounded-full shadow-md border border-orange-100 flex items-center gap-1">
+                      <div className="absolute -top-3 bg-amber-500 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-md border-2 border-white flex items-center gap-1">
                         <Sparkles className="w-3 h-3" /> AUJOURD&apos;HUI
                       </div>
                     )}
-                    <span className={`text-xs font-black uppercase tracking-widest mb-1 ${isToday ? 'text-orange-100' : 'text-slate-400'}`}>
+                    <span className={`text-xs font-black uppercase tracking-widest mb-1 ${isToday ? 'text-amber-500/80' : 'text-slate-400'}`}>
                       {format(day, "EEEE", { locale: fr })}
                     </span>
-                    <span className="text-3xl font-black">{format(day, "d")}</span>
+                    <div className={`text-3xl font-black ${isToday ? 'w-12 h-12 bg-amber-500 text-white rounded-[1.2rem] flex items-center justify-center shadow-lg transform rotate-3' : ''}`}>{format(day, "d")}</div>
                   </div>
 
                   {/* Day Grid */}
                   <div className={`relative flex-1 rounded-[2rem] border-4 overflow-hidden transition-all duration-500 ${
                     isToday 
-                      ? 'bg-orange-50/60 border-orange-400 shadow-[0_0_30px_rgba(249,115,22,0.15)] ring-4 ring-orange-400/20 transform scale-[1.02] z-10' 
+                      ? 'bg-amber-50/40 border-amber-300 shadow-[0_0_30px_rgba(245,158,11,0.15)] ring-4 ring-amber-400/20 transform scale-[1.02] z-10' 
                       : 'bg-white border-slate-200/60 shadow-sm'
                   }`}>
                     {/* Horizontal Grid Lines */}
@@ -381,10 +447,10 @@ export default function PlanningPage() {
                       <div 
                         key={hour} 
                         onClick={() => handleEmptySlotClick(dayIndex, hour)}
-                        className={`h-24 border-t-2 border-dashed ${isToday ? 'border-orange-400/60' : 'border-slate-300'} relative ${i === 0 ? 'border-t-0' : ''} cursor-pointer hover:bg-slate-500/5 transition-colors group`}
+                        className={`h-24 border-t-2 border-dashed ${isToday ? 'border-amber-300/60' : 'border-slate-300'} relative ${i === 0 ? 'border-t-0' : ''} cursor-pointer hover:bg-slate-500/5 transition-colors group`}
                       >
                         {/* Ligne de la demi-heure (30 min) */}
-                        <div className={`absolute top-1/2 left-0 right-0 border-t border-dotted ${isToday ? 'border-orange-300/50' : 'border-slate-200'} pointer-events-none`} />
+                        <div className={`absolute top-1/2 left-0 right-0 border-t border-dotted ${isToday ? 'border-amber-200/50' : 'border-slate-200'} pointer-events-none`} />
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
                           <div className="bg-white/90 text-slate-400 rounded-full p-1.5 shadow-sm border border-slate-200">
                             <Plus className="w-5 h-5" />
@@ -396,10 +462,10 @@ export default function PlanningPage() {
                     {/* Déjeuner Block */}
                     <div 
                       onClick={(e) => e.stopPropagation()}
-                      className={`absolute left-0 right-0 flex items-center justify-center border-y-2 border-dashed z-0 ${isToday ? 'bg-orange-100/50 border-orange-200' : 'bg-slate-100/50 border-slate-200'}`}
+                      className={`absolute left-0 right-0 flex items-center justify-center border-y-2 border-dashed z-0 ${isToday ? 'bg-amber-100/50 border-amber-200' : 'bg-slate-100/50 border-slate-200'}`}
                       style={{ top: `${(12 - 8) * 96}px`, height: `${96}px` }}
                     >
-                      <div className={`flex items-center gap-2 font-bold tracking-widest uppercase text-sm ${isToday ? 'text-orange-400' : 'text-slate-400'}`}>
+                      <div className={`flex items-center gap-2 font-black tracking-widest uppercase text-sm ${isToday ? 'text-amber-500' : 'text-slate-400'}`}>
                         <Coffee className="w-5 h-5" />
                         <span>Déjeuner</span>
                       </div>
@@ -409,46 +475,43 @@ export default function PlanningPage() {
                     {lessons
                       .filter((lesson) => lesson.day === dayIndex)
                       .map((lesson) => {
-                        const classInfo = CLASSES.find(c => c.id === lesson.classId)!
-                        const taskInfo = TASK_TYPES[lesson.taskType as keyof typeof TASK_TYPES]
+                        const classInfo = CLASSES.find(c => c.id === lesson.classId)
+                        const taskInfo = TASK_TYPES[lesson.taskType as keyof typeof TASK_TYPES] || { label: 'Inconnu', icon: BookOpen }
                         const TaskIcon = taskInfo.icon
+                        const theme = classInfo ? { color: classInfo.color, border: classInfo.border } : getThemeForString(lesson.classId)
 
                         return (
                           <motion.div
                             key={lesson.id}
                             onClick={(e) => e.stopPropagation()}
                             whileHover={{ scale: 1.04, zIndex: 50, rotate: 1 }}
-                            className={`group absolute left-2 right-2 rounded-2xl p-3 shadow-md border-b-4 cursor-pointer flex flex-col gap-1 ${classInfo.color} ${classInfo.border} text-white transition-shadow hover:shadow-xl`}
+                            className={`group absolute left-2 right-2 rounded-2xl p-3 shadow-md border-b-4 cursor-pointer flex flex-col gap-1 ${theme.color} ${theme.border} text-white transition-shadow hover:shadow-xl`}
                             style={{
                               top: `${(lesson.start - 8) * 96 + 8}px`, // 96px per hour (h-24), +8px padding
                               height: `${lesson.duration * 96 - 16}px`, // -16px for padding
                             }}
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <span className="font-black text-sm leading-tight line-clamp-2 drop-shadow-sm">{lesson.title}</span>
-                              <div className="flex items-center gap-1 shrink-0">
-                                <button 
-                                  onClick={(e) => handleDeleteActivity(e, lesson.id)}
-                                  className="bg-white/20 hover:bg-rose-500/90 p-1.5 rounded-xl backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"
-                                  title="Supprimer"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                                <div className="bg-white/20 p-1.5 rounded-xl backdrop-blur-sm">
-                                  <TaskIcon className="w-4 h-4" />
-                                </div>
+                          <div className="flex items-start justify-between gap-2 h-full">
+                             <div className="flex-1 min-w-0 pr-1 flex flex-col justify-center">
+                              <span className="font-black text-xl leading-none drop-shadow-sm block mb-1.5">
+                                {classInfo?.name || 'Classe inconnue'}
+                              </span>
+                              <div className="flex items-center gap-1.5 text-white/90 font-black text-xs">
+                                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                                <span>{lesson.room || "Salle --"}</span>
                               </div>
                             </div>
-                            
-                            <div className="mt-auto flex items-center justify-between">
-                              <span className="text-xs font-bold bg-black/20 backdrop-blur-sm px-2 py-1 rounded-lg truncate max-w-[60%] shadow-inner">
-                                {classInfo.name}
-                              </span>
-                              <span className="text-[10px] font-black uppercase tracking-wider opacity-90 drop-shadow-sm">
-                                {taskInfo.label}
-                              </span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button 
+                                onClick={(e) => handleDeleteActivity(e, lesson.id)}
+                                className="bg-white/20 hover:bg-rose-500/90 p-2 rounded-xl backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"
+                                title="Supprimer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
-                          </motion.div>
+                          </div>
+                        </motion.div>
                         )
                       })}
                   </div>
@@ -591,14 +654,14 @@ export default function PlanningPage() {
                   </div>
 
                   <div className="space-y-5">
-                    {/* Title */}
+                    {/* Room and class section */}
                     <div>
-                      <label className="block text-sm font-bold text-slate-500 mb-2 uppercase tracking-wider">Titre</label>
+                      <label className="block text-sm font-bold text-slate-500 mb-2 uppercase tracking-wider">Salle</label>
                       <input 
                         type="text" 
-                        value={newActivity.title}
-                        onChange={(e) => setNewActivity({...newActivity, title: e.target.value})}
-                        placeholder="Ex: Conjugaison : Le présent"
+                        value={newActivity.room}
+                        onChange={(e) => setNewActivity({...newActivity, room: e.target.value})}
+                        placeholder="Ex: Salle 04"
                         className="w-full bg-slate-50 border-2 border-slate-200 focus:border-indigo-500 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none transition-colors"
                       />
                     </div>
@@ -689,7 +752,6 @@ export default function PlanningPage() {
                     {/* Submit Button */}
                     <button
                       onClick={handleAddActivity}
-                      disabled={!newActivity.title.trim()}
                       className="w-full py-4 bg-amber-400 hover:bg-amber-500 disabled:bg-slate-200 disabled:text-slate-400 text-amber-950 rounded-xl font-black text-lg transition-colors shadow-lg shadow-amber-500/30 disabled:shadow-none mt-4 border-b-4 border-amber-600 disabled:border-slate-300"
                     >
                       Ajouter au planning
