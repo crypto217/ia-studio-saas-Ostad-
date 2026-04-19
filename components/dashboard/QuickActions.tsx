@@ -54,7 +54,7 @@ export function QuickActions() {
           <Link 
             key={action.name} 
             href={action.href} 
-            className={`bg-white rounded-xl p-4 sm:p-6 border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all flex flex-col items-center text-center gap-3 group ${action.hideOnMobile ? 'hidden md:flex' : ''}`}
+            className={`bg-white rounded-[2rem] sm:rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center text-center gap-3 group ${action.hideOnMobile ? 'hidden md:flex' : ''}`}
           >
             <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center ${action.bgColor} ${action.color} group-hover:scale-110 transition-transform duration-300 ${action.shadow ? 'shadow-lg ' + action.shadow : ''}`}>
               <action.icon className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />

@@ -90,22 +90,22 @@ export function MiniCalendarWidget() {
 
   if (isLoading) {
     return (
-      <Card className="border border-slate-200 bg-white h-[300px] flex items-center justify-center">
+      <Card className="border border-slate-200 bg-white h-[300px] flex items-center justify-center rounded-[2rem] sm:rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
       </Card>
     )
   }
 
   return (
-    <Card className="border border-slate-200 bg-white h-full flex flex-col">
+    <Card className="border border-slate-200 bg-white h-full flex flex-col rounded-[2rem] sm:rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 min-h-[300px]">
       <CardHeader className="pb-4 border-b border-slate-100 flex flex-row items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-100 text-pink-500">
             <CalendarIcon className="h-5 w-5" />
           </div>
           <div>
-            <CardTitle className="text-lg font-black text-slate-800">Aujourd&apos;hui</CardTitle>
-            <p className="text-xs font-bold text-slate-400 capitalize">{dateStr}</p>
+            <CardTitle className="text-lg font-black text-slate-800 tracking-tight">Aujourd&apos;hui</CardTitle>
+            <p className="text-xs font-bold text-slate-400 capitalize pt-1">{dateStr}</p>
           </div>
         </div>
         <Button asChild variant="ghost" size="icon" className="text-slate-400 hover:text-slate-600">
@@ -114,7 +114,7 @@ export function MiniCalendarWidget() {
           </Link>
         </Button>
       </CardHeader>
-      <CardContent className="pt-4 flex-1 flex flex-col">
+      <CardContent className="pt-4 sm:pt-6 font-medium p-6 sm:p-8 flex-1 flex flex-col">
         {schedule.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-3">
@@ -124,7 +124,7 @@ export function MiniCalendarWidget() {
             <p className="text-xs text-slate-400 mt-1">Profitez de votre journée !</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {schedule.map((item, index) => (
               <div key={item.id} className="flex items-start gap-4">
                 <div className="flex flex-col items-center">

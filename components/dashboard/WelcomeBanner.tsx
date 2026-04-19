@@ -47,7 +47,7 @@ export function WelcomeBanner() {
   }, [user, isAuthReady])
 
   return (
-    <div className="relative overflow-hidden rounded-[2rem] bg-indigo-500 px-5 py-6 md:px-8 md:py-10 text-white shadow-sm border border-indigo-600 flex items-center justify-between">
+    <div className="relative overflow-hidden rounded-[2rem] sm:rounded-3xl bg-indigo-500 px-6 py-10 md:px-12 md:py-16 text-white shadow-sm border border-indigo-600 flex items-center justify-between hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
       {/* Background decorative blobs */}
       <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
       <div className="absolute right-0 bottom-0 h-64 w-64 rounded-full bg-indigo-700/30 blur-3xl" />

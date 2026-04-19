@@ -123,7 +123,7 @@ export function NextLessonCard() {
 
   if (isLoading) {
     return (
-      <Card className="relative overflow-hidden bg-gradient-to-br from-sky-500 via-blue-500 to-indigo-600 text-white shadow-2xl shadow-blue-500/20 border-0 rounded-[2rem] h-[280px] flex items-center justify-center">
+      <Card className="relative overflow-hidden bg-gradient-to-br from-sky-500 via-blue-500 to-indigo-600 text-white shadow-sm border-0 rounded-[2rem] sm:rounded-3xl h-[280px] flex items-center justify-center hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
       </Card>
     )
@@ -131,7 +131,7 @@ export function NextLessonCard() {
 
   if (!nextLesson) {
     return (
-      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 text-white shadow-xl border-0 rounded-[2rem] h-[280px] flex flex-col items-center justify-center text-center p-8">
+      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 text-white shadow-sm border-0 rounded-[2rem] sm:rounded-3xl h-[280px] flex flex-col items-center justify-center text-center p-8 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-white/50 mb-4">
           <BookOpen className="h-8 w-8" />
         </div>
@@ -163,7 +163,7 @@ export function NextLessonCard() {
   const endTimeStr = formatTime(nextLesson.start + nextLesson.duration)
 
   return (
-    <Card className="relative overflow-hidden bg-gradient-to-br from-sky-500 via-blue-500 to-indigo-600 text-white shadow-2xl shadow-blue-500/20 border-0 rounded-[2rem] group min-h-[220px] flex flex-col justify-between">
+    <Card className="relative overflow-hidden bg-gradient-to-br from-sky-500 via-blue-500 to-indigo-600 text-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 rounded-[2rem] sm:rounded-3xl group min-h-[300px] flex flex-col justify-between">
       {/* Premium Glass Overlay */}
       <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
@@ -202,7 +202,7 @@ export function NextLessonCard() {
         </div>
       </CardHeader>
       
-      <CardContent className="relative z-10 p-4 sm:p-6 sm:pb-8 flex-1 flex flex-col justify-end">
+      <CardContent className="relative z-10 p-6 sm:p-8 sm:pb-8 flex-1 flex flex-col justify-end">
         <div className="space-y-1 sm:space-y-2 mt-2 sm:mt-4">
           <div className="inline-flex items-center gap-2 mb-1">
             <span className="bg-white/20 border border-white/30 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl backdrop-blur-md shadow-sm flex items-center gap-1.5">
@@ -210,7 +210,7 @@ export function NextLessonCard() {
             </span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-black tracking-tight drop-shadow-lg leading-none">{nextLesson.taskType}</h2>
-          <p className="text-sky-100 font-medium text-sm sm:text-base flex items-center gap-2">
+          <p className="text-sky-100 font-medium text-sm sm:text-base flex items-center gap-2 leading-relaxed">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-300 shadow-[0_0_8px_rgba(125,211,252,0.8)] shrink-0" /> 
             <span className="truncate">{nextLesson.title}</span>
           </p>

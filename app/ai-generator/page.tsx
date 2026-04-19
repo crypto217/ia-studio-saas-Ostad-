@@ -164,40 +164,51 @@ RÈGLES VISUELLES ET FORMAT DE SORTIE :
       } else {
         styleInstructions = `
 RÈGLES VISUELLES ET FORMAT DE SORTIE (STYLE FICHE ALGÉRIENNE) :
-Tu dois générer un code HTML complet qui s'inspire fortement du style visuel classique des fiches algériennes (code couleur, soulignements, encadrés), tout en t'autorisant un peu de créativité pour rendre le document encore plus clair et agréable (tu peux ajouter des icônes émojis, des encadrés "Astuce", améliorer l'espacement, etc.).
+Tu dois générer un code HTML complet qui reproduit EXACTEMENT la mise en page standard, professionnelle et dense des fiches de préparation algériennes.
 - Format strict : Génère UNIQUEMENT du code HTML avec le CSS intégré dans une balise <style>. Aucun texte brut en dehors. Ne mets pas de balises markdown autour de ta réponse.
-- PAGINATION A4 : Enveloppe tout le contenu dans une ou plusieurs \`<div class="a4-page">\`.
-- GESTION DES PAGES : Si un nombre de pages est exigé, tu dois générer exactement ce nombre de \`<div class="a4-page">\`. Répartis le contenu intelligemment pour remplir l'espace de manière harmonieuse. Ne coupe jamais un exercice, une phrase ou un tableau au milieu.
+- PAGINATION OBLIGATOIRE : Tu dois tout faire tenir dans UNE SEULE ET UNIQUE \`<div class="a4-page">\`.
+- STYLE DENSE ET COMPACT : Utilise la police Arial ou Times New Roman en petite taille (12px - 14px maximum). Réduis les marges et les paddings au minimum pour que tout rentre sur la page sans gaspiller d'espace.
+- EN-TÊTE HORIZONTALE : Utilise une <div class="header-grid"> pour l'en-tête principal de la fiche (Niveau, Projet, Séquence, etc.). Présente-les sous forme de couples (label/valeur).
+- TABLEAUX RESPONSIVE : Si tu génères un tableau, tu DOIS obligatoirement l'englober dans une <div class="table-container"> et lui donner la classe <table class="fiche-table">.
+- COULEURS ET STRUCTURE (TRÈS IMPORTANT) :
+  1. Titre principal : En Bleu (ou Bleu foncé), centré avec une taille correcte.
+  2. En-tête de la fiche (Cours, Projet, Séquence, etc.) : Présente ça sous forme de texte avec les étiquettes en Rouge et soulignées ("Cours :", "Durée :", "Objectifs :"), suivies immédiatement des valeurs en texte normal noir, le tout bien aligné avec des petits espaces.
+  3. Grandes étapes de la leçon (Ex: "I. Moment de découverte", "II. Moment d'application") : DOIVENT être en Rouge (ou Vert), en gras, soulignées et sans trop d'espacement avec les paragraphes suivants.
+  4. Interactions prof/élève : Formate les listes avec de simples tirets (-), pas de gros ronds noirs épais.
+  5. Réponses attendues ou éléments clés : Mets-les dans un vert clair, cyan ou bleu turquoise (ex: couleur #0284c7 ou #0d9488) pour imiter l'écriture au stylo.
+  6. Tableaux et Boîtes : Utilise des cadres simples (bordures fines, sans fond criard). Les tableaux d'évolution (Niveaux de râtise) doivent être compacts.
 
-Voici une base CSS que tu dois utiliser pour garantir le format A4 à l'impression tout en restant lisible sur mobile :
-@media print { @page { size: A4; margin: 0; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-.a4-page { font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.4; color: black; background: white; width: 210mm; min-height: 297mm; padding: 20mm; margin: 0 auto 20px auto; box-sizing: border-box; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); page-break-after: always; }
+Voici la base CSS modifiée et optimisée pour ce style professionnel dense :
+@media print { @page { size: A4; margin: 0; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .a4-page { margin: 0; border: none; box-shadow: none; page-break-after: auto; } }
+.a4-page { font-family: Arial, Helvetica, sans-serif; font-size: 13px; line-height: 1.3; color: black; background: white; width: 210mm; min-height: 297mm; padding: 15mm; margin: 0 auto; position: relative; box-sizing: border-box; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); page-break-after: auto; }
 @media screen and (max-width: 794px) { .a4-page { width: 100%; min-height: auto; padding: 15px; margin-bottom: 15px; } }
-@media print { .a4-page { width: 210mm; min-height: 297mm; margin: 0; padding: 20mm; box-shadow: none; page-break-after: always; } }
-.main-title { text-align: center; color: #2563eb; font-size: 22px; font-weight: normal; margin-bottom: 20px; }
-.info-line { margin-bottom: 4px; }
-.flex-line { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
-@media (min-width: 600px) { .flex-line { flex-direction: row; justify-content: space-between; width: 100%; gap: 0; } }
-.student-header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; font-weight: bold; font-size: 16px; }
-@media (min-width: 600px) { .student-header { flex-direction: row; justify-content: space-between; } }
-.dotted-line { border-bottom: 2px dotted #94a3b8; width: 100%; display: inline-block; min-height: 20px; margin-top: 5px; }
-.label { color: #dc2626; font-weight: bold; text-decoration: underline; }
-.value { color: black; }
-.section-title { text-align: center; color: #16a34a; font-size: 18px; font-weight: bold; text-decoration: underline; margin: 20px 0 10px 0; }
-.step-title { color: #dc2626; font-weight: bold; text-decoration: underline; margin-top: 15px; margin-bottom: 5px; }
-.sub-title { color: #16a34a; font-weight: bold; text-decoration: underline; margin-top: 10px; margin-bottom: 5px; }
-.answer { color: #0d9488; }
-.consigne-box { border: 2px solid #7dd3fc; padding: 10px; margin: 15px 0; text-align: center; font-weight: normal; border-radius: 8px; background-color: #f0f9ff; page-break-inside: avoid; break-inside: avoid; }
-@media (min-width: 600px) { .consigne-box { margin: 15px 10%; } }
-.boite-mots { display: flex; gap: 10px; justify-content: center; margin: 10px 0; flex-wrap: wrap; }
-.mot { padding: 5px 20px; border: 1px solid #94a3b8; border-radius: 4px; color: black; font-weight: bold; }
-.mot:nth-child(1n) { background-color: #dcfce7; }
-.mot:nth-child(2n) { background-color: #ffedd5; }
-.mot:nth-child(3n) { background-color: #fce7f3; }
-.mot:nth-child(4n) { background-color: #f3e8ff; }
-.mot:nth-child(5n) { background-color: #ecfccb; }
-.application-box { border: 1px dashed #64748b; padding: 15px; margin-top: 10px; border-radius: 8px; background-color: #f8fafc; overflow-x: auto; page-break-inside: avoid; break-inside: avoid; }
-table, tr, td, th { page-break-inside: avoid; break-inside: avoid; }`;
+.main-title { text-align: center; color: #1e40af; font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+.header-container { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; font-size: 13px; }
+.flex-line { display: flex; gap: 15px; flex-wrap: wrap; }
+.label { color: #dc2626; font-weight: bold; text-decoration: underline; margin-right: 4px; }
+.value { color: black; font-weight: normal; }
+.section-title { color: #dc2626; font-size: 14px; font-weight: bold; text-decoration: underline; margin: 12px 0 4px 0; }
+.sub-title { color: #16a34a; font-size: 13px; font-weight: bold; text-decoration: underline; margin: 8px 0 4px 0; display: block; }
+.answer { color: #0891b2; font-style: italic; }
+.consigne-box { border: 1.5px solid #0891b2; padding: 6px; margin: 8px 0; text-align: center; font-weight: normal; border-radius: 4px; page-break-inside: avoid; }
+.boite-mots { display: flex; gap: 6px; justify-content: center; margin: 6px 0; flex-wrap: wrap; }
+.mot { padding: 3px 12px; border: 1px solid #cbd5e1; border-radius: 3px; color: black; background-color: #f8fafc; font-size: 12px; }
+.mot:nth-child(even) { background-color: #f1f5f9; }
+.application-box { border: 1px dashed #64748b; padding: 10px; margin-top: 8px; border-radius: 4px; background-color: white; page-break-inside: avoid; }
+ul, ol { margin: 4px 0; padding-left: 15px; list-style-type: none; }
+li { margin-bottom: 2px; position: relative; }
+li::before { content: "-"; position: absolute; left: -10px; color: #333; }
+p { margin: 2px 0; }
+.header-grid { display: grid; grid-template-columns: 1fr; gap: 8px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 10px; margin-bottom: 12px; }
+@media (min-width: 768px) { .header-grid { grid-template-columns: 1fr 1fr; } }
+.table-container { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 10px 0; border: 1px solid #e2e8f0; border-radius: 4px; }
+.fiche-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 15px; font-size: 13px; word-wrap: break-word; }
+.fiche-table th, .fiche-table td { border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; overflow-wrap: break-word; }
+.fiche-table th:nth-child(1), .fiche-table td:nth-child(1) { width: 15%; }
+.fiche-table th:nth-child(2), .fiche-table td:nth-child(2) { width: 40%; }
+.fiche-table th:nth-child(3), .fiche-table td:nth-child(3) { width: 35%; }
+.fiche-table th:nth-child(4), .fiche-table td:nth-child(4) { width: 10%; text-align: center; }
+.fiche-table th { background-color: #f8fafc; font-weight: bold; }`;
       }
 
       const basePrompt = `Tu es un Inspecteur de l'Éducation Nationale en Algérie et un expert en conception pédagogique. Tu maîtrises parfaitement les programmes officiels du Ministère de l'Éducation Nationale algérien pour le cycle Primaire (AP).
@@ -210,7 +221,8 @@ RÈGLES DE CONTENU (Ciblage Enseignant Algérien) :
 - Vocabulaire précis : Utilise le jargon officiel algérien.
 - Contextualisation : Les exemples, les prénoms et les situations doivent refléter l'environnement algérien.
 - Adaptation au niveau : Ajuste la complexité selon le palier (3AP, 4AP, 5AP).
-- EXHAUSTIVITÉ : Ne limite PAS la longueur du contenu. Génère l'intégralité du document (toutes les phases de la leçon, tous les exercices demandés, le texte complet, etc.) sans rien couper ni résumer, sauf si l'enseignant a explicitement demandé une limite.
+- CONCISION STRICTE : Va à l'essentiel. Ne génère que les phases principales de la leçon de manière très synthétique (sous forme de tirets ou tableaux courts). L'enseignant n'a besoin que du squelette du cours.
+- AUCUNE IMAGE : Ne génère aucun espace réservé pour des images (comme [Image 1], [Image 2]). Génère uniquement du texte utile.
 
 SI C'EST UNE FICHE DE COURS (POUR LE PROF) :
 - INCLURE LES RÉPONSES ATTENDUES : Pour chaque question posée aux élèves, tu DOIS fournir la réponse attendue par les élèves.
@@ -268,7 +280,8 @@ REQUIREMENTS:
       setGeneratedContent(htmlContent);
 
       if (imageResponse && imageResponse.candidates && imageResponse.candidates.length > 0) {
-        for (const part of imageResponse.candidates[0].content.parts) {
+        const parts = imageResponse.candidates[0].content?.parts || [];
+        for (const part of parts) {
           if (part.inlineData) {
              const base64 = part.inlineData.data;
              setGeneratedImage(`data:image/jpeg;base64,${base64}`);
@@ -358,9 +371,10 @@ REQUIREMENTS:
             <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
             <style>
               /* On force le conteneur à faire la taille d'une page A4 exacte */
-              body { margin: 0; padding: 0; background: white; width: 210mm; min-height: 297mm; }
-              #content-to-print { width: 210mm; height: 297mm; overflow: hidden; }
-              /* On efface les ombres pour le PDF */
+              body, html { margin: 0; padding: 0; background: white; width: 210mm; height: auto; }
+              #content-to-print { width: 210mm; height: auto; overflow: visible; }
+              /* On efface les contraintes de hauteur qui forcent des pages vides et on auto-ajuste les sauts de page */
+              .a4-page { min-height: auto !important; height: auto !important; page-break-after: auto !important; }
               * { box-shadow: none !important; }
             </style>
           </head>
@@ -377,8 +391,9 @@ REQUIREMENTS:
                     margin:       0,
                     filename:     '${selectedType === 'lesson' ? 'Fiche_de_cours' : selectedType === 'exam' ? 'Examen' : 'Document'}.pdf',
                     image:        { type: 'jpeg', quality: 1 },
-                    html2canvas:  { scale: 2, useCORS: true, logging: false },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    html2canvas:  { scale: 2, useCORS: true, logging: false, letterRendering: true, windowWidth: 794 },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak:    { mode: ['css', 'legacy'], avoid: ['p', 'h1', 'h2', 'h3', 'h4', 'li', 'tr', 'table', '.consigne-box', '.application-box', '.mot'] }
                   };
                   html2pdf().set(opt).from(element).save().then(() => {
                     window.parent.postMessage('pdf-done', '*');
@@ -623,20 +638,17 @@ REQUIREMENTS:
               <ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline">Nouvelle fiche</span>
             </button>
             <div className="flex flex-wrap items-center gap-2">
-              <button onClick={handleOpenSaveModal} className="flex items-center gap-2 bg-emerald-600 text-white px-3 sm:px-4 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors font-bold text-sm shadow-md">
-                <Save className="w-4 h-4" /> <span className="hidden sm:inline">Sauvegarder</span>
+              <button onClick={handleOpenSaveModal} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-full sm:rounded-3xl hover:bg-emerald-700 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 font-bold text-sm shadow-sm">
+                <Save className="w-5 h-5" /> <span className="hidden sm:inline">Sauvegarder</span>
               </button>
-              <button onClick={exportToPDF} className="flex items-center gap-2 bg-red-600 text-white px-3 sm:px-4 py-2.5 rounded-xl hover:bg-red-700 transition-colors font-bold text-sm shadow-md">
-                <Download className="w-4 h-4" /> <span className="hidden sm:inline">Télécharger PDF</span>
+              <button onClick={exportToPDF} className="flex items-center gap-2 bg-red-600 text-white px-4 py-3 rounded-full sm:rounded-3xl hover:bg-red-700 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 font-bold text-sm shadow-sm">
+                <Download className="w-5 h-5" /> <span className="hidden sm:inline">Télécharger PDF</span>
               </button>
-              <button onClick={exportToWord} className="flex items-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-colors font-bold text-sm shadow-md">
-                <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Télécharger Word</span>
+              <button onClick={exportToWord} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-full sm:rounded-3xl hover:bg-blue-700 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 font-bold text-sm shadow-sm">
+                <FileText className="w-5 h-5" /> <span className="hidden sm:inline">Télécharger Word</span>
               </button>
-              <button onClick={() => window.print()} className="flex items-center gap-2 bg-violet-600 text-white px-3 sm:px-4 py-2.5 rounded-xl hover:bg-violet-700 transition-colors font-bold text-sm shadow-md">
-                <Printer className="w-4 h-4" /> <span className="hidden sm:inline">Imprimer</span>
-              </button>
-              <button onClick={() => setIsFullscreen(!isFullscreen)} className="flex items-center gap-2 bg-slate-100 text-slate-700 px-3 sm:px-4 py-2.5 rounded-xl hover:bg-slate-200 transition-colors font-bold text-sm">
-                {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+              <button onClick={() => setIsFullscreen(!isFullscreen)} className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-3 rounded-full sm:rounded-3xl hover:bg-slate-200 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 font-bold text-sm">
+                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
                 <span className="hidden sm:inline">{isFullscreen ? "Réduire" : "Plein écran"}</span>
               </button>
             </div>
@@ -645,25 +657,6 @@ REQUIREMENTS:
           {/* Content */}
           <div className="relative w-full flex flex-col gap-6">
             
-            {/* Affiche de cours générée par l'IA */}
-            {generatedImage && !isEcoMode && (
-              <div className="w-full h-48 sm:h-64 md:h-80 relative rounded-2xl overflow-hidden shadow-md border border-slate-200 print:hidden shrink-0 mt-2">
-                <img 
-                  src={generatedImage} 
-                  alt="Affiche du cours" 
-                  className="object-cover w-full h-full rounded-2xl"
-                />
-                <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent rounded-b-2xl">
-                  <h2 className="text-2xl sm:text-3xl font-black text-white drop-shadow-md tracking-tight">
-                    {topic || magicTools.find(t => t.id === selectedType)?.name.replace(/📝 |📖 |✍️ |📋 /g, '')}
-                  </h2>
-                  <p className="text-white/90 font-medium mt-1 drop-shadow-sm">
-                    {classLevel} • {term}
-                  </p>
-                </div>
-              </div>
-            )}
-
             {isModifying && (
               <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl">
                 <Loader2 className="w-12 h-12 text-violet-600 animate-spin mb-4" />
@@ -682,8 +675,18 @@ REQUIREMENTS:
             )}
 
             {isEcoMode ? (
-              <div className="flex justify-center print:bg-white print:p-0">
+              <div className="flex justify-center print:bg-white print:p-0 overflow-hidden">
                 <div id="printable-wrapper" className="grid grid-cols-2 grid-rows-2 w-full max-w-[210mm] mx-auto min-h-[297mm] bg-white border border-slate-200 print:w-[210mm] print:h-[297mm] print:border-none print:m-0">
+                  <style>{`
+                    .fiche-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 15px; font-size: 13px; word-wrap: break-word; }
+                    .fiche-table th, .fiche-table td { border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; overflow-wrap: break-word; }
+                    .fiche-table th:nth-child(1), .fiche-table td:nth-child(1) { width: 15%; }
+                    .fiche-table th:nth-child(2), .fiche-table td:nth-child(2) { width: 40%; }
+                    .fiche-table th:nth-child(3), .fiche-table td:nth-child(3) { width: 35%; }
+                    .fiche-table th:nth-child(4), .fiche-table td:nth-child(4) { width: 10%; text-align: center; }
+                    .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border: 2px solid #000; padding: 10px; margin-bottom: 15px; font-size: 14px; }
+                    @media (max-width: 768px) { .header-grid { grid-template-columns: 1fr; } }
+                  `}</style>
                   {[1, 2, 3, 4].map((i) => (
                     <div key={i} className="border-[1.5px] border-dashed border-slate-400 p-6 md:p-8 flex flex-col justify-center">
                       <div className="font-sans [&_h1]:text-lg [&_h1]:md:text-xl [&_h1]:font-bold [&_h1]:text-center [&_h1]:text-indigo-950 [&_h1]:mb-3 [&_h1]:md:mb-4 [&_p]:text-base [&_p]:leading-relaxed [&_p]:text-slate-800 [&_p]:text-justify [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-indigo-900 [&_h2]:mt-4 [&_h2]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mt-2 [&_ul]:space-y-1 [&_ul]:text-base [&_ul]:text-slate-800 [&_li]:leading-normal" dangerouslySetInnerHTML={{ __html: generatedContent }} />
@@ -692,18 +695,22 @@ REQUIREMENTS:
                 </div>
               </div>
             ) : (
-              <div className="flex justify-center print:bg-white print:p-0">
-                <div id="printable-wrapper" className="font-sans bg-white p-10 md:p-16 max-w-3xl w-full mx-auto shadow-sm rounded-xl print:shadow-none print:p-0 print:m-0 print:w-full print:overflow-visible overflow-x-auto [&_h1]:text-xl [&_h1]:md:text-2xl [&_h1]:font-bold [&_h1]:text-center [&_h1]:text-indigo-950 [&_h1]:mb-4 [&_h1]:md:mb-6 [&_p]:text-lg [&_p]:md:text-xl [&_p]:leading-loose [&_p]:text-slate-800 [&_p]:text-justify [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-indigo-900 [&_h2]:mt-6 [&_h2]:mb-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mt-4 [&_ul]:space-y-2 [&_ul]:text-lg [&_ul]:md:text-xl [&_ul]:text-slate-800 [&_li]:leading-loose">
+              <div className="flex justify-center print:bg-white print:p-0 overflow-hidden">
+                <div id="printable-wrapper" className="font-sans bg-white w-full max-w-[210mm] mx-auto shadow-sm md:rounded-xl overflow-hidden print:shadow-none print:m-0 print:w-full">
+                  <style>{`
+                    .fiche-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 15px; font-size: 13px; word-wrap: break-word; }
+                    .fiche-table th, .fiche-table td { border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; overflow-wrap: break-word; }
+                    .fiche-table th:nth-child(1), .fiche-table td:nth-child(1) { width: 15%; }
+                    .fiche-table th:nth-child(2), .fiche-table td:nth-child(2) { width: 40%; }
+                    .fiche-table th:nth-child(3), .fiche-table td:nth-child(3) { width: 35%; }
+                    .fiche-table th:nth-child(4), .fiche-table td:nth-child(4) { width: 10%; text-align: center; }
+                    .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border: 2px solid #000; padding: 10px; margin-bottom: 15px; font-size: 14px; }
+                    @media (max-width: 768px) { .header-grid { grid-template-columns: 1fr; } }
+                  `}</style>
                   <div dangerouslySetInnerHTML={{ __html: generatedContent }} />
                 </div>
               </div>
             )}
-          </div>
-          
-          <div className="flex justify-center mt-8 print:hidden">
-            <button onClick={() => window.print()} className="flex items-center gap-2 bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-900 transition-colors font-bold shadow-md">
-              <Printer className="w-5 h-5" /> 🖨️ Lancer l&apos;impression
-            </button>
           </div>
 
           {/* Modification Bar */}

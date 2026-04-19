@@ -1,591 +1,397 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from "react"
-import { motion, AnimatePresence } from "motion/react"
-import { 
-  TrendingUp, Target, BookOpen, AlertTriangle, 
-  ChevronDown, FileText, MessageSquare, Sparkles,
-  GraduationCap, Printer, Check
-} from "lucide-react"
-import { 
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, LineChart, Line, LabelList, CartesianGrid, Legend
-} from "recharts"
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  LineChart, Line, Legend
+} from 'recharts';
+import { UserCircle, AlertTriangle, Sparkles, Trophy, Star } from 'lucide-react';
 
-// --- NEW MOCK DATA ---
-const THEME_COLORS = {
-  indigo: { bg: 'bg-indigo-600', text: 'text-indigo-600', light: 'bg-indigo-50 text-indigo-600' },
-  emerald: { bg: 'bg-emerald-600', text: 'text-emerald-600', light: 'bg-emerald-50 text-emerald-600' },
-  amber: { bg: 'bg-amber-500', text: 'text-amber-600', light: 'bg-amber-50 text-amber-600' },
-  violet: { bg: 'bg-violet-600', text: 'text-violet-600', light: 'bg-violet-50 text-violet-600' }
-}
-
-const MOCK_CLASSES_DATA = {
-  "Global": {
-    theme: "indigo" as const,
-    overview: {
-      total: 120,
-      average: 7.5,
-      successRate: 82,
-      strongSubject: "Lecture",
-      weakSubject: "Production"
-    },
-    performance: [
-      { name: 'Oral', score: 7.8 },
-      { name: 'Lecture', score: 8.2 },
-      { name: 'Écrit', score: 7.0 },
-      { name: 'Production', score: 6.8 }
+// --- MOCK DATA DYNAMIQUE ---
+const classesData: Record<string, any> = {
+  '3ème AP - A': {
+    competences: [
+      { name: 'Comp. Orale', score: 80, color: '#10B981' },
+      { name: 'Prod. Orale', score: 65, color: '#10B981' },
+      { name: "Comp. de l'écrit", score: 55, color: '#F59E0B' },
+      { name: 'Prod. Écrite', score: 40, color: '#EF4444' }
     ],
-    ageData: [
-      { year: '2013', Garçon: 5, Fille: 4 },
-      { year: '2014', Garçon: 15, Fille: 12 },
-      { year: '2015', Garçon: 20, Fille: 22 },
-      { year: '2016', Garçon: 12, Fille: 14 },
-      { year: '2017', Garçon: 8, Fille: 8 }
+    evolution: [
+      { month: 'Sept', value: 10.5 }, { month: 'Oct', value: 11.0 }, { month: 'Nov', value: 11.5 },
+      { month: 'Déc', value: 11.2 }, { month: 'Jan', value: 12.8 }, { month: 'Fév', value: 13.5 }, { month: 'Mar', value: 14.0 }
     ],
-    genderData: [
-      { name: 'GARÇON', value: 60, percentage: '50%', color: '#00b0f0' },
-      { name: 'FILLE', value: 60, percentage: '50%', color: '#ff00ff' }
+    ages: [
+      { year: '2015', Garçons: 6, Filles: 8 },
+      { year: '2016', Garçons: 8, Filles: 7 }
+    ],
+    support: [
+      { id: 101, name: 'Amine', issue: 'Difficulté en Lecture', level: 'danger' },
+      { id: 102, name: 'Yanis', issue: 'Compréhension', level: 'warning' }
+    ],
+    top: [
+      { id: 1, name: 'Lina', seed: 'Lina', homework: '9.8', exam: '9.5', overall: '9.6', rank: 1, colorHex: '#FBBF24' },
+      { id: 2, name: 'Rayane', seed: 'Rayane', homework: '9.2', exam: '9.0', overall: '9.1', rank: 2, colorHex: '#94A3B8' },
+      { id: 3, name: 'Inès', seed: 'Ines', homework: '8.5', exam: '8.9', overall: '8.7', rank: 3, colorHex: '#D97706' }
     ]
   },
-  "3ème AP": {
-    theme: "emerald" as const,
-    overview: {
-      total: 35,
-      average: 8.1,
-      successRate: 88,
-      strongSubject: "Oral",
-      weakSubject: "Lecture"
-    },
-    performance: [
-      { name: 'Oral', score: 8.5 },
-      { name: 'Lecture', score: 7.2 },
-      { name: 'Écrit', score: 7.9 },
-      { name: 'Production', score: 8.0 }
+  '4ème AP - B': {
+    competences: [
+      { name: 'Comp. Orale', score: 88, color: '#10B981' },
+      { name: 'Prod. Orale', score: 72, color: '#10B981' },
+      { name: "Comp. de l'écrit", score: 65, color: '#F59E0B' },
+      { name: 'Prod. Écrite', score: 48, color: '#EF4444' }
     ],
-    ageData: [
-      { year: '2015', Garçon: 5, Fille: 6 },
-      { year: '2016', Garçon: 7, Fille: 10 },
-      { year: '2017', Garçon: 3, Fille: 4 }
+    evolution: [
+      { month: 'Sept', value: 11.2 }, { month: 'Oct', value: 11.8 }, { month: 'Nov', value: 12.5 },
+      { month: 'Déc', value: 12.8 }, { month: 'Jan', value: 14.0 }, { month: 'Fév', value: 14.5 }, { month: 'Mar', value: 15.2 }
     ],
-    genderData: [
-      { name: 'GARÇON', value: 15, percentage: '43%', color: '#00b0f0' },
-      { name: 'FILLE', value: 20, percentage: '57%', color: '#ff00ff' }
-    ]
-  },
-  "4ème AP": {
-    theme: "amber" as const,
-    overview: {
-      total: 42,
-      average: 7.2,
-      successRate: 75,
-      strongSubject: "Écrit",
-      weakSubject: "Oral"
-    },
-    performance: [
-      { name: 'Oral', score: 6.5 },
-      { name: 'Lecture', score: 7.0 },
-      { name: 'Écrit', score: 8.2 },
-      { name: 'Production', score: 6.9 }
+    ages: [
+      { year: '2014', Garçons: 7, Filles: 5 },
+      { year: '2015', Garçons: 6, Filles: 8 }
     ],
-    ageData: [
-      { year: '2014', Garçon: 6, Fille: 5 },
-      { year: '2015', Garçon: 12, Fille: 10 },
-      { year: '2016', Garçon: 4, Fille: 5 }
+    support: [
+      { id: 201, name: 'Sarah', issue: 'Production écrite', level: 'warning' }
     ],
-    genderData: [
-      { name: 'GARÇON', value: 22, percentage: '52%', color: '#00b0f0' },
-      { name: 'FILLE', value: 20, percentage: '48%', color: '#ff00ff' }
-    ]
-  },
-  "5ème AP": {
-    theme: "violet" as const,
-    overview: {
-      total: 43,
-      average: 7.8,
-      successRate: 85,
-      strongSubject: "Production",
-      weakSubject: "Lecture"
-    },
-    performance: [
-      { name: 'Oral', score: 7.6 },
-      { name: 'Lecture', score: 6.8 },
-      { name: 'Écrit', score: 7.5 },
-      { name: 'Production', score: 8.5 }
-    ],
-    ageData: [
-      { year: '2013', Garçon: 5, Fille: 4 },
-      { year: '2014', Garçon: 15, Fille: 12 },
-      { year: '2015', Garçon: 3, Fille: 4 }
-    ],
-    genderData: [
-      { name: 'GARÇON', value: 23, percentage: '53%', color: '#00b0f0' },
-      { name: 'FILLE', value: 20, percentage: '47%', color: '#ff00ff' }
+    top: [
+      { id: 4, name: 'Ayoub', seed: 'Ayoub', homework: '9.9', exam: '9.8', overall: '9.8', rank: 1, colorHex: '#FBBF24' },
+      { id: 5, name: 'Kenza', seed: 'Kenza', homework: '9.5', exam: '9.2', overall: '9.3', rank: 2, colorHex: '#94A3B8' },
+      { id: 6, name: 'Walid', seed: 'Walid', homework: '9.0', exam: '8.8', overall: '8.9', rank: 3, colorHex: '#D97706' }
     ]
   }
-}
-
-const supportStudents = [
-  { 
-    id: 1, 
-    name: 'Yanis Kaddour', 
-    avatar: 'Y', 
-    color: 'bg-amber-100 text-amber-600', 
-    reason: 'Baisse de note en Production Écrite (D)', 
-    action: 'Préparer exercice', 
-    ActionIcon: FileText,
-    actionColor: 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
-  },
-  { 
-    id: 2, 
-    name: 'Sami Benali', 
-    avatar: 'S', 
-    color: 'bg-sky-100 text-sky-600', 
-    reason: 'Difficulté persistante en Graphie/phonie', 
-    action: 'Contacter parents', 
-    ActionIcon: MessageSquare,
-    actionColor: 'bg-orange-50 text-orange-600 hover:bg-orange-100'
-  }
-]
-
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name, value, percentage }: any) => {
-  const RADIAN = Math.PI / 180;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.4;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-  return (
-    <text x={x} y={y} fill="black" textAnchor="middle" dominantBaseline="central" className="font-bold text-[10px] sm:text-xs">
-      <tspan x={x} dy="-1em">{name}</tspan>
-      <tspan x={x} dy="1.2em">{value}</tspan>
-      <tspan x={x} dy="1.2em">{percentage}</tspan>
-    </text>
-  );
 };
 
-// Custom Tooltip for Recharts to match our theme
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white p-3 rounded-xl shadow-lg border border-slate-100">
-        <p className="font-bold text-slate-800 mb-1">{label || payload[0].name}</p>
-        <p className="text-indigo-600 font-bold">
-          {payload[0].value}{payload[0].name === 'score' ? ' / 10' : '%'}
-        </p>
-      </div>
-    )
-  }
-  return null
-}
-
-const mockClasses = [
-  "3ème AP",
-  "4ème AP",
-  "5ème AP",
-]
+const MOCK_GLOBAL = {
+  competences: [
+    { name: 'Comp. Orale', score: 85, color: '#10B981' },
+    { name: 'Prod. Orale', score: 70, color: '#10B981' },
+    { name: "Comp. de l'écrit", score: 60, color: '#F59E0B' },
+    { name: 'Prod. Écrite', score: 45, color: '#EF4444' }
+  ],
+  evolution: [
+    { month: 'Sept', value: 11.0 }, { month: 'Oct', value: 11.5 }, { month: 'Nov', value: 12.2 },
+    { month: 'Déc', value: 12.0 }, { month: 'Jan', value: 13.5 }, { month: 'Fév', value: 14.1 }, { month: 'Mar', value: 14.8 }
+  ],
+  ages: [
+    { year: '2013', Garçons: 2, Filles: 3 },
+    { year: '2014', Garçons: 8, Filles: 7 },
+    { year: '2015', Garçons: 12, Filles: 10 },
+    { year: '2016', Garçons: 4, Filles: 5 }
+  ],
+  support: [
+    { id: 1, name: 'Amine', issue: 'Difficulté en Lecture', level: 'danger' },
+    { id: 2, name: 'Sarah', issue: 'Production écrite', level: 'warning' },
+    { id: 3, name: 'Yanis', issue: 'Compréhension', level: 'warning' }
+  ],
+  top: [
+    { id: 7, name: 'Ayoub', seed: 'Ayoub', homework: '9.9', exam: '9.8', overall: '9.8', rank: 1, colorHex: '#FBBF24' },
+    { id: 8, name: 'Lina', seed: 'Lina', homework: '9.8', exam: '9.5', overall: '9.6', rank: 2, colorHex: '#94A3B8' },
+    { id: 9, name: 'Kenza', seed: 'Kenza', homework: '9.5', exam: '9.2', overall: '9.3', rank: 3, colorHex: '#D97706' }
+  ]
+};
 
 export default function StatisticsPage() {
-  const [selectedClass, setSelectedClass] = useState<keyof typeof MOCK_CLASSES_DATA>("Global")
+  const [isMounted, setIsMounted] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('global');
 
-  // Current class data
-  const currentData = MOCK_CLASSES_DATA[selectedClass]
-  const { theme, overview, performance, ageData, genderData } = currentData
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsMounted(true);
+  }, []);
 
-  // Generate pieData dynamically based on success rate
-  const pieData = [
-    { name: 'A (Très bien)', value: Math.round(overview.successRate * 0.55), color: '#16a34a' },
-    { name: 'B (Bien)', value: overview.successRate - Math.round(overview.successRate * 0.55), color: '#a3e635' },
-    { name: 'C (Moyen)', value: Math.round((100 - overview.successRate) * 0.7), color: '#fbbf24' },
-    { name: 'D (Insuffisant)', value: 100 - overview.successRate - Math.round((100 - overview.successRate) * 0.7), color: '#dc2626' }
-  ]
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const renderChartSkeleton = () => (
+    <div className="w-full h-[250px] animate-pulse bg-gray-100 rounded-xl"></div>
+  );
+
+  // Computed data based on selection
+  const activeData = selectedFilter === 'global' ? MOCK_GLOBAL : classesData[selectedFilter];
+  
+  // Mixed Evolution data for Chart (Class curve vs Global curve)
+  const activeEvolution = MOCK_GLOBAL.evolution.map((glob, i) => {
+    const dataPoint: any = { month: glob.month, globalAvg: glob.value };
+    if (selectedFilter !== 'global') {
+      dataPoint.classAvg = classesData[selectedFilter].evolution[i].value;
+    }
+    return dataPoint;
+  });
 
   return (
-    <div className="min-h-screen bg-[#FFFAF3] pb-24">
-      {/* HEADER */}
-      <div className="bg-white border-b border-slate-200 px-4 py-8 sm:px-8 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-              <TrendingUp className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Statistiques & Suivi</h1>
-              <p className="text-slate-500 font-medium mt-1">Tableau de bord analytique de la classe</p>
-            </div>
-          </div>
-          
-          {/* Actions */}
-          <div className="flex items-center gap-3 print:hidden">
-            <button 
-              onClick={() => window.print()}
-              className="hidden md:inline-flex items-center gap-2 bg-indigo-50 text-indigo-600 px-4 py-3 rounded-xl font-bold hover:bg-indigo-100 transition-colors"
-            >
-              <Printer className="w-5 h-5" />
-              <span className="hidden sm:inline">Imprimer le rapport officiel</span>
-              <span className="sm:hidden">Imprimer</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 mt-8">
+    <div className="min-h-screen bg-slate-50 p-6 md:p-12 print:block print:w-full print:m-0 print:p-0 print:bg-white">
+      <div className="max-w-7xl mx-auto">
         
-        {/* CLASSE SELECTOR PILLS */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 no-scrollbar print:hidden">
-          {Object.keys(MOCK_CLASSES_DATA).map((className) => {
-            const isSelected = selectedClass === className;
-            const themeInfo = THEME_COLORS[MOCK_CLASSES_DATA[className as keyof typeof MOCK_CLASSES_DATA].theme];
-            
-            return (
-              <button
-                key={className}
-                onClick={() => setSelectedClass(className as keyof typeof MOCK_CLASSES_DATA)}
-                className={`whitespace-nowrap px-6 py-2.5 rounded-full font-bold text-sm transition-all duration-300 ${
-                  isSelected 
-                    ? `${themeInfo.bg} text-white shadow-md scale-105` 
-                    : `bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:scale-105 shadow-sm`
-                }`}
-              >
-                {className === "Global" ? "🌍 Vue Globale" : `📚 ${className}`}
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="space-y-8 print:hidden">
-          {/* 1. KPIs (Le pouls de la classe) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-slate-500">Moyenne Générale</h3>
-            </div>
-            <div className="flex items-baseline gap-2 mt-auto">
-              <span className="text-xl md:text-3xl font-black text-slate-800">{overview.average}</span>
-              <span className="text-sm md:text-lg font-bold text-slate-400">/ 10</span>
-            </div>
-            <p className="text-sm font-semibold text-emerald-500 mt-2 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> +0.4 pts ce mois
+        {/* Navigation / Header - Hide on print */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 print:hidden">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+              Tableau de Bord de la Classe
+            </h1>
+            <p className="text-slate-500 font-medium mt-2">
+              Aperçu analytique pédagogique et administratif
             </p>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
-                <Target className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-slate-500">Taux de réussite</h3>
-            </div>
-            <div className="flex items-baseline gap-2 mt-auto">
-              <span className="text-xl md:text-3xl font-black text-slate-800">{overview.successRate}</span>
-              <span className="text-sm md:text-lg font-bold text-slate-400">%</span>
-            </div>
-            <p className="text-sm font-medium text-slate-400 mt-2">
-              Élèves avec A ou B
-            </p>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
-                <BookOpen className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-slate-500">Matière forte</h3>
-            </div>
-            <div className="mt-auto">
-              <span className="text-lg md:text-2xl font-black text-slate-800 line-clamp-1">{overview.strongSubject}</span>
-            </div>
-            <p className="text-sm font-medium text-slate-400 mt-2">
-              Moyenne au-dessus de 8/10
-            </p>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col border-l-4 border-l-red-500">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-slate-500">Soutien requis</h3>
-            </div>
-            <div className="flex items-baseline gap-2 mt-auto">
-              <span className="text-xl md:text-3xl font-black text-red-600">3</span>
-              <span className="text-sm md:text-lg font-bold text-slate-400">élèves</span>
-            </div>
-            <p className="text-sm font-medium text-slate-400 mt-2">
-              En difficulté (D)
-            </p>
-          </motion.div>
-        </div>
-
-        {/* 2. Charts Section */}
-        <div className="flex flex-col lg:flex-row gap-6">
+          </div>
           
-          {/* Bar Chart */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="w-full bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-            <div className="mb-6">
-              <h2 className="text-xl font-black text-slate-800">Performance par Compétence</h2>
-              <p className="text-sm font-medium text-slate-400">Moyenne de la classe sur 10</p>
-            </div>
-            <div className="h-64 md:h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={performance} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} 
-                    dy={10}
-                  />
-                  <YAxis 
-                    domain={[0, 10]} 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: '#94a3b8', fontSize: 12 }} 
-                  />
-                  <Tooltip cursor={{ fill: '#f8fafc' }} content={<CustomTooltip />} />
-                  <Bar dataKey="score" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={40} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </motion.div>
-
-          {/* Pie Chart */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="w-full bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-            <div className="mb-6">
-              <h2 className="text-xl font-black text-slate-800">Répartition des Acquis</h2>
-              <p className="text-sm font-medium text-slate-400">Pourcentage global (A, B, C, D)</p>
-            </div>
-            <div className="h-64 md:h-80 w-full flex items-center justify-center relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={80}
-                    outerRadius={110}
-                    paddingAngle={5}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-              {/* Center Text for Donut */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-3xl font-black text-slate-800">{overview.successRate}%</span>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">A & B</span>
-              </div>
-            </div>
-          </motion.div>
-
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-6 py-3.5 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl"
+          >
+            🖨️ Imprimer / Sauver en PDF
+          </button>
         </div>
 
-        {/* 3. Support Radar */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
-              <Sparkles className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-slate-800">Radar &quot;Soutien Scolaire&quot;</h2>
-              <p className="text-sm font-medium text-slate-500">Élèves détectés par l&apos;IA nécessitant une attention particulière</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {supportStudents.map((student) => (
-              <div key={student.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-lg font-black ${student.color}`}>
-                    {student.avatar}
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-800 text-lg">{student.name}</h4>
-                    <p className="text-sm font-medium text-slate-500 flex items-center gap-1.5 mt-0.5">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                      {student.reason}
-                    </p>
-                  </div>
-                </div>
-                <button className={`shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm transition-colors ${student.actionColor}`}>
-                  <student.ActionIcon className="w-4 h-4" />
-                  {student.action}
-                </button>
-              </div>
-            ))}
-          </div>
-        </motion.div>
+        {/* Barre de Filtre des Classes */}
+        <div className="flex items-center gap-3 overflow-x-auto pb-4 mb-8 print:hidden">
+          <button
+            onClick={() => setSelectedFilter('global')}
+            className={`px-5 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all ${
+              selectedFilter === 'global' 
+                ? 'bg-indigo-600 text-white shadow-md' 
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            🌍 Global
+          </button>
+          {Object.keys(classesData).map((className) => (
+            <button
+              key={className}
+              onClick={() => setSelectedFilter(className)}
+              className={`px-5 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all ${
+                selectedFilter === className 
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              📚 {className}
+            </button>
+          ))}
         </div>
 
-        {/* 4. Official Report Table (Printable) */}
-        <div className="mt-8 bg-white rounded-2xl p-6 shadow-sm border border-slate-100 print:shadow-none print:border-none print:p-0 print:mt-0 print:block">
-          <div className="mb-6 flex items-center gap-3 print:mb-4">
-            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 print:hidden">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-slate-800 print:text-black print:text-2xl">Bilan Pédagogique de la Classe (Aperçu Inspecteur)</h2>
-              <p className="text-sm font-medium text-slate-500 print:text-black">Répartition par genre - {selectedClass}</p>
-            </div>
-          </div>
-
-          <span className="block md:hidden text-xs text-slate-400 mb-2 mt-4 italic">👉 Faites glisser le tableau pour tout voir</span>
-          <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200 mt-6 print:shadow-none print:border-none print:mt-0 print:overflow-visible">
-            <table className="w-full text-left text-sm print:border-collapse print:border print:border-black print:text-black min-w-[600px]">
-              <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200 print:bg-transparent print:border-black print:text-black">
-                <tr>
-                  <th className="px-6 py-4 font-medium print:border print:border-black print:font-bold">Catégorie</th>
-                  <th className="px-6 py-4 font-medium text-center print:border print:border-black print:font-bold">Effectif Total</th>
-                  <th className="px-6 py-4 font-medium text-center print:border print:border-black print:font-bold">Ont obtenu la moyenne (&ge; 5/10)</th>
-                  <th className="px-6 py-4 font-medium text-center print:border print:border-black print:font-bold">N&apos;ont pas obtenu la moyenne (&lt; 5/10)</th>
-                  <th className="px-6 py-4 font-medium text-center print:border print:border-black print:font-bold">Taux de réussite (%)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 print:divide-none">
-                <tr className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-slate-700 print:border print:border-black print:text-black">Garçons</td>
-                  <td className="px-6 py-4 text-center text-slate-600 print:border print:border-black print:text-black">{genderData[0].value}</td>
-                  <td className="px-6 py-4 text-center text-emerald-600 font-semibold print:border print:border-black print:text-black print:font-normal">{Math.round(genderData[0].value * (overview.successRate/100))}</td>
-                  <td className="px-6 py-4 text-center text-rose-600 font-semibold print:border print:border-black print:text-black print:font-normal">{genderData[0].value - Math.round(genderData[0].value * (overview.successRate/100))}</td>
-                  <td className="px-6 py-4 text-center text-indigo-600 font-bold print:border print:border-black print:text-black print:font-normal">{overview.successRate}%</td>
-                </tr>
-                <tr className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-slate-700 print:border print:border-black print:text-black">Filles</td>
-                  <td className="px-6 py-4 text-center text-slate-600 print:border print:border-black print:text-black">{genderData[1].value}</td>
-                  <td className="px-6 py-4 text-center text-emerald-600 font-semibold print:border print:border-black print:text-black print:font-normal">{Math.round(genderData[1].value * (overview.successRate/100))}</td>
-                  <td className="px-6 py-4 text-center text-rose-600 font-semibold print:border print:border-black print:text-black print:font-normal">{genderData[1].value - Math.round(genderData[1].value * (overview.successRate/100))}</td>
-                  <td className="px-6 py-4 text-center text-indigo-600 font-bold print:border print:border-black print:text-black print:font-normal">{overview.successRate}%</td>
-                </tr>
-                <tr className="bg-indigo-50/50 border-t-2 border-indigo-100 font-bold text-indigo-950 print:bg-gray-100 print:border-black print:text-black">
-                  <td className="px-6 py-4 print:border print:border-black">TOTAL</td>
-                  <td className="px-6 py-4 text-center print:border print:border-black">{overview.total}</td>
-                  <td className="px-6 py-4 text-center text-emerald-700 font-semibold print:border print:border-black print:text-black print:font-normal">{Math.round(overview.total * (overview.successRate/100))}</td>
-                  <td className="px-6 py-4 text-center text-rose-700 font-semibold print:border print:border-black print:text-black print:font-normal">{overview.total - Math.round(overview.total * (overview.successRate/100))}</td>
-                  <td className="px-6 py-4 text-center text-indigo-700 font-bold print:border print:border-black print:text-black print:font-normal">{overview.successRate}%</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        {/* Print-only title */}
+        <div className="hidden print:block mb-8 text-center border-b border-gray-300 pb-4">
+          <h1 className="text-3xl font-black text-black">
+            Bilan Statistique - {selectedFilter === 'global' ? 'Toutes classes' : selectedFilter}
+          </h1>
         </div>
 
-        {/* 5. Pyramide des âges (Printable Report) */}
-        <div className="mt-8 bg-white rounded-2xl p-8 shadow-sm border border-slate-100 print:shadow-none print:border-none print:p-0 print:mt-0 print:block print:break-before-page">
+        {/* Grille principale */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
           
-          <div className="flex justify-center mb-8">
-            <h2 className="text-3xl sm:text-4xl font-serif text-red-600 font-bold text-center">Pyramide des âges</h2>
-          </div>
-
-          {/* Grid Layout matching the image */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 border border-slate-300 print:border-black p-2">
-            
-            {/* Left Column (Line & Pie) */}
-            <div className="lg:col-span-1 flex flex-col gap-4">
-              {/* Line Chart */}
-              <div className="border border-slate-300 print:border-black h-[250px] p-2">
+          {/* Carte 1 (Pleine largeur) */}
+          <div className="lg:col-span-2 bg-white rounded-3xl p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300">
+            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-6">
+              🎯 Maîtrise des Compétences (Oral, Lecture, Écrit)
+            </h2>
+            {!isMounted ? renderChartSkeleton() : (
+              <div className="w-full h-[250px] min-h-[250px] relative">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={ageData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={true} stroke="#e2e8f0" />
-                    <XAxis dataKey="year" tick={{ fontSize: 10, fill: 'black' }} angle={-45} textAnchor="end" height={40} />
-                    <YAxis tick={{ fontSize: 10, fill: 'black' }} domain={[0, 'dataMax + 2']} />
-                    <Tooltip />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
-                    <Line type="linear" dataKey="Garçon" name="GARÇON" stroke="#00b0f0" strokeWidth={2} dot={{ r: 4, fill: '#00b0f0' }} />
-                    <Line type="linear" dataKey="Fille" name="FILLE" stroke="#ff00ff" strokeWidth={2} dot={{ r: 4, fill: '#ff00ff' }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-              
-              {/* Pie Chart */}
-              <div className="border border-slate-300 print:border-black h-[250px] p-2 relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={genderData}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius="90%"
-                      dataKey="value"
-                      stroke="white"
-                      strokeWidth={2}
-                      labelLine={false}
-                      label={renderCustomizedLabel}
-                    >
-                      {genderData.map((entry, index) => (
+                  <BarChart data={activeData.competences} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} dy={10} />
+                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip 
+                      cursor={{ fill: '#F8FAFC' }} 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+                      formatter={(value: any) => [`${value}%`, 'Score']}
+                    />
+                    <Bar dataKey="score" radius={[6, 6, 0, 0]} maxBarSize={80}>
+                      {activeData.competences.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
-                    </Pie>
-                    <Legend iconType="square" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Right Column (Bar & Table) */}
-            <div className="lg:col-span-2 border border-slate-300 print:border-black p-4 flex flex-col">
-              <div className="flex-1 min-h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={ageData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="year" tick={{ fontSize: 12, fill: 'black' }} axisLine={true} tickLine={false} />
-                    <YAxis tick={{ fontSize: 12, fill: 'black' }} domain={[0, 'dataMax + 2']} />
-                    <Tooltip />
-                    <Bar dataKey="Garçon" name="GARÇON" fill="#00b0f0" barSize={30}>
-                      <LabelList dataKey="Garçon" position="top" style={{ fontSize: '12px', fontWeight: 'bold', fill: 'black' }} />
-                    </Bar>
-                    <Bar dataKey="Fille" name="FILLE" fill="#ff00ff" barSize={30}>
-                      <LabelList dataKey="Fille" position="top" style={{ fontSize: '12px', fontWeight: 'bold', fill: 'black' }} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              
-              {/* Data Table */}
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full text-center border-collapse border border-black text-xs print:text-black">
-                  <thead>
-                    <tr>
-                      <th className="border border-black p-2 w-24"></th>
-                      {ageData.map(d => <th key={d.year} className="border border-black p-2 font-normal">{d.year}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="border border-black p-2 font-bold flex items-center gap-2 justify-start">
-                        <div className="w-3 h-3 bg-[#00b0f0] print:bg-[#00b0f0]" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div> GARÇON
-                      </td>
-                      {ageData.map(d => <td key={d.year} className="border border-black p-2">{d.Garçon}</td>)}
-                    </tr>
-                    <tr>
-                      <td className="border border-black p-2 font-bold flex items-center gap-2 justify-start">
-                        <div className="w-3 h-3 bg-[#ff00ff] print:bg-[#ff00ff]" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div> FILLE
-                      </td>
-                      {ageData.map(d => <td key={d.year} className="border border-black p-2">{d.Fille}</td>)}
-                    </tr>
-                  </tbody>
-                </table>
+            )}
+          </div>
+
+          {/* Carte 2 */}
+          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300">
+            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-6">
+              🆘 Radar de Soutien (Élèves prioritaires)
+            </h2>
+            <ul className="space-y-4">
+              {activeData.support.map((student: any) => (
+                <li key={student.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border border-slate-100 bg-slate-50 gap-4 print:bg-white print:border-gray-200">
+                  <div className="flex items-center gap-3">
+                    <UserCircle className="w-10 h-10 text-slate-400" />
+                    <div>
+                      <p className="font-bold text-slate-800">{student.name}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <AlertTriangle className={`w-4 h-4 ${student.level === 'danger' ? 'text-red-500' : 'text-orange-500'}`} />
+                        <span className={`text-xs sm:text-sm font-semibold ${student.level === 'danger' ? 'text-red-600 bg-red-100' : 'text-orange-600 bg-orange-100'} px-2 py-0.5 rounded-md`}>
+                          {student.issue}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <Link href="/ai-generator" className="print:hidden w-full sm:w-auto">
+                    <button className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-sm rounded-xl transition-colors w-full">
+                      <Sparkles className="w-4 h-4" />
+                      Créer un exercice
+                    </button>
+                  </Link>
+                </li>
+              ))}
+              {activeData.support.length === 0 && (
+                 <p className="text-center text-slate-400 py-8 font-medium">Aucun élève en grande difficulté détecté.</p>
+              )}
+            </ul>
+          </div>
+
+          {/* Carte 3 - Évolution Adaptative */}
+          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300">
+            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-6">
+              📈 Évolution de la moyenne {selectedFilter !== 'global' && <span className="text-sm font-medium text-slate-500">({selectedFilter} vs Global)</span>}
+            </h2>
+            {!isMounted ? renderChartSkeleton() : (
+              <div className="w-full h-[250px] min-h-[250px] relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={activeEvolution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} dy={10} />
+                    <YAxis domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+                    />
+                    
+                    {/* Courbe Globale (en grise pointillé si on filtre une classe) */}
+                    {selectedFilter !== 'global' && (
+                      <Line 
+                        type="monotone" 
+                        dataKey="globalAvg" 
+                        name="Moyenne Globale" 
+                        stroke="#94A3B8" 
+                        strokeWidth={2} 
+                        strokeDasharray="4 4" 
+                        dot={false}
+                        activeDot={{ r: 4 }} 
+                      />
+                    )}
+                    
+                    {/* Courbe Principale (Bleue/Indigo) */}
+                    <Line 
+                      type="monotone" 
+                      dataKey={selectedFilter === 'global' ? "globalAvg" : "classAvg"} 
+                      name={selectedFilter === 'global' ? "Moyenne" : `Moyenne ${selectedFilter}`}
+                      stroke="#4F46E5" 
+                      strokeWidth={4} 
+                      dot={{ r: 6, fill: '#4F46E5', strokeWidth: 2, stroke: '#fff' }} 
+                      activeDot={{ r: 8 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
-              
-              <div className="flex justify-center gap-6 mt-4">
-                <div className="flex items-center gap-2 text-xs font-bold print:text-black">
-                  <div className="w-3 h-3 bg-[#00b0f0] print:bg-[#00b0f0]" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div> GARÇON
-                </div>
-                <div className="flex items-center gap-2 text-xs font-bold print:text-black">
-                  <div className="w-3 h-3 bg-[#ff00ff] print:bg-[#ff00ff]" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div> FILLE
-                </div>
+            )}
+          </div>
+
+          {/* Carte 4 - Pyramide dynamique */}
+          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300">
+            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-6">
+              📊 Pyramide des Âges
+            </h2>
+            {!isMounted ? renderChartSkeleton() : (
+              <div className="w-full h-[250px] min-h-[250px] relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={activeData.ages} margin={{ top: 10, right: 0, left: -20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} angle={-45} textAnchor="end" dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
+                    <Tooltip 
+                      cursor={{ fill: '#F8FAFC' }} 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+                    />
+                    <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
+                    <Bar dataKey="Garçons" fill="#3B82F6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                    <Bar dataKey="Filles" fill="#EC4899" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-            </div>
+            )}
+          </div>
+
+          {/* Carte 5 - Classe Championne (Statique globalement) */}
+          <div className="bg-[#EEF2FF] rounded-3xl p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:bg-white print:shadow-none print:border print:border-gray-300">
+            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-indigo-900 mb-6 flex items-center gap-3">
+              🏫 Classe Championne
+            </h2>
+            {!isMounted ? renderChartSkeleton() : (
+              <div className="flex flex-col items-center justify-center p-6 text-center h-[250px] relative bg-white/50 rounded-2xl border border-indigo-100 print:border-gray-200 print:bg-white">
+                <div className="animate-bounce mb-4">
+                  <Trophy className="w-16 h-16 text-indigo-600 drop-shadow-md" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-3xl font-black text-indigo-950 tracking-tight">4ème AP - B</h3>
+                <p className="text-indigo-700 font-medium mt-3 flex items-center gap-2 bg-indigo-100 px-4 py-2 rounded-full text-sm">
+                  <Star className="w-4 h-4 fill-indigo-600" /> Meilleure progression (+1.2 pts)
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Carte 6 - Top Élèves (Dynamique et Pleine largeur) */}
+          <div className="lg:col-span-2 bg-white rounded-3xl p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300">
+            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-6 flex items-center gap-3">
+              🏆 Top Élèves <span className="text-slate-400 font-medium text-lg">({selectedFilter === 'global' ? 'Toutes classes' : selectedFilter})</span>
+            </h2>
+            {!isMounted ? renderChartSkeleton() : (
+              <div className="flex flex-col gap-4">
+                {activeData.top.map((student: any) => (
+                  <div key={student.id} className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 p-4 sm:p-5 bg-slate-50/50 rounded-2xl hover:scale-[1.02] transition-transform shadow-sm border border-slate-100 group print:bg-white print:border-gray-200 print:shadow-none">
+                    
+                    {/* Photo de l'élève (Avatar) */}
+                    <div className="relative shrink-0">
+                      <div 
+                        className="w-16 h-16 rounded-full overflow-hidden border-2 bg-white flex items-center justify-center shadow-sm"
+                        style={{ borderColor: student.colorHex }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img 
+                          src={`https://api.dicebear.com/7.x/notionists/svg?seed=${student.seed}&backgroundColor=transparent`} 
+                          alt={`Avatar de ${student.name}`} 
+                          className="w-full h-full object-cover rounded-full p-1 bg-slate-50" 
+                        />
+                      </div>
+                      {/* Badge de Rang (Or, Argent, Bronze) */}
+                      <div 
+                        className="absolute -bottom-2 -right-1 w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-black shadow-md border-2 border-white"
+                        style={{ backgroundColor: student.colorHex }}
+                      >
+                        #{student.rank}
+                      </div>
+                    </div>
+
+                    {/* Vraies Métriques (Centre) */}
+                    <div className="flex-1 text-center sm:text-left">
+                      <h3 className="text-xl font-bold text-slate-800">{student.name}</h3>
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3 mt-2">
+                        <span className="text-sm font-medium text-slate-500 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-sm print:border-gray-300">
+                          Devoir : <strong className="text-slate-700">{student.homework}/10</strong>
+                        </span>
+                        <span className="text-sm font-medium text-slate-500 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-sm print:border-gray-300">
+                          Examen : <strong className="text-slate-700">{student.exam}/10</strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Moyenne Générale (Droite) */}
+                    <div className="shrink-0 text-center sm:text-right mt-2 sm:mt-0 bg-white p-3 sm:bg-transparent sm:p-0 rounded-xl sm:border-none border border-slate-100 shadow-sm sm:shadow-none min-w-[120px]">
+                      <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Moyenne</p>
+                      <div className="text-2xl sm:text-3xl font-black text-emerald-600 tracking-tight">
+                        {student.overall}<span className="text-sm sm:text-lg text-emerald-400">/10</span>
+                      </div>
+                    </div>
+                    
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
         </div>
 
       </div>
     </div>
-  )
+  );
 }

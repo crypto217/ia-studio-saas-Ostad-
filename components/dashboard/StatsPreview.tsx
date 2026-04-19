@@ -59,19 +59,19 @@ export function StatsPreview() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3">
+      <div className="grid gap-6 sm:gap-8 grid-cols-1 sm:grid-cols-3">
         {[1, 2, 3].map(i => (
-          <Card key={i} className="bg-slate-100 border-0 h-[120px] animate-pulse rounded-2xl"></Card>
+          <Card key={i} className="bg-slate-100 border-0 h-[120px] animate-pulse rounded-[2rem] sm:rounded-3xl"></Card>
         ))}
       </div>
     )
   }
 
   return (
-    <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3">
-      <Card className="relative overflow-hidden bg-emerald-500 text-white hover:-translate-y-1 transition-transform shadow-md border-0">
+    <div className="grid gap-6 sm:gap-8 grid-cols-1 sm:grid-cols-3">
+      <Card className="relative overflow-hidden bg-emerald-500 text-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 rounded-[2rem] sm:rounded-3xl">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <CardContent className="p-4 sm:p-6 relative z-10">
+        <CardContent className="p-6 sm:p-8 relative z-10">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-white text-emerald-500 shadow-sm shrink-0">
               <motion.div
@@ -93,9 +93,9 @@ export function StatsPreview() {
         </CardContent>
       </Card>
 
-      <Card className="relative overflow-hidden bg-violet-500 text-white hover:-translate-y-1 transition-transform shadow-md border-0">
+      <Card className="relative overflow-hidden bg-violet-500 text-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 rounded-[2rem] sm:rounded-3xl">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <CardContent className="p-4 sm:p-6 relative z-10">
+        <CardContent className="p-6 sm:p-8 relative z-10">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-white text-violet-500 shadow-sm shrink-0">
               <motion.div
@@ -117,9 +117,9 @@ export function StatsPreview() {
         </CardContent>
       </Card>
 
-      <Card className="relative overflow-hidden bg-rose-500 text-white hover:-translate-y-1 transition-transform shadow-md border-0">
+      <Card className="relative overflow-hidden bg-rose-500 text-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 rounded-[2rem] sm:rounded-3xl">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <CardContent className="p-4 sm:p-6 relative z-10">
+        <CardContent className="p-6 sm:p-8 relative z-10">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-white text-rose-500 shadow-sm shrink-0">
               <motion.div

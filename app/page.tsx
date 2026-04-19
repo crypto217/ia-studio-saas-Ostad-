@@ -8,7 +8,7 @@ import { MobileTeacherWidgets } from "@/components/dashboard/MobileTeacherWidget
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-6 md:space-y-8 max-w-7xl mx-auto pb-24 md:pb-12">
+    <div className="space-y-8 md:space-y-12 max-w-7xl mx-auto pb-24 md:pb-12">
       <WelcomeBanner />
 
       {/* Mobile-only Teacher Widgets */}
@@ -23,18 +23,18 @@ export default function DashboardPage() {
       <StatsPreview />
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-10">
         
         {/* Left Column: Schedule & Planning (Takes up 2 columns on large screens) */}
-        <div className="lg:col-span-2 space-y-6 md:space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+        <div className="lg:col-span-2 space-y-8 md:space-y-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
             <NextLessonCard />
             <MiniCalendarWidget />
           </div>
         </div>
 
         {/* Right Column: Tasks & Alerts */}
-        <div className="space-y-6 md:space-y-8">
+        <div className="space-y-8 md:space-y-12">
           <TasksPanel />
         </div>
 

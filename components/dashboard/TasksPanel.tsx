@@ -100,23 +100,23 @@ export function TasksPanel() {
   const pendingCount = tasks.filter(t => !t.completed).length
 
   return (
-    <Card className="border border-slate-200 bg-white flex flex-col h-full">
-      <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-100 px-4 sm:px-6 pt-4 sm:pt-6">
+    <Card className="border border-slate-200 bg-white flex flex-col h-full rounded-[2rem] sm:rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+      <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-100 px-6 sm:px-8 pt-6 sm:pt-8">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
             <Target className="h-5 w-5 sm:h-7 sm:w-7" />
           </div>
           <div>
-            <CardTitle className="text-xl sm:text-2xl font-black text-slate-800">Priorités du Jour</CardTitle>
-            <p className="text-xs sm:text-sm font-bold text-slate-400">À faire en priorité</p>
+            <CardTitle className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Priorités du Jour</CardTitle>
+            <p className="text-xs sm:text-sm font-bold text-slate-400 pt-1">À faire en priorité</p>
           </div>
         </div>
         <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-slate-100 font-black text-slate-600 border border-slate-200 text-sm sm:text-base">
           {pendingCount}
         </div>
       </CardHeader>
-      <CardContent className="flex-1 pt-4 sm:pt-6 flex flex-col px-4 sm:px-6 pb-4 sm:pb-6 overflow-hidden">
-        <div className="space-y-3 sm:space-y-4 flex-1 overflow-y-auto pr-2">
+      <CardContent className="flex-1 pt-6 sm:pt-8 flex flex-col px-6 sm:px-8 pb-6 sm:pb-8 overflow-hidden">
+        <div className="space-y-4 sm:space-y-6 flex-1 overflow-y-auto pr-2">
           {tasks.length === 0 && !isAdding && (
             <div className="text-center py-8 text-slate-500 font-medium">
               Aucune tâche pour le moment.
