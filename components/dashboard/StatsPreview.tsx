@@ -68,10 +68,10 @@ export function StatsPreview() {
   }
 
   return (
-    <div className="grid gap-6 sm:gap-8 grid-cols-1 sm:grid-cols-3">
-      <Card className="relative overflow-hidden bg-emerald-500 text-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 rounded-[2rem] sm:rounded-3xl">
+    <div className="-mx-4 px-4 sm:mx-0 sm:px-0 flex flex-row overflow-x-auto sm:grid gap-4 sm:gap-8 sm:grid-cols-3 pb-4 sm:pb-0 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <Card className="shrink-0 w-72 sm:w-auto snap-start relative overflow-hidden bg-emerald-500 text-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 rounded-[1.5rem] sm:rounded-3xl">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <CardContent className="p-6 sm:p-8 relative z-10">
+        <CardContent className="p-5 sm:p-8 relative z-10">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-white text-emerald-500 shadow-sm shrink-0">
               <motion.div
@@ -82,20 +82,20 @@ export function StatsPreview() {
               </motion.div>
             </div>
             <div>
-              <p className="text-xs sm:text-sm font-bold text-emerald-100 uppercase tracking-wider">Moyenne Générale</p>
+              <p className="text-[11px] sm:text-sm font-bold text-emerald-100 uppercase tracking-wider">Moyenne Générale</p>
               <h3 className="text-2xl sm:text-3xl font-black text-white">{stats.averageScore}<span className="text-base sm:text-lg font-bold text-emerald-200">/20</span></h3>
             </div>
           </div>
-          <div className="mt-3 sm:mt-4 flex items-center gap-2 text-xs sm:text-sm font-bold">
-            <span className="text-emerald-900 bg-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-xl shadow-sm">Global</span>
+          <div className="mt-3 sm:mt-4 flex items-center gap-2 text-[11px] sm:text-sm font-bold">
+            <span className="text-emerald-900 bg-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg sm:rounded-xl shadow-sm">Global</span>
             <span className="text-emerald-100">Toutes classes</span>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="relative overflow-hidden bg-violet-500 text-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 rounded-[2rem] sm:rounded-3xl">
+      <Card className="shrink-0 w-72 sm:w-auto snap-start relative overflow-hidden bg-violet-500 text-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 rounded-[1.5rem] sm:rounded-3xl">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <CardContent className="p-6 sm:p-8 relative z-10">
+        <CardContent className="p-5 sm:p-8 relative z-10">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-white text-violet-500 shadow-sm shrink-0">
               <motion.div
@@ -106,20 +106,20 @@ export function StatsPreview() {
               </motion.div>
             </div>
             <div>
-              <p className="text-xs sm:text-sm font-bold text-violet-100 uppercase tracking-wider">Effectif Total</p>
+              <p className="text-[11px] sm:text-sm font-bold text-violet-100 uppercase tracking-wider">Effectif Total</p>
               <h3 className="text-2xl sm:text-3xl font-black text-white">{stats.totalStudents}</h3>
             </div>
           </div>
-          <div className="mt-3 sm:mt-4 flex items-center gap-2 text-xs sm:text-sm font-bold">
-            <span className="text-violet-900 bg-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-xl shadow-sm">Élèves</span>
+          <div className="mt-3 sm:mt-4 flex items-center gap-2 text-[11px] sm:text-sm font-bold">
+            <span className="text-violet-900 bg-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg sm:rounded-xl shadow-sm">Élèves</span>
             <span className="text-violet-100">Inscrits</span>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="relative overflow-hidden bg-rose-500 text-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 rounded-[2rem] sm:rounded-3xl">
+      <Card className="shrink-0 w-72 sm:w-auto snap-start relative overflow-hidden bg-rose-500 text-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 rounded-[1.5rem] sm:rounded-3xl">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <CardContent className="p-6 sm:p-8 relative z-10">
+        <CardContent className="p-5 sm:p-8 relative z-10">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-white text-rose-500 shadow-sm shrink-0">
               <motion.div
@@ -130,12 +130,12 @@ export function StatsPreview() {
               </motion.div>
             </div>
             <div>
-              <p className="text-xs sm:text-sm font-bold text-rose-100 uppercase tracking-wider">Élèves en Difficulté</p>
+              <p className="text-[11px] sm:text-sm font-bold text-rose-100 uppercase tracking-wider">Élèves en Difficulté</p>
               <h3 className="text-2xl sm:text-3xl font-black text-white">{stats.studentsInDifficulty}</h3>
             </div>
           </div>
-          <div className="mt-3 sm:mt-4 flex items-center gap-2 text-xs sm:text-sm font-bold">
-            <span className="text-rose-900 bg-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-xl shadow-sm">Moyenne &lt; 10</span>
+          <div className="mt-3 sm:mt-4 flex items-center gap-2 text-[11px] sm:text-sm font-bold">
+            <span className="text-rose-900 bg-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg sm:rounded-xl shadow-sm">Moyenne &lt; 10</span>
             <span className="text-rose-100">À surveiller</span>
           </div>
         </CardContent>

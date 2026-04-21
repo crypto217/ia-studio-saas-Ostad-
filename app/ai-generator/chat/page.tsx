@@ -5,10 +5,23 @@ import Link from "next/link"
 import { motion, AnimatePresence } from "motion/react"
 import { Bot, Send, ArrowLeft, Paperclip, Sparkles, MoreHorizontal } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { GoogleGenAI } from "@google/genai"
+import Markdown from "react-markdown"
+
+const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY })
+
+const SYSTEM_INSTRUCTION = `Tu es l'Assistant Ostad, une intelligence artificielle spécialisée pour les enseignants du primaire (Professeurs des écoles).
+Ton rôle est d'apporter des conseils pédagogiques, de corriger des textes, de générer des idées de leçons, ou de répondre à toute question liée à l'enseignement.
+
+CRITÈRES DE RÉPONSE OBLIGATOIRES :
+- Sois DYNAMIQUE, CONCIS et va droit au but. Donne uniquement "la crème de l'information" pour ne pas perdre le temps précieux de l'enseignant.
+- Évite les longues phrases, les introductions futiles et les conclusions génériques.
+- Structure toutes tes réponses de façon très visuelle et aérée : utilise des listes à puces, mets en gras les concepts clés, crée de courts paragraphes.
+- Adopte un ton professionnel, encourageant et adapté au milieu scolaire. Parle toujours en français.`
 
 type Message = {
   id: string
-  role: "user" | "assistant"
+  role: "user" | "model"
   content: string
 }
 
@@ -20,7 +33,7 @@ const QUICK_PROMPTS = [
 
 const INITIAL_MESSAGE: Message = {
   id: "1",
-  role: "assistant",
+  role: "model",
   content: "Bonjour ! 👋 Je suis l'Assistant Ostad. Comment puis-je vous aider aujourd'hui avec vos classes ou vos cours ?"
 }
 
@@ -40,30 +53,60 @@ export default function ChatPage() {
     scrollToBottom()
   }, [messages, isTyping])
 
-  const handleSend = (e?: React.FormEvent) => {
+  const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault()
-    if (!inputValue.trim()) return
+    if (!inputValue.trim() || isTyping) return
 
+    const userText = inputValue.trim()
     const newUserMsg: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: inputValue.trim()
+      content: userText
     }
 
     setMessages(prev => [...prev, newUserMsg])
     setInputValue("")
     setIsTyping(true)
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      // Build history for Gemini
+      const historyForGemini = messages.filter(m => m.id !== "1").map(msg => ({
+        role: msg.role,
+        parts: [{ text: msg.content }]
+      }))
+
+      // Append current message
+      historyForGemini.push({
+        role: "user",
+        parts: [{ text: userText }]
+      })
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: historyForGemini,
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION,
+          temperature: 0.7,
+        }
+      })
+
       const newAiMsg: Message = {
         id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "C'est une excellente question ! Je prépare une réponse détaillée pour vous aider avec ça. 🚀 (La vraie connexion à l'API Gemini viendra plus tard !)"
+        role: "model",
+        content: response.text || "Désolé, je n'ai pas pu formuler de réponse."
       }
       setMessages(prev => [...prev, newAiMsg])
+    } catch (error) {
+       console.error("Erreur Gemini API:", error)
+       const errorMsg: Message = {
+         id: (Date.now() + 1).toString(),
+         role: "model",
+         content: "Oups... Il semblerait que j'aie rencontré un problème avec ma connexion. Veuillez réessayer."
+       }
+       setMessages(prev => [...prev, errorMsg])
+    } finally {
       setIsTyping(false)
-    }, 1500)
+    }
   }
 
   const renderHeader = () => (
@@ -102,13 +145,13 @@ export default function ChatPage() {
               )}
               
               <div 
-                className={`max-w-[85%] sm:max-w-[75%] ${
+                className={`max-w-[90%] sm:max-w-[75%] overflow-hidden ${
                   isUser 
                     ? 'bg-indigo-600 text-white rounded-2xl rounded-tr-none p-4 md:p-5 shadow-md leading-relaxed text-[15px]' 
-                    : 'bg-white border border-slate-100 rounded-2xl rounded-tl-none p-4 md:p-5 shadow-sm text-slate-700 leading-relaxed text-[15px]'
+                    : 'bg-white border border-slate-100 rounded-2xl rounded-tl-none p-4 md:p-5 shadow-sm leading-relaxed text-[15px] prose prose-sm md:prose-base prose-slate max-w-none'
                 }`}
               >
-                {msg.content}
+                {isUser ? msg.content : <Markdown>{msg.content}</Markdown>}
               </div>
             </motion.div>
           )

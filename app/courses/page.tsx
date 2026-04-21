@@ -27,6 +27,7 @@ import { collection, query, onSnapshot, deleteDoc, doc, where } from "firebase/f
 import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
 import Link from "next/link"
 import { useAuth } from "@/components/AuthProvider"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 type DocType = "Cours" | "Exercice" | "Examen"
 
@@ -49,6 +50,7 @@ const TYPES = ["Tous", "Cours", "Exercice", "Examen"]
 
 export default function CoursesLibraryPage() {
   const { user, isAuthReady } = useAuth()
+  const isMobile = useIsMobile()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedClass, setSelectedClass] = useState("Toutes")
   const [selectedType, setSelectedType] = useState("Tous")
@@ -223,7 +225,7 @@ export default function CoursesLibraryPage() {
   return (
     <div className="min-h-screen pb-24 bg-slate-50/50">
       {/* HEADER HERO */}
-      <div className="bg-white border-b border-slate-200 px-4 py-8 sm:px-8 relative overflow-hidden">
+      <div className={`bg-white border-b border-slate-200 ${isMobile ? 'px-4 py-6' : 'px-4 py-8 sm:px-8'} relative overflow-hidden`}>
         {/* Decorative background blobs */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
@@ -231,26 +233,26 @@ export default function CoursesLibraryPage() {
         <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <div className="flex items-center gap-4 mb-3">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white shadow-lg shadow-fuchsia-500/30 transform -rotate-6">
-                <FileText className="w-7 h-7" />
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white shadow-lg shadow-fuchsia-500/30 transform -rotate-6">
+                <FileText className="w-6 h-6 md:w-7 md:h-7" />
               </div>
-              <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Ma Bibliothèque</h1>
+              <h1 className="text-2xl md:text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Ma Bibliothèque</h1>
             </div>
-            <p className="text-slate-500 font-medium text-lg max-w-2xl">
+            <p className="text-slate-500 font-medium text-sm md:text-lg max-w-2xl">
               Retrouvez toutes vos fiches de cours, exercices et examens générés par l&apos;IA.
             </p>
           </div>
           
-          <Link href="/ai-generator" className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-6 py-3.5 rounded-2xl font-bold shadow-xl shadow-slate-900/20 transition-all hover:-translate-y-1">
-            <Sparkles className="w-5 h-5 text-amber-400" />
+          <Link href="/ai-generator" className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 md:px-6 md:py-3.5 rounded-2xl font-bold shadow-xl shadow-slate-900/20 transition-all hover:-translate-y-1 text-sm md:text-base w-full md:w-auto">
+            <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-amber-400" />
             Générer un document
           </Link>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 mt-8">
+      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-0' : 'px-4 sm:px-8'} mt-8`}>
         {/* SEARCH & FILTERS */}
-        <div className="bg-white/80 backdrop-blur-xl p-6 sm:p-8 rounded-[3rem] shadow-xl shadow-slate-200/40 border-4 border-white mb-12 space-y-8 relative overflow-hidden">
+        <div className={`bg-white/80 backdrop-blur-xl ${isMobile ? 'p-4 rounded-[1.5rem]' : 'p-6 sm:p-8 rounded-[3rem]'} shadow-xl shadow-slate-200/40 border-4 border-white mb-12 space-y-8 relative overflow-hidden`}>
           {/* Decorative background elements */}
           <div className="absolute -top-24 -right-24 w-64 h-64 bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -262,10 +264,10 @@ export default function CoursesLibraryPage() {
             </div>
             <input
               type="text"
-              placeholder="Rechercher un cours magique, un exercice..."
+              placeholder="Rechercher un cours..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-16 pr-16 py-5 bg-white border-4 border-slate-100 rounded-[2rem] focus:outline-none focus:border-violet-300 focus:ring-4 focus:ring-violet-500/10 transition-all duration-300 font-bold text-lg text-slate-700 placeholder:text-slate-300 shadow-sm hover:shadow-md hover:border-slate-200"
+              className={`w-full ${isMobile ? 'pl-12 pr-12 py-4 text-base' : 'pl-16 pr-16 py-5 text-lg'} bg-white border-4 border-slate-100 rounded-[2rem] focus:outline-none focus:border-violet-300 focus:ring-4 focus:ring-violet-500/10 transition-all duration-300 font-bold text-slate-700 placeholder:text-slate-300 shadow-sm hover:shadow-md hover:border-slate-200`}
             />
             {/* Sparkle icon that appears when typing */}
             <AnimatePresence>
@@ -288,12 +290,12 @@ export default function CoursesLibraryPage() {
               <label className="text-sm font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
                 <Filter className="w-4 h-4 text-violet-400" /> Type de document
               </label>
-              <div className="flex flex-wrap gap-3">
+              <div className={`flex flex-wrap ${isMobile ? 'gap-2' : 'gap-3'}`}>
                 {TYPES.map(type => (
                   <button
                     key={type}
                     onClick={() => setSelectedType(type)}
-                    className={`px-6 py-3 rounded-2xl font-bold text-sm transition-all duration-300 transform hover:-translate-y-1 ${
+                    className={`px-4 py-2 md:px-6 md:py-3 rounded-[1rem] md:rounded-2xl font-bold text-xs md:text-sm transition-all duration-300 transform hover:-translate-y-1 ${
                       selectedType === type 
                         ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/30 border-b-4 border-violet-700' 
                         : 'bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 border-2 border-slate-100 shadow-sm hover:shadow-md'
@@ -310,12 +312,12 @@ export default function CoursesLibraryPage() {
               <label className="text-sm font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
                  <GraduationCap className="w-4 h-4 text-amber-400" /> Classe
               </label>
-              <div className="flex flex-wrap gap-3">
+              <div className={`flex flex-wrap ${isMobile ? 'gap-2' : 'gap-3'}`}>
                 {CLASSES.map(cls => (
                   <button
                     key={cls}
                     onClick={() => setSelectedClass(cls)}
-                    className={`px-6 py-3 rounded-2xl font-bold text-sm transition-all duration-300 transform hover:-translate-y-1 ${
+                    className={`px-4 py-2 md:px-6 md:py-3 rounded-[1rem] md:rounded-2xl font-bold text-xs md:text-sm transition-all duration-300 transform hover:-translate-y-1 ${
                       selectedClass === cls 
                         ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg shadow-orange-500/30 border-b-4 border-orange-600' 
                         : 'bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 border-2 border-slate-100 shadow-sm hover:shadow-md'
@@ -337,7 +339,7 @@ export default function CoursesLibraryPage() {
         ) : filteredDocs.length > 0 ? (
           <motion.div 
             layout
-            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+            className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 ${isMobile ? 'gap-4 px-4' : 'gap-6'}`}
           >
             <AnimatePresence>
               {filteredDocs.map((doc) => (
@@ -348,7 +350,7 @@ export default function CoursesLibraryPage() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   whileHover={{ y: -5 }}
-                  className="bg-white rounded-[2rem] border-2 border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group flex flex-col"
+                  className={`bg-white rounded-[2rem] border-2 border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group flex flex-col ${isMobile ? 'mx-0' : 'mx-0'}`}
                 >
                   {/* Card Header (Colored or Image) */}
                   <div className={`h-32 ${!doc.imageUrl ? 'bg-gradient-to-r ' + (doc.color || 'from-slate-400 to-slate-500') : ''} p-6 relative overflow-hidden shrink-0`}>
@@ -417,17 +419,17 @@ export default function CoursesLibraryPage() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-[3rem] border-2 border-dashed border-slate-200 p-12 text-center flex flex-col items-center justify-center min-h-[400px]"
+            className={`bg-white rounded-[3rem] border-2 border-dashed border-slate-200 ${isMobile ? 'p-6 mx-4' : 'p-12'} text-center flex flex-col items-center justify-center min-h-[400px]`}
           >
             <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6">
               <Search className="w-10 h-10 text-slate-300" />
             </div>
-            <h3 className="text-2xl font-black text-slate-800 mb-2">Aucun document trouvé</h3>
-            <p className="text-slate-500 max-w-md mx-auto mb-8">
+            <h3 className="text-xl md:text-2xl font-black text-slate-800 mb-2">Aucun document trouvé</h3>
+            <p className="text-slate-500 max-w-md mx-auto mb-8 text-sm md:text-base">
               Vous n&apos;avez pas encore généré de documents correspondant à ces critères, ou votre bibliothèque est vide.
             </p>
-            <Link href="/ai-generator" className="flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-amber-950 px-8 py-4 rounded-2xl font-black shadow-xl shadow-amber-500/20 transition-all hover:-translate-y-1">
-              <Sparkles className="w-6 h-6" />
+            <Link href="/ai-generator" className="flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-amber-950 px-6 py-3 md:px-8 md:py-4 rounded-2xl font-black shadow-xl shadow-amber-500/20 transition-all hover:-translate-y-1 text-sm md:text-base">
+              <Sparkles className="w-5 h-5 md:w-6 md:h-6" />
               Générer mon premier cours
             </Link>
           </motion.div>
@@ -437,25 +439,25 @@ export default function CoursesLibraryPage() {
       {/* DOCUMENT VIEWER MODAL */}
       <AnimatePresence>
         {viewingDoc && (
-          <div className={`fixed inset-0 z-[100] bg-slate-800/90 backdrop-blur-md flex flex-col ${isFullscreen ? 'p-0' : 'p-4 sm:p-8'}`}>
+          <div className={`fixed inset-0 z-[100] bg-slate-800/90 backdrop-blur-md flex flex-col ${isMobile || isFullscreen ? 'p-0' : 'p-4 sm:p-8'}`}>
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className={`bg-white flex flex-col w-full h-full mx-auto overflow-hidden ${isFullscreen ? 'max-w-none rounded-none' : 'max-w-5xl rounded-[2rem] shadow-2xl'}`}
+              className={`bg-white flex flex-col w-full h-full mx-auto overflow-hidden ${isMobile || isFullscreen ? 'max-w-none rounded-none' : 'max-w-5xl rounded-[2rem] shadow-2xl'}`}
             >
               {/* Viewer Toolbar */}
               <div className="flex flex-wrap items-center justify-between gap-4 p-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setViewingDoc(null)} className="p-2 text-slate-400 hover:text-slate-600 bg-white rounded-xl shadow-sm border border-slate-200 transition-colors">
+                <div className="flex items-center gap-3 md:gap-4 max-w-[50%] md:max-w-none">
+                  <button onClick={() => setViewingDoc(null)} className="p-2 text-slate-400 hover:text-slate-600 bg-white rounded-xl shadow-sm border border-slate-200 transition-colors shrink-0">
                     <X className="w-5 h-5" />
                   </button>
-                  <div>
-                    <h3 className="font-black text-slate-800">{viewingDoc.title}</h3>
-                    <p className="text-xs font-medium text-slate-500">{viewingDoc.className} • {viewingDoc.type}</p>
+                  <div className="truncate">
+                    <h3 className="font-black text-slate-800 truncate text-sm md:text-base">{viewingDoc.title}</h3>
+                    <p className="text-[10px] md:text-xs font-medium text-slate-500 truncate">{viewingDoc.className} • {viewingDoc.type}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <button onClick={() => exportToPDF(viewingDoc.content, viewingDoc.type)} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors font-bold text-sm shadow-md">
                     <Download className="w-4 h-4" /> <span className="hidden sm:inline">Télécharger PDF</span>
                   </button>
@@ -500,18 +502,23 @@ export default function CoursesLibraryPage() {
                       `);
                       printWindow.document.close();
                     }
-                  }} className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-xl hover:bg-violet-700 transition-colors font-bold text-sm shadow-md">
+                  }} className="flex items-center gap-2 bg-violet-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-xl hover:bg-violet-700 transition-colors font-bold text-sm shadow-md">
                     <Printer className="w-4 h-4" /> <span className="hidden sm:inline">Imprimer</span>
                   </button>
-                  <button onClick={() => setIsFullscreen(!isFullscreen)} className="flex items-center gap-2 bg-white text-slate-700 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors font-bold text-sm border border-slate-200">
-                    {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-                  </button>
+                  {!isMobile && (
+                    <button onClick={() => setIsFullscreen(!isFullscreen)} className="flex items-center gap-2 bg-white text-slate-700 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors font-bold text-sm border border-slate-200">
+                      {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                    </button>
+                  )}
                 </div>
               </div>
 
               {/* Viewer Content */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-100/50">
-                <div className="bg-white shadow-sm mx-auto max-w-4xl" dangerouslySetInnerHTML={{ __html: viewingDoc.content }} />
+              <div className="flex-1 overflow-y-auto p-0 sm:p-8 bg-slate-100/50 w-full overflow-hidden">
+                <div 
+                  className={`bg-white shadow-sm mx-auto w-full sm:max-w-4xl rounded-sm ${isMobile ? 'p-4' : 'p-4 sm:p-8'} overflow-hidden @container [&_*]:!max-w-full [&_*]:!box-border [&_*]:![overflow-wrap:anywhere] [&_*]:![word-break:break-word] [&_img]:!max-w-full [&_img]:!w-full [&_img]:!h-auto [&_video]:!max-w-full [&_video]:!w-full [&_video]:!h-auto [&_iframe]:!max-w-full [&_iframe]:!w-full [&_iframe]:!h-auto [&_table]:!block [&_table]:!max-w-full [&_table]:!overflow-x-auto`} 
+                  dangerouslySetInnerHTML={{ __html: viewingDoc.content }} 
+                />
               </div>
             </motion.div>
           </div>

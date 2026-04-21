@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "motion/react"
-import { UserCheck, Target, AlertTriangle, Star, CheckCircle2, Circle } from "lucide-react"
+import { UserCheck, Target, AlertTriangle, Star, CheckCircle2, Circle, Camera, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { collection, onSnapshot, doc, updateDoc, query, where } from "firebase/firestore"
 import { db } from "@/firebase"
@@ -72,31 +72,6 @@ export function MobileTeacherWidgets() {
 
   return (
     <div className="flex flex-col gap-4 mb-6">
-      {/* Section 1 : Appel Express */}
-      <Link href="/classes/attendance" className="block outline-none">
-        <motion.div 
-          whileTap={{ scale: 0.97 }}
-          className="relative bg-emerald-400 border-b-4 border-emerald-600 rounded-2xl p-4 flex items-center justify-between text-white shadow-sm active:border-b-0 active:translate-y-1 transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <div className="bg-white/20 p-3 rounded-xl">
-              <UserCheck className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h3 className="font-black text-xl tracking-tight">Faire l&apos;appel</h3>
-              <p className="text-emerald-50 font-medium text-sm">5ème AP - Français (Maintenant)</p>
-            </div>
-          </div>
-          <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-emerald-500/50 px-2 py-1 rounded-lg border border-emerald-300/30">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-            </span>
-            <span className="text-[10px] font-bold uppercase tracking-wider">En cours</span>
-          </div>
-        </motion.div>
-      </Link>
-
       {/* Section 2 : Quêtes du Jour */}
       <div className="bg-white border-2 border-slate-200 rounded-2xl p-4 shadow-sm">
         <div className="flex items-center justify-between mb-4">
@@ -150,7 +125,7 @@ export function MobileTeacherWidgets() {
       {/* Section 3 : Radar Élèves */}
       <div className="flex flex-col gap-2">
         <h3 className="font-black text-slate-800 text-sm px-1">Radar Élèves</h3>
-        <div className="flex flex-row overflow-x-auto gap-3 pb-2 px-1 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="-mx-4 px-4 flex flex-row overflow-x-auto gap-3 pb-2 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           
           {alerts.length > 0 ? alerts.map((alert) => (
             <div key={alert.id} className="w-48 shrink-0 snap-start bg-slate-50 border-2 border-slate-100 rounded-xl p-3 flex flex-col gap-2">

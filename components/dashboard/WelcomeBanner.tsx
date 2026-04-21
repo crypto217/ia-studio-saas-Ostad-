@@ -47,14 +47,14 @@ export function WelcomeBanner() {
   }, [user, isAuthReady])
 
   return (
-    <div className="relative overflow-hidden rounded-[2rem] sm:rounded-3xl bg-indigo-500 px-6 py-10 md:px-12 md:py-16 text-white shadow-sm border border-indigo-600 flex items-center justify-between hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+    <div className="relative overflow-hidden rounded-[2rem] sm:rounded-3xl bg-indigo-500 px-5 py-6 md:px-12 md:py-16 text-white shadow-sm border border-indigo-600 flex items-center justify-between hover:shadow-xl transition-all duration-300">
       {/* Background decorative blobs */}
-      <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-      <div className="absolute right-0 bottom-0 h-64 w-64 rounded-full bg-indigo-700/30 blur-3xl" />
+      <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl opacity-50 md:opacity-100" />
+      <div className="absolute right-0 bottom-0 h-64 w-64 rounded-full bg-indigo-700/30 blur-3xl opacity-50 md:opacity-100" />
 
       {/* Left Content */}
       <div className="relative z-10 max-w-xl w-full">
-        <h1 className="text-2xl sm:text-3xl md:text-5xl font-black mb-3 md:mb-4 tracking-tight flex items-center gap-2 md:gap-3">
+        <h1 className="text-2xl sm:text-3xl md:text-5xl font-black mb-2 md:mb-4 tracking-tight flex items-center gap-2 md:gap-3">
           Bonjour, Professeur ! 
           <motion.span 
             className="inline-block origin-bottom-right"
@@ -67,49 +67,15 @@ export function WelcomeBanner() {
         <motion.p 
           initial="rest"
           whileHover="hover"
-          className="text-indigo-100 font-semibold mb-5 md:mb-8 text-sm sm:text-base md:text-lg leading-relaxed cursor-default"
+          className="text-indigo-100 font-medium md:font-semibold mb-4 md:mb-8 text-sm sm:text-base md:text-lg leading-relaxed cursor-default"
         >
-          Vous avez <span className="relative text-amber-950 font-black bg-amber-400 px-2 py-0.5 md:px-3 md:py-1 rounded-xl shadow-sm inline-block -rotate-1 hover:rotate-0 transition-transform">
+          Vous avez <span className="relative text-amber-950 font-black bg-amber-400 px-2 py-0.5 md:px-3 md:py-1 rounded-lg md:rounded-xl shadow-sm inline-block -rotate-1 hover:rotate-0 transition-transform">
             <span className="relative z-10">{tasksCount} tâche{tasksCount > 1 ? 's' : ''}</span>
-            <motion.svg 
-              className="absolute -bottom-2 -left-1 w-[110%] h-4 text-red-500 z-20 overflow-visible" 
-              viewBox="0 0 100 20" 
-              preserveAspectRatio="none"
-            >
-              <motion.path 
-                d="M 0 15 Q 25 25 50 15 T 100 15" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="6" 
-                strokeLinecap="round"
-                variants={{
-                  rest: { pathLength: 0, opacity: 0 },
-                  hover: { pathLength: 1, opacity: 1, transition: { duration: 0.5, ease: "easeOut" } }
-                }}
-              />
-            </motion.svg>
-          </span> et <span className="relative text-emerald-950 font-black bg-emerald-400 px-2 py-0.5 md:px-3 md:py-1 rounded-xl shadow-sm inline-block rotate-1 hover:rotate-0 transition-transform">
+          </span> et <span className="relative text-emerald-950 font-black bg-emerald-400 px-2 py-0.5 md:px-3 md:py-1 rounded-lg md:rounded-xl shadow-sm inline-block rotate-1 hover:rotate-0 transition-transform">
             <span className="relative z-10">{classesCount} classe{classesCount > 1 ? 's' : ''}</span>
-            <motion.svg 
-              className="absolute -bottom-2 -left-1 w-[110%] h-4 text-red-500 z-20 overflow-visible rotate-2" 
-              viewBox="0 0 100 20" 
-              preserveAspectRatio="none"
-            >
-              <motion.path 
-                d="M 0 10 Q 50 25 100 10" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="6" 
-                strokeLinecap="round"
-                variants={{
-                  rest: { pathLength: 0, opacity: 0 },
-                  hover: { pathLength: 1, opacity: 1, transition: { duration: 0.5, ease: "easeOut", delay: 0.2 } }
-                }}
-              />
-            </motion.svg>
-          </span> aujourd&apos;hui. C&apos;est une belle journée pour inspirer vos élèves !
+          </span> aujourd&apos;hui.
         </motion.p>
-        <Button asChild variant="white" className="text-indigo-600 hover:bg-indigo-50 border-b-4 border-indigo-200 font-bold text-sm md:text-base px-6 md:px-8 h-12 rounded-xl md:rounded-2xl w-full sm:w-auto shadow-md">
+        <Button asChild variant="white" className="text-indigo-600 hover:bg-indigo-50 border-b-4 border-indigo-200 font-bold text-sm md:text-base px-5 md:px-8 h-10 md:h-12 rounded-xl md:rounded-2xl w-full sm:w-auto shadow-md">
           <Link href="/planning">
             Voir l&apos;emploi du temps
           </Link>

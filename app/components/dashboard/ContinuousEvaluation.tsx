@@ -50,23 +50,23 @@ export default function ContinuousEvaluation({ classId }: { classId: string }) {
   const className = classId === '3ap' ? '3ème AP' : classId === '4ap' ? '4ème AP' : '5ème AP'
 
   return (
-    <div className="bg-[#FFFAF3] min-h-[calc(100vh-5rem)] -m-4 md:-m-8 p-4 md:p-8 pb-32 relative">
+    <div className="bg-[#FFFAF3] min-h-[calc(100vh-5rem)] -mx-4 -mt-4 md:-mx-8 md:-mt-8 px-4 py-6 md:px-8 md:py-8 pb-32 relative">
       {/* Navigation */}
       <Link 
         href={`/grades/${classId}`} 
-        className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-600 font-bold mb-6 transition-colors"
+        className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-600 font-bold mb-4 sm:mb-6 transition-colors text-sm sm:text-base"
       >
         <ArrowLeft className="w-4 h-4" />
         Retour aux évaluations
       </Link>
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight mb-2">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-800 tracking-tight leading-tight mb-1 sm:mb-2 text-balance">
           Évaluation Continue (Notes sur 10) 📊
         </h1>
-        <p className="text-slate-500 font-medium text-lg mb-6">
-          Classe {className} - 28 Élèves
+        <p className="text-slate-500 font-medium text-sm sm:text-lg mb-4 sm:mb-6">
+          Classe {className} - <span className="text-slate-700 font-bold">{students.length} Élèves</span>
         </p>
       </div>
 
@@ -167,7 +167,7 @@ export default function ContinuousEvaluation({ classId }: { classId: string }) {
       </motion.div>
 
       {/* Mobile View (Cards) */}
-      <div className="block md:hidden space-y-4">
+      <div className="block md:hidden space-y-4 mt-6">
         {students.map((student) => {
           const contAvg = calculateContinuousAvg(student)
           const genAvg = calculateGeneralAvg(student)
@@ -177,70 +177,70 @@ export default function ContinuousEvaluation({ classId }: { classId: string }) {
               key={`mobile-${student.id}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-xl shadow-sm p-4 border border-slate-100"
+              className="bg-white rounded-[1.5rem] shadow-sm p-4 sm:p-5 border border-slate-100"
             >
-              {/* Header */}
-              <div className="flex items-center gap-3 mb-4 border-b border-slate-50 pb-3">
-                <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-sm font-bold ${student.avatarColor}`}>
+              {/* Card Header */}
+              <div className="flex items-center gap-3 mb-5 border-b border-slate-50 pb-4">
+                <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-sm font-bold shadow-inner ${student.avatarColor}`}>
                   {student.name.charAt(0)}
                 </div>
-                <span className="font-bold text-slate-800 text-lg">{student.name}</span>
+                <span className="font-bold text-slate-800 text-xl tracking-tight">{student.name}</span>
               </div>
 
               {/* Body (Inputs) */}
-              <div className="grid grid-cols-2 gap-3 mt-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-500 mb-1 block">Oral (Prod.) / 10</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Oral / 10</label>
                   <input 
                     type="number" 
                     min="0" max="10" step="0.25"
                     value={student.oral}
                     onChange={(e) => handleMarkChange(student.id, 'oral', e.target.value)}
-                    className="w-full text-center border border-slate-200 rounded-md py-2 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 bg-white outline-none transition-all font-medium text-slate-700"
+                    className="w-full text-center border-2 border-slate-100 rounded-xl py-2.5 focus:bg-indigo-50/30 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 bg-slate-50 hover:bg-slate-100 transition-all font-black text-slate-700 text-lg"
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-500 mb-1 block">Lecture Comptine / 10</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Lecture / 10</label>
                   <input 
                     type="number" 
                     min="0" max="10" step="0.25"
                     value={student.lecture}
                     onChange={(e) => handleMarkChange(student.id, 'lecture', e.target.value)}
-                    className="w-full text-center border border-slate-200 rounded-md py-2 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 bg-white outline-none transition-all font-medium text-slate-700"
+                    className="w-full text-center border-2 border-slate-100 rounded-xl py-2.5 focus:bg-indigo-50/30 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 bg-slate-50 hover:bg-slate-100 transition-all font-black text-slate-700 text-lg"
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-500 mb-1 block">Copie Dictée / 10</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Copie / 10</label>
                   <input 
                     type="number" 
                     min="0" max="10" step="0.25"
                     value={student.copie}
                     onChange={(e) => handleMarkChange(student.id, 'copie', e.target.value)}
-                    className="w-full text-center border border-slate-200 rounded-md py-2 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 bg-white outline-none transition-all font-medium text-slate-700"
+                    className="w-full text-center border-2 border-slate-100 rounded-xl py-2.5 focus:bg-indigo-50/30 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 bg-slate-50 hover:bg-slate-100 transition-all font-black text-slate-700 text-lg"
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-500 mb-1 block">Composition / 10</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide text-indigo-600">Compo / 10</label>
                   <input 
                     type="number" 
                     min="0" max="10" step="0.25"
                     value={student.composition}
                     onChange={(e) => handleMarkChange(student.id, 'composition', e.target.value)}
-                    className="w-full text-center border border-slate-200 rounded-md py-2 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 bg-white outline-none transition-all font-medium text-slate-700"
+                    className="w-full text-center border-2 border-indigo-100 rounded-xl py-2.5 focus:bg-indigo-50/30 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 bg-indigo-50 hover:bg-indigo-100 transition-all font-black text-indigo-700 text-lg"
                   />
                 </div>
               </div>
 
               {/* Footer (Averages) */}
-              <div className="bg-slate-50 rounded-lg p-3 mt-4 flex justify-between items-center border border-slate-100">
-                <div className="text-center">
-                  <span className="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">Moy. Éval. Continue</span>
-                  <span className="font-black text-indigo-700 text-lg">{formatNumber(contAvg)}</span>
+              <div className="bg-slate-50 rounded-xl p-4 mt-5 flex justify-between items-center border border-slate-100">
+                <div className="flex flex-col items-center flex-1">
+                  <span className="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Moy. Continue</span>
+                  <span className="font-black text-slate-700 text-xl">{formatNumber(contAvg)}</span>
                 </div>
-                <div className="w-px h-8 bg-slate-200"></div>
-                <div className="text-center">
-                  <span className="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">Moy. Générale</span>
-                  <span className="font-black text-indigo-700 text-lg">{formatNumber(genAvg)}</span>
+                <div className="w-px h-10 bg-slate-200"></div>
+                <div className="flex flex-col items-center flex-1">
+                  <span className="block text-[10px] uppercase tracking-wider font-bold text-indigo-400 mb-1">Moy. Générale</span>
+                  <span className="font-black text-indigo-600 text-2xl drop-shadow-sm">{formatNumber(genAvg)}</span>
                 </div>
               </div>
             </motion.div>

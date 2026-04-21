@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState } from "react"
-import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth"
+import { User, onIdTokenChanged, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth"
 import { auth, db } from "@/firebase"
 import { doc, getDoc, setDoc } from "firebase/firestore"
 import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
@@ -30,11 +30,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [onboardingCompleted, setOnboardingCompleted] = useState(false)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onIdTokenChanged(auth, async (currentUser) => {
       setUser(currentUser)
       
       if (currentUser) {
         try {
+          const token = await currentUser.getIdToken()
+          document.cookie = `__session=${token}; path=/; max-age=3600; secure; samesite=strict`
+          
           const userDoc = await getDoc(doc(db, "users", currentUser.uid))
           if (userDoc.exists()) {
             setOnboardingCompleted(userDoc.data().onboardingCompleted || false)
@@ -52,6 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
           handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`)
         }
+      } else {
+        document.cookie = `__session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; secure; samesite=strict`
       }
       
       setIsAuthReady(true)
@@ -63,7 +68,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async () => {
     const provider = new GoogleAuthProvider()
     try {
-      await signInWithPopup(auth, provider)
+      const result = await signInWithPopup(auth, provider)
+      const token = await result.user.getIdToken(true) // force refresh immediately
+      document.cookie = `__session=${token}; path=/; max-age=3600; secure; samesite=strict`
+      
+      // Wait a tiny bit and verify the cookie is readable to ensure it propagated
+      await new Promise(resolve => setTimeout(resolve, 100))
     } catch (error: any) {
       if (error?.code === 'auth/popup-closed-by-user') {
         console.log("Sign-in popup closed by user.")
@@ -76,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logOut = async () => {
     try {
       await signOut(auth)
+      document.cookie = `__session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; secure; samesite=strict`
     } catch (error) {
       console.error("Error signing out", error)
     }

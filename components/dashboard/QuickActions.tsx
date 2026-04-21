@@ -49,17 +49,17 @@ export function QuickActions() {
       <div className="flex items-center justify-between mb-5 px-1">
         <h3 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Accès Rapide</h3>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="-mx-4 px-4 sm:mx-0 sm:px-0 flex flex-row overflow-x-auto lg:grid lg:grid-cols-5 gap-4 pb-4 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {actions.map((action) => (
           <Link 
             key={action.name} 
             href={action.href} 
-            className={`bg-white rounded-[2rem] sm:rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center text-center gap-3 group ${action.hideOnMobile ? 'hidden md:flex' : ''}`}
+            className={`shrink-0 w-36 lg:w-auto snap-start bg-white rounded-[1.5rem] sm:rounded-3xl p-5 sm:p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center justify-center text-center gap-3 group ${action.hideOnMobile ? 'hidden lg:flex' : ''}`}
           >
-            <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center ${action.bgColor} ${action.color} group-hover:scale-110 transition-transform duration-300 ${action.shadow ? 'shadow-lg ' + action.shadow : ''}`}>
+            <div className={`w-14 h-14 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center ${action.bgColor} ${action.color} group-hover:scale-110 transition-transform duration-300 ${action.shadow ? 'shadow-lg ' + action.shadow : ''}`}>
               <action.icon className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
             </div>
-            <span className="font-bold text-slate-700 text-sm sm:text-base group-hover:text-slate-900 transition-colors">
+            <span className="font-bold text-slate-700 text-[13px] sm:text-base leading-tight group-hover:text-slate-900 transition-colors">
               {action.name}
             </span>
           </Link>

@@ -100,31 +100,31 @@ function SubjectEvaluationGrid({ classId, subject }: { classId: string, subject:
   const className = classId === '3ap' ? '3ème AP' : classId === '4ap' ? '4ème AP' : '5ème AP'
 
   return (
-    <div className="bg-[#FFFAF3] min-h-[calc(100vh-5rem)] -m-4 md:-m-8 p-4 md:p-8 pb-32 relative">
+    <div className="bg-[#FFFAF3] min-h-[calc(100vh-5rem)] -mx-4 -mt-4 md:-mx-8 md:-mt-8 px-4 py-6 md:px-8 md:py-8 pb-32 relative">
       {/* Navigation */}
       <Link 
         href={`/grades/${classId}`} 
-        className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-600 font-bold mb-6 transition-colors"
+        className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-600 font-bold mb-4 sm:mb-6 transition-colors text-sm sm:text-base"
       >
         <ArrowLeft className="w-4 h-4" />
         Retour aux évaluations
       </Link>
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight mb-2">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-800 tracking-tight leading-tight mb-1 sm:mb-2 text-balance">
           Évaluation : {data.title}
         </h1>
-        <p className="text-slate-500 font-medium text-lg mb-6">
-          Classe {className} - 28 Élèves
+        <p className="text-slate-500 font-medium text-sm sm:text-lg mb-4 sm:mb-6">
+          Classe {className} - <span className="text-slate-700 font-bold">{students.length} Élèves</span>
         </p>
       </div>
 
-      {/* Official Table Grid */}
+      {/* Official Table Grid (Desktop) */}
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden overflow-x-auto"
+        className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden overflow-x-auto"
       >
         <table className="w-full text-left border-collapse min-w-max">
           <thead>
@@ -211,9 +211,62 @@ function SubjectEvaluationGrid({ classId, subject }: { classId: string, subject:
         </table>
       </motion.div>
 
+      {/* Mobile View (Cards) */}
+      <div className="block md:hidden space-y-4">
+        {students.map((student) => (
+          <motion.div 
+            key={`mobile-${student.id}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-[1.5rem] shadow-sm p-4 sm:p-5 border border-slate-100"
+          >
+            {/* Card Header */}
+            <div className="flex items-center gap-3 mb-5 border-b border-slate-50 pb-4">
+              <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-sm font-bold shadow-inner ${student.avatarColor}`}>
+                {student.name.charAt(0)}
+              </div>
+              <span className="font-bold text-slate-800 text-xl tracking-tight">{student.name}</span>
+            </div>
+
+            {/* Criteria List */}
+            <div className="space-y-6">
+              {data.criteria.map((criterion) => (
+                <div key={`${student.id}-${criterion.id}`} className="space-y-3">
+                  <p className="text-sm font-bold text-slate-700 leading-tight">{criterion.label}</p>
+                  <div className="flex items-center gap-2">
+                    {(['A', 'B', 'C', 'D'] as Grade[]).map((grade) => {
+                      if (!grade) return null
+                      const isSelected = student.grades[criterion.id] === grade
+                      
+                      let btnClass = 'bg-slate-50 text-slate-400 border-slate-200'
+                      if (isSelected) {
+                        if (grade === 'A') btnClass = 'bg-green-500 text-white border-green-600 shadow-md ring-2 ring-green-500/20'
+                        if (grade === 'B') btnClass = 'bg-lime-500 text-white border-lime-600 shadow-md ring-2 ring-lime-500/20'
+                        if (grade === 'C') btnClass = 'bg-amber-500 text-white border-amber-600 shadow-md ring-2 ring-amber-500/20'
+                        if (grade === 'D') btnClass = 'bg-red-500 text-white border-red-600 shadow-md ring-2 ring-red-500/20'
+                      }
+                      
+                      return (
+                        <button
+                          key={grade}
+                          onClick={() => handleGradeChange(student.id, criterion.id, grade)}
+                          className={`flex-1 py-3 rounded-xl font-black text-lg border transition-all active:scale-95 touch-manipulation ${btnClass}`}
+                        >
+                          {grade}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
       {/* Static Footer */}
       <div className="mt-8 mb-8 flex justify-end">
-        <button className="flex items-center justify-center gap-3 bg-orange-500 text-white px-8 py-4 rounded-full font-black text-lg shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 hover:-translate-y-1 transition-all active:translate-y-0 w-full sm:w-auto">
+        <button className="flex items-center justify-center gap-3 bg-orange-500 text-white px-8 py-4 rounded-full font-black text-base sm:text-lg shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 hover:-translate-y-1 transition-all active:translate-y-0 w-full sm:w-auto">
           Enregistrer l&apos;évaluation 🚀
         </button>
       </div>

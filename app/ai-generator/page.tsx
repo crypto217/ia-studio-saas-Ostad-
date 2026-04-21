@@ -451,26 +451,26 @@ REQUIREMENTS:
   }
 
   return (
-    <div className="min-h-screen pb-24 print:pb-0 print:bg-white">
+    <div className="min-h-screen pb-24 print:pb-0 print:bg-slate-50">
       {/* STATE 1 & 2: HUB AND CONFIGURATOR */}
       {!isGenerating && !generatedContent && (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 space-y-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 space-y-8 sm:space-y-12">
           
           {step === 1 && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-12">
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8 sm:space-y-12">
               {/* Nouveau En-tête Premium */}
-              <div className="text-center space-y-4 max-w-3xl mx-auto">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight">
+              <div className="text-left sm:text-center space-y-2 sm:space-y-4 max-w-3xl mx-auto px-1 sm:px-0">
+                <h1 className="text-[2rem] leading-tight sm:text-5xl md:text-6xl font-black tracking-tight">
                   <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
                     Assistant Pédagogique IA ✨
                   </span>
                 </h1>
-                <p className="text-lg sm:text-xl text-slate-500 font-medium">
+                <p className="text-sm sm:text-xl text-slate-500 font-medium">
                   Le compagnon intelligent des enseignants algériens. Que voulez-vous créer aujourd&apos;hui ?
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 mt-4 sm:mt-8">
                 {magicTools.map((tool) => {
                   return (
                     <motion.div
@@ -481,48 +481,59 @@ REQUIREMENTS:
                         setSelectedType(tool.id)
                         setStep(2)
                       }}
-                      className="cursor-pointer transition-transform shadow-sm border border-slate-100 hover:shadow-md rounded-2xl p-6 bg-white flex items-start gap-4"
+                      className="cursor-pointer transition-transform shadow-sm border border-slate-100 hover:shadow-md rounded-2xl md:rounded-[2rem] p-4 sm:p-6 bg-white flex items-center sm:items-start gap-4"
                     >
-                      <div className={`shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center ${tool.bg} ${tool.color}`}>
-                        <tool.icon className="w-7 h-7" />
+                      <div className={`shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center ${tool.bg} ${tool.color}`}>
+                        <tool.icon className="w-6 h-6 sm:w-7 sm:h-7" />
                       </div>
-                      <div className="space-y-2">
-                        <h3 className="font-bold text-lg text-slate-800">
+                      <div className="space-y-0.5 sm:space-y-2 flex-1">
+                        <h3 className="font-bold text-base sm:text-lg text-slate-800 line-clamp-1">
                           {tool.name}
                         </h3>
-                        <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                        <p className="text-xs sm:text-sm font-medium text-slate-500 leading-relaxed sm:line-clamp-none line-clamp-2">
                           {tool.description}
                         </p>
+                      </div>
+                      <div className="sm:hidden text-slate-300">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                       </div>
                     </motion.div>
                   )
                 })}
               </div>
 
-              <div className="flex justify-center pt-4">
+              <div className="flex justify-center pt-2 sm:pt-4">
                 <Link 
                   href="/ai-generator/chat" 
-                  className="flex items-center gap-3 px-8 py-4 bg-slate-100/80 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-all hover:scale-105"
+                  className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 sm:px-8 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-all hover:scale-105"
                 >
                   <MessageSquare className="w-5 h-5 text-slate-500" />
-                  💬 Démarrer une conversation libre avec l&apos;assistant
+                  <span className="truncate">Démarrer une conversation libre</span>
                 </Link>
               </div>
             </motion.div>
           )}
 
           {step === 2 && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="max-w-3xl mx-auto space-y-8">
-              <button 
-                onClick={() => setStep(1)}
-                className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Retour aux outils
-              </button>
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="max-w-3xl mx-auto space-y-4 sm:space-y-8">
+              
+              <div className="flex items-center justify-between sm:justify-start px-2 sm:px-0">
+                <button 
+                  onClick={() => setStep(1)}
+                  className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors bg-white sm:bg-transparent px-4 py-2 sm:p-0 rounded-full shadow-sm sm:shadow-none border sm:border-transparent border-slate-200"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Retour aux outils</span>
+                  <span className="sm:hidden">Retour</span>
+                </button>
+                <div className="sm:hidden flex items-center gap-2">
+                    <span className="font-bold text-slate-800 text-sm truncate max-w-[150px]">{magicTools.find(t => t.id === selectedType)?.name.replace(/📝 |📖 |✍️ |📋 /g, '')}</span>
+                </div>
+              </div>
 
-              <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden p-8">
-                <div className="flex items-center gap-4 mb-8">
+              {/* Edge-to-edge style on mobile, rounded container on desktop */}
+              <div className="bg-white px-4 sm:rounded-[2rem] sm:px-8 sm:py-8 sm:border sm:border-slate-200 sm:shadow-sm overflow-hidden py-5 -mx-4 sm:mx-0">
+                <div className="hidden sm:flex items-center gap-4 mb-8">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${magicTools.find(t => t.id === selectedType)?.bg} ${magicTools.find(t => t.id === selectedType)?.color}`}>
                     {(() => {
                       const Icon = magicTools.find(t => t.id === selectedType)?.icon || Sparkles
@@ -534,11 +545,11 @@ REQUIREMENTS:
                   </h2>
                 </div>
 
-                <div className="space-y-6 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
-                  <div className="grid sm:grid-cols-2 gap-5">
-                    <div className="space-y-2.5">
-                      <label className="text-sm font-bold text-slate-700 ml-1">Cycle & Niveau</label>
-                      <select value={classLevel} onChange={(e) => setClassLevel(e.target.value)} className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-3.5 text-sm font-medium focus:border-violet-500 focus:outline-none focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-700">
+                <div className="space-y-4 sm:space-y-6 sm:bg-slate-50/50 p-0 sm:p-6 rounded-2xl sm:border border-slate-100">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-5">
+                    <div className="space-y-1.5 sm:space-y-2.5 col-span-2 sm:col-span-1">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Cycle & Niveau</label>
+                      <select value={classLevel} onChange={(e) => setClassLevel(e.target.value)} className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-800 transition-all">
                         <option>3ème AP</option>
                         <option>4ème AP</option>
                         <option>5ème AP</option>
@@ -549,27 +560,27 @@ REQUIREMENTS:
                       </select>
                     </div>
                     
-                    <div className="space-y-2.5">
-                      <label className="text-sm font-bold text-slate-700 ml-1">Période</label>
-                      <select value={term} onChange={(e) => setTerm(e.target.value)} className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-3.5 text-sm font-medium focus:border-violet-500 focus:outline-none focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-700">
+                    <div className="space-y-1.5 sm:space-y-2.5 col-span-2 sm:col-span-1">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Période</label>
+                      <select value={term} onChange={(e) => setTerm(e.target.value)} className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-800 transition-all">
                         <option>1er Trimestre</option>
                         <option>2ème Trimestre</option>
                         <option>3ème Trimestre</option>
                       </select>
                     </div>
 
-                    <div className="space-y-2.5">
-                      <label className="text-sm font-bold text-slate-700 ml-1">Progression</label>
-                      <select value={projet} onChange={(e) => setProjet(e.target.value)} className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-3.5 text-sm font-medium focus:border-violet-500 focus:outline-none focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-700">
+                    <div className="space-y-1.5 sm:space-y-2.5">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Progression</label>
+                      <select value={projet} onChange={(e) => setProjet(e.target.value)} className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-800 transition-all">
                         <option>Projet 1</option>
                         <option>Projet 2</option>
                         <option>Projet 3</option>
                       </select>
                     </div>
 
-                    <div className="space-y-2.5">
-                      <label className="text-sm font-bold text-slate-700 ml-1">Séquence</label>
-                      <select value={sequence} onChange={(e) => setSequence(e.target.value)} className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-3.5 text-sm font-medium focus:border-violet-500 focus:outline-none focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-700">
+                    <div className="space-y-1.5 sm:space-y-2.5">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Séquence</label>
+                      <select value={sequence} onChange={(e) => setSequence(e.target.value)} className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-800 transition-all">
                         <option>Séquence 1</option>
                         <option>Séquence 2</option>
                         <option>Séquence 3</option>
@@ -577,35 +588,40 @@ REQUIREMENTS:
                     </div>
                   </div>
 
-                  <div className="space-y-2.5">
-                    <label className="text-sm font-bold text-slate-700 ml-1">Thème spécifique ou mots à inclure (Optionnel)</label>
+                  <div className="space-y-1.5 sm:space-y-2.5">
+                    <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Thème ou mots clés <span className="text-slate-400 font-normal">(Optionnel)</span></label>
                     <textarea 
                       value={topic} 
                       onChange={(e) => setTopic(e.target.value)} 
                       placeholder="ex: La famille, les animaux de la ferme..." 
-                      className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-3.5 text-sm font-medium focus:border-violet-500 focus:outline-none focus:ring-4 focus:ring-violet-500/10 h-24 resize-none text-slate-700 disabled:opacity-50"
+                      className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 h-20 sm:h-24 resize-none text-slate-800 disabled:opacity-50 transition-all"
                     />
                   </div>
                 </div>
                 
-                <div className="mt-6 flex flex-col gap-4">
-                  <label className="flex items-center gap-3 p-4 border rounded-lg bg-slate-50 cursor-pointer">
-                    <input type="checkbox" className="w-5 h-5 text-indigo-600 rounded" checked={isEcoMode} onChange={(e) => setIsEcoMode(e.target.checked)} />
-                    <span>✂️ Mode Économique : Imprimer en 4 exemplaires par page (Prêt à découper)</span>
+                <div className="mt-5 sm:mt-6 flex flex-col gap-4">
+                  <label className="relative flex items-center p-4 sm:p-4 rounded-xl sm:rounded-lg border sm:border-slate-200 bg-amber-50/50 sm:bg-slate-50 cursor-pointer border-amber-200/50">
+                    <div className="flex items-center h-5">
+                      <input type="checkbox" className="w-5 h-5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-600" checked={isEcoMode} onChange={(e) => setIsEcoMode(e.target.checked)} />
+                    </div>
+                    <div className="ml-3 text-xs sm:text-sm leading-tight text-slate-700 flex-1">
+                      <span className="font-bold text-slate-800 block sm:inline">Mode Économique ✂️</span>
+                      <span className="block text-slate-500 mt-1 sm:ml-1 sm:mt-0 sm:inline">Imprimer 4 exemplaires par page</span>
+                    </div>
                   </label>
                 </div>
 
-                {error && <p className="text-red-500 text-sm font-medium mt-4 text-center">{error}</p>}
+                {error && <p className="text-red-500 text-sm font-medium mt-4 text-center pb-2">{error}</p>}
                 
                 <motion.button 
                   onClick={handleGenerate} 
                   disabled={isGenerating}
                   whileHover={{ scale: 1.02 }} 
                   whileTap={{ scale: 0.98 }} 
-                  className="w-full mt-8 flex items-center justify-center gap-2 px-6 py-5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-black text-xl rounded-2xl shadow-lg ring-1 ring-black/10 transition-all disabled:opacity-50"
+                  className="w-full mt-6 sm:mt-8 flex items-center justify-center gap-2 px-6 py-4 sm:py-5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-black text-lg sm:text-xl rounded-2xl shadow-lg ring-1 ring-black/10 transition-all disabled:opacity-50 active:scale-95"
                 >
-                  <Sparkles className="h-6 w-6 text-amber-300" />
-                  ✨ Générer le contenu avec l&apos;IA
+                  <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-amber-300" />
+                  <span className="truncate">Générer le contenu</span>
                 </motion.button>
 
               </div>
@@ -688,15 +704,19 @@ REQUIREMENTS:
                     @media (max-width: 768px) { .header-grid { grid-template-columns: 1fr; } }
                   `}</style>
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="border-[1.5px] border-dashed border-slate-400 p-6 md:p-8 flex flex-col justify-center">
-                      <div className="font-sans [&_h1]:text-lg [&_h1]:md:text-xl [&_h1]:font-bold [&_h1]:text-center [&_h1]:text-indigo-950 [&_h1]:mb-3 [&_h1]:md:mb-4 [&_p]:text-base [&_p]:leading-relaxed [&_p]:text-slate-800 [&_p]:text-justify [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-indigo-900 [&_h2]:mt-4 [&_h2]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mt-2 [&_ul]:space-y-1 [&_ul]:text-base [&_ul]:text-slate-800 [&_li]:leading-normal" dangerouslySetInnerHTML={{ __html: generatedContent }} />
+                    <div key={i} className="border-[1.5px] border-dashed border-slate-400 p-6 md:p-8 flex flex-col justify-center overflow-hidden">
+                      <div className="font-sans w-full max-w-full overflow-hidden [&_*]:!max-w-full [&_*]:!box-border [&_*]:![overflow-wrap:anywhere] [&_*]:![word-break:break-word] [&_img]:!max-w-full [&_img]:!w-full [&_img]:!h-auto [&_video]:!max-w-full [&_video]:!w-full [&_video]:!h-auto [&_iframe]:!max-w-full [&_iframe]:!w-full [&_iframe]:!h-auto [&_table]:!block [&_table]:!max-w-full [&_table]:!overflow-x-auto [&_h1]:text-lg [&_h1]:md:text-xl [&_h1]:font-bold [&_h1]:text-center [&_h1]:text-indigo-950 [&_h1]:mb-3 [&_h1]:md:mb-4 [&_p]:text-base [&_p]:leading-relaxed [&_p]:text-slate-800 [&_p]:text-justify [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-indigo-900 [&_h2]:mt-4 [&_h2]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mt-2 [&_ul]:space-y-1 [&_ul]:text-base [&_ul]:text-slate-800 [&_li]:leading-normal" dangerouslySetInnerHTML={{ __html: generatedContent }} />
                     </div>
                   ))}
                 </div>
               </div>
             ) : (
-              <div className="flex justify-center print:bg-white print:p-0 overflow-hidden">
-                <div id="printable-wrapper" className="font-sans bg-white w-full max-w-[210mm] mx-auto shadow-sm md:rounded-xl overflow-hidden print:shadow-none print:m-0 print:w-full">
+              <div className="flex justify-center print:bg-white print:p-0 w-full overflow-hidden">
+                {/* On force une largeur A4 fixe mais on scale sur mobile pour éviter les débordements (Container Queries ou scale) */}
+                <div 
+                  id="printable-wrapper" 
+                  className="font-sans bg-white w-full sm:w-[210mm] max-w-full shrink-0 mx-auto shadow-sm md:rounded-xl overflow-hidden print:shadow-none print:m-0 print:w-full origin-top transform-gpu @container transition-transform"
+                >
                   <style>{`
                     .fiche-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 15px; font-size: 13px; word-wrap: break-word; }
                     .fiche-table th, .fiche-table td { border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; overflow-wrap: break-word; }
@@ -707,7 +727,13 @@ REQUIREMENTS:
                     .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border: 2px solid #000; padding: 10px; margin-bottom: 15px; font-size: 14px; }
                     @media (max-width: 768px) { .header-grid { grid-template-columns: 1fr; } }
                   `}</style>
-                  <div dangerouslySetInnerHTML={{ __html: generatedContent }} />
+                  
+                  {/* BULLETPROOF WRAPPER POUR LE CONTENU IA */}
+                  <div 
+                    className="p-4 sm:p-8 w-full max-w-full overflow-x-hidden [&_*]:!max-w-full [&_*]:!box-border [&_*]:![overflow-wrap:anywhere] [&_*]:![word-break:break-word] [&_img]:!max-w-full [&_img]:!w-full [&_img]:!h-auto [&_video]:!max-w-full [&_video]:!w-full [&_video]:!h-auto [&_iframe]:!max-w-full [&_iframe]:!w-full [&_iframe]:!h-auto [&_table]:!block [&_table]:!max-w-full [&_table]:!overflow-x-auto" 
+                    dangerouslySetInnerHTML={{ __html: generatedContent }} 
+                  />
+                  
                 </div>
               </div>
             )}

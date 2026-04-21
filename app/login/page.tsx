@@ -12,9 +12,18 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthReady && user) {
-      router.push("/")
+      if (typeof window !== "undefined" && document.cookie.includes("__session")) {
+        window.location.href = "/" // Force hard reload to update middleware
+      } else {
+        // Fallback or retry
+        setTimeout(() => {
+          if (document.cookie.includes("__session")) {
+            window.location.href = "/"
+          }
+        }, 500)
+      }
     }
-  }, [user, isAuthReady, router])
+  }, [user, isAuthReady])
 
   if (!isAuthReady) {
     return (

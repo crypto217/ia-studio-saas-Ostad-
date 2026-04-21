@@ -9,10 +9,8 @@ setLogLevel('error');
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Use long-polling to prevent connection unavailable errors in restricted browser spaces / iframes
-export const db = !getApps().length ? initializeFirestore(app, {
-  experimentalForceLongPolling: true
-}, firebaseConfig.firestoreDatabaseId) : getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Use default WebSocket behavior to reduce CRUD latency
+export const db = !getApps().length ? initializeFirestore(app, {}, firebaseConfig.firestoreDatabaseId) : getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 export const auth = getAuth(app);
 
