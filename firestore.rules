@@ -36,15 +36,14 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasRequiredFields(['uid', 'email', 'onboardingCompleted', 'createdAt', 'cycle', 'subject', 'isPublicSchool']) &&
+      return hasRequiredFields(['uid', 'email', 'onboardingCompleted', 'createdAt']) &&
              data.uid is string &&
              data.email is string &&
              data.onboardingCompleted is bool &&
              data.createdAt is string &&
              (!('displayName' in data) || data.displayName is string) &&
-             data.cycle == 'primaire' &&
-             data.subject == 'francais' &&
-             data.isPublicSchool == true;
+             (!('cycle' in data) || data.cycle in ['primaire', 'moyen', 'lycee']) &&
+             (!('subject' in data) || data.subject in ['francais', 'arabe', 'tamazight', 'anglais', 'sport']);
     }
 
     function isValidClass(data) {
@@ -77,7 +76,7 @@ service cloud.firestore {
              data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
              data.day is number && data.day >= 0 && data.day <= 6 &&
              data.start is number && data.start >= 0 && data.start <= 23 &&
-             data.duration is number && data.duration > 0 && data.duration <= 8 &&
+             data.duration is number && data.duration > 0 && data.duration <= 24 &&
              data.createdAt is string;
     }
 
