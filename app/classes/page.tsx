@@ -13,7 +13,9 @@ import {
   MapPin,
   Award,
   Sparkles,
-  BookOpen
+  BookOpen,
+  ChevronRight,
+  Plus
 } from "lucide-react"
 
 // --- MOCK DATA ---
@@ -153,29 +155,53 @@ const getInitials = (name: string) => {
 
 export default function ClassesPage() {
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null)
+  const [filterCycle, setFilterCycle] = useState<string>("Toutes")
+
+  const filteredClasses = filterCycle === "Toutes" 
+    ? mockClasses 
+    : mockClasses.filter(c => c.cycle === filterCycle)
 
   return (
     <div className="min-h-screen pb-24 bg-slate-50/50">
-      {/* HEADER */}
-      <div className="bg-white border-b border-slate-200 px-4 py-8 sm:px-8 relative overflow-hidden">
+      {/* COMPACT HEADER */}
+      <div className="bg-white border-b border-slate-200 px-4 pt-6 pb-4 sm:px-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="max-w-6xl mx-auto relative z-10">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white shadow-lg shadow-pink-500/30">
-              <Users className="w-6 h-6" />
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white shadow-lg shadow-pink-500/30">
+              <Users className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Mes Classes</h1>
+            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">Mes Classes</h1>
           </div>
-          <p className="text-slate-500 font-medium text-lg max-w-2xl">
+          <p className="text-slate-500 font-medium text-sm sm:text-lg max-w-2xl hidden sm:block mt-2">
             Gérez vos classes, suivez vos élèves et organisez votre enseignement de manière ludique !
           </p>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-8 mt-8">
-        {/* CLASSES GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockClasses.map((cls) => {
+      {/* STICKY TABS BAR */}
+      <div className="sticky top-0 z-30 bg-slate-50/90 backdrop-blur-md px-4 py-3 sm:px-8 border-b border-slate-200/50 shadow-sm">
+        <div className="max-w-6xl mx-auto flex items-center gap-2 overflow-x-auto no-scrollbar">
+          {["Toutes", "Primaire", "Moyen"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setFilterCycle(tab)}
+              className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${
+                filterCycle === tab 
+                  ? "bg-slate-800 text-white shadow-md" 
+                  : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-100"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-8 mt-4 sm:mt-8">
+        {/* CLASSES GRID / LIST (Mobile vs Desktop) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+          {filteredClasses.map((cls) => {
             const theme = themeStyles[cls.theme]
             const Icon = theme.icon
             
@@ -184,39 +210,59 @@ export default function ClassesPage() {
                 key={cls.id}
                 layoutId={`class-card-${cls.id}`}
                 onClick={() => setSelectedClass(cls)}
-                whileHover={{ y: -4, scale: 1.02 }}
+                whileHover={{ y: -2, scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
-                className={`cursor-pointer bg-white rounded-[2rem] p-6 shadow-xl border-2 transition-all duration-300 ${theme.border} ${theme.shadow} relative overflow-hidden group`}
+                className={`cursor-pointer bg-white rounded-[1.25rem] sm:rounded-[2rem] p-3 sm:p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 relative overflow-hidden group flex flex-row sm:flex-col items-center sm:items-start gap-4 sm:gap-0`}
               >
-                <div className={`absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br ${theme.gradient} rounded-full opacity-10 group-hover:scale-150 transition-transform duration-500`} />
+                {/* Desktop background flourish */}
+                <div className={`hidden sm:block absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br ${theme.gradient} rounded-full opacity-10 group-hover:scale-150 transition-transform duration-500`} />
                 
-                <div className="flex justify-between items-start mb-6 relative z-10">
-                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center text-white shadow-lg`}>
-                    <Icon className="w-6 h-6" />
+                {/* Left: Icon in circle */}
+                <div className="shrink-0 flex sm:justify-between items-center sm:items-start sm:mb-6 sm:w-full relative z-10">
+                  <div className={`w-12 h-12 sm:w-12 sm:h-12 rounded-full sm:rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center text-white shadow-md`}>
+                    <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
-                  <div className="bg-slate-100 text-slate-500 text-xs font-bold px-3 py-1.5 rounded-full">
+                  <div className="hidden sm:block bg-slate-100 text-slate-500 text-xs font-bold px-3 py-1.5 rounded-full">
                     {cls.cycle}
                   </div>
                 </div>
 
-                <div className="relative z-10">
-                  <h2 className="text-2xl font-black text-slate-800 mb-1">{cls.name}</h2>
-                  <div className="flex items-center gap-4 text-sm font-medium text-slate-500 mt-4">
+                {/* Center: Details */}
+                <div className="flex-1 min-w-0 relative z-10 sm:w-full">
+                  <div className="flex sm:hidden items-center text-[10px] font-bold text-slate-400 mb-0.5 uppercase tracking-wide">
+                    {cls.cycle}
+                  </div>
+                  <h2 className="text-base sm:text-2xl font-black text-slate-800 truncate leading-tight sm:mb-1">{cls.name}</h2>
+                  <div className="flex flex-row items-center gap-3 sm:gap-4 text-xs sm:text-sm font-medium text-slate-500 mt-1 sm:mt-4">
                     <div className="flex items-center gap-1.5">
-                      <Users className="w-4 h-4" />
+                      <Users className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400" />
                       {cls.studentsCount} élèves
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <TrendingUp className="w-4 h-4" />
+                    {/* Hide desktop average here, move to Right section on mobile */}
+                    <div className="hidden sm:flex items-center gap-1.5">
+                      <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400" />
                       Moy: {cls.average}/20
                     </div>
                   </div>
+                </div>
+
+                {/* Right: Average Pill & Chevron (Mobile mainly, or unified) */}
+                <div className="shrink-0 flex items-center gap-2 relative z-10">
+                  <div className={`sm:hidden px-2 py-1 rounded-lg text-xs font-bold border ${theme.bg} ${theme.text} ${theme.border}`}>
+                    {cls.average}
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-slate-500 transition-colors" />
                 </div>
               </motion.div>
             )
           })}
         </div>
       </div>
+
+      {/* FAB: Floating Action Button */}
+      <button className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] right-4 md:bottom-8 md:right-8 w-14 h-14 rounded-full bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white shadow-[0_10px_25px_-5px_rgba(244,63,94,0.5)] z-30 hover:scale-105 active:scale-95 transition-all">
+        <Plus className="w-7 h-7" strokeWidth={2.5} />
+      </button>
 
       {/* EXPANDED CLASS MODAL */}
       <AnimatePresence>
@@ -232,6 +278,11 @@ export default function ClassesPage() {
             <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6 pointer-events-none">
               <motion.div
                 layoutId={`class-card-${selectedClass.id}`}
+                drag="y"
+                dragConstraints={{ top: 0, bottom: 0 }}
+                onDragEnd={(e, info) => {
+                  if (info.offset.y > 150) setSelectedClass(null);
+                }}
                 className="bg-white w-full max-w-4xl h-[92vh] sm:h-auto sm:max-h-[90vh] rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden pointer-events-auto sm:border-4 sm:border-white"
               >
                 {/* Mobile Drag Indicator */}
@@ -243,17 +294,17 @@ export default function ClassesPage() {
                 <div className={`bg-gradient-to-br ${themeStyles[selectedClass.theme].gradient} p-5 pt-8 sm:p-6 relative shrink-0`}>
                   <button 
                     onClick={() => setSelectedClass(null)}
-                    className="absolute top-4 right-4 sm:top-5 sm:right-5 w-8 h-8 sm:w-10 sm:h-10 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors z-10"
+                    className="absolute top-4 right-4 sm:top-5 sm:right-5 w-8 h-8 sm:w-10 sm:h-10 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors z-20"
                   >
                     <X className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
                   
-                  <div className="flex items-center gap-3 mb-2 sm:mb-3">
+                  <div className="flex items-center gap-3 mb-2 sm:mb-3 mt-4 sm:mt-0">
                     <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white font-bold text-xs">
                       {selectedClass.cycle}
                     </div>
                   </div>
-                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-1 leading-tight pr-10">{selectedClass.name}</h2>
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-1 leading-tight pr-16">{selectedClass.name}</h2>
                   
                   <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-white/90 font-medium mt-3 sm:mt-4">
                     <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl backdrop-blur-sm text-xs sm:text-sm">

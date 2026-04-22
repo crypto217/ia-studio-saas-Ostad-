@@ -24,7 +24,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 pt-24 md:pt-28 pb-24 md:pb-0">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 pt-20 md:pt-24 pb-24 md:pb-0">
           <div className="mx-auto max-w-7xl">
             {children}
           </div>

@@ -54,13 +54,13 @@ export function AIMagicHub() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsOpen(false)}
-            className="fixed inset-0 z-[55] bg-slate-900/20 backdrop-blur-sm"
+            className="fixed inset-0 z-[35] bg-slate-900/20 backdrop-blur-sm"
           />
         )}
       </AnimatePresence>
 
       {/* FAB Container */}
-      <div className="fixed z-[60] flex flex-col items-center md:items-end bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] left-1/2 -translate-x-1/2 md:bottom-10 md:left-auto md:right-10 md:translate-x-0">
+      <div className="fixed z-40 flex flex-col items-center md:items-end bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] left-1/2 -translate-x-1/2 md:bottom-10 md:left-auto md:right-10 md:translate-x-0">
         
         {/* Menu Options */}
         <AnimatePresence>

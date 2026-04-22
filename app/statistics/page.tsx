@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-  LineChart, Line, Legend
+  LineChart, Line, Legend, PieChart, Pie
 } from 'recharts';
 import { UserCircle, AlertTriangle, Sparkles, Trophy, Star, Calendar } from 'lucide-react';
 
@@ -97,13 +97,8 @@ export default function StatisticsPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('global');
   
-  // Date range state for Attendance
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1); // First of current month
-    return d.toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  // Attendance period state (instead of date range)
+  const [attendancePeriod, setAttendancePeriod] = useState('annee');
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -130,38 +125,54 @@ export default function StatisticsPage() {
     return dataPoint;
   });
 
-  // Calculate Mock Attendance Data based on Dates and Filter
-  const calculateAttendance = () => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const totalDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+  // Calculate Mock Attendance Data based on Period
+  const getAttendanceData = () => {
+    const totalSessionsBase = activeData.totalStudents * 50; // just a base number
+    let rateNum = 90;
+    let alerts: {name: string, abs: number}[] = [];
     
-    // Simulate data: A few absences per class per month
-    const totalPossibleSessions = activeData.totalStudents * totalDays;
-    
-    // Seed absences loosely based on dates so it changes when user changes dates
-    const absenceSeedFactor = (start.getDate() + end.getDate()) % 5 + 1;
-    let totalAbsences = Math.floor((activeData.totalStudents * totalDays * absenceSeedFactor) / 100); 
-    
-    // Avoid having more absences than total sessions
-    if (totalAbsences > totalPossibleSessions) totalAbsences = Math.floor(totalPossibleSessions * 0.2);
+    switch (attendancePeriod) {
+      case 'T1': 
+         rateNum = 95; 
+         alerts = [{ name: 'Yanis Kadi', abs: 3 }, { name: 'Sarah Djouadi', abs: 2 }];
+         break;
+      case 'T2': 
+         rateNum = 85; 
+         alerts = [{ name: 'Yanis Kadi', abs: 8 }, { name: 'Amine Benali', abs: 6 }, { name: 'Lina Merzoug', abs: 5 }];
+         break;
+      case 'T3': 
+         rateNum = 92; 
+         alerts = [{ name: 'Amine Benali', abs: 4 }];
+         break;
+      case 'annee': 
+      default: 
+         rateNum = 90.6; 
+         alerts = [{ name: 'Yanis Kadi', abs: 15 }, { name: 'Amine Benali', abs: 12 }, { name: 'Sarah Djouadi', abs: 8 }];
+         break;
+    }
 
-    const totalPresents = totalPossibleSessions - totalAbsences;
-    const rate = totalPossibleSessions > 0 ? ((totalPresents / totalPossibleSessions) * 100).toFixed(1) : "0.0";
-    
+    const rate = rateNum.toFixed(1);
+    const totalPresents = Math.floor((rateNum / 100) * totalSessionsBase);
+    const totalAbsences = totalSessionsBase - totalPresents;
+
     return {
-      totalPossibleSessions,
+      totalPossibleSessions: totalSessionsBase,
       totalPresents,
       totalAbsences,
-      rate
+      rate,
+      alerts,
+      chartData: [
+        { name: 'Présent', value: totalPresents, color: '#10B981' },
+        { name: 'Absent', value: totalAbsences, color: '#EF4444' }
+      ]
     };
   };
 
-  const attendanceData = calculateAttendance();
+  const attendanceData = getAttendanceData();
 
   return (
-    <div className="min-h-screen bg-slate-50 px-3 py-6 sm:p-6 md:p-12 print:block print:w-full print:m-0 print:p-0 print:bg-white">
-      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+    <div className="min-h-screen bg-slate-50 p-3 md:p-8 print:block print:w-full print:m-0 print:p-0 print:bg-white">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-8">
         
         {/* Navigation / Header - Hide on print */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:mb-8 print:hidden">
@@ -183,7 +194,7 @@ export default function StatisticsPage() {
         </div>
 
         {/* Barre de Filtre des Classes */}
-        <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-2 sm:pb-4 sm:mb-8 print:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
+        <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-2 sm:pb-4 sm:mb-8 print:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth w-full">
           <button
             onClick={() => setSelectedFilter('global')}
             className={`shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all ${
@@ -217,77 +228,112 @@ export default function StatisticsPage() {
         </div>
 
         {/* Grille principale */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 md:gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-8 md:gap-12 w-full">
           
           {/* Carte 0 - Assiduité (Pleine largeur) */}
-          <div className="lg:col-span-2 bg-white rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl md:rounded-3xl p-3 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300 w-full">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
                 <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
                 Assiduité & Présences
               </h2>
 
-              {/* Sélecteur de Date */}
-              <div className="flex items-center gap-2 sm:gap-3 bg-slate-50 p-1.5 sm:p-2 rounded-xl border border-slate-200 print:hidden overflow-x-auto w-full sm:w-auto">
-                <input 
-                  type="date" 
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-white border border-slate-200 text-slate-700 text-xs sm:text-sm font-medium rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none w-full sm:w-auto"
-                />
-                <span className="text-slate-400 font-medium text-xs sm:text-sm">à</span>
-                <input 
-                  type="date" 
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-white border border-slate-200 text-slate-700 text-xs sm:text-sm font-medium rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none w-full sm:w-auto"
-                />
+              {/* Sélecteur de Période (Pill buttons) */}
+              <div className="flex items-center gap-2 bg-slate-50/50 p-1 rounded-xl sm:rounded-full border border-slate-200 print:hidden overflow-x-auto w-full sm:w-auto">
+                {['T1', 'T2', 'T3', 'annee'].map((period) => (
+                  <button
+                    key={period}
+                    onClick={() => setAttendancePeriod(period)}
+                    className={`shrink-0 px-4 py-1.5 sm:py-2 flex-1 sm:flex-none rounded-lg sm:rounded-full text-xs sm:text-sm font-bold transition-all ${
+                      attendancePeriod === period 
+                        ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' 
+                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {period === 'annee' ? 'Année globale' : period}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-              {/* Taux global */}
-              <div className="bg-emerald-50 rounded-2xl p-5 border border-emerald-100 flex flex-col justify-center items-center relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <Star className="w-16 h-16 text-emerald-600" />
-                </div>
-                <p className="text-sm font-bold text-emerald-800 mb-1 uppercase tracking-wider relative z-10">Taux de présence</p>
-                <div className="text-4xl sm:text-5xl font-black text-emerald-600 tracking-tighter relative z-10">
-                  {attendanceData.rate}<span className="text-xl sm:text-2xl">%</span>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+              
+              {/* Graphique Donut */}
+              <div className="flex flex-col items-center justify-center p-4 bg-slate-50/50 rounded-2xl border border-slate-100 relative">
+                <p className="absolute top-4 left-4 text-xs font-bold text-slate-500 uppercase tracking-widest hidden sm:block">Répartition</p>
+                {!isMounted ? renderChartSkeleton() : (
+                  <div className="relative w-full max-w-[250px] mx-auto h-[200px] flex items-center justify-center">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={attendanceData.chartData}
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={2}
+                          dataKey="value"
+                          stroke="none"
+                        >
+                          {attendanceData.chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: any) => [`${value} sessions`, 'Total']}
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-3xl font-black text-slate-800">{attendanceData.rate}%</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Présents</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Présents */}
-              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 flex flex-col justify-center items-center">
-                <p className="text-sm font-bold text-slate-500 mb-1 uppercase tracking-wider">Cumul Présents</p>
-                <div className="text-3xl sm:text-4xl font-black text-slate-800 tracking-tight">
-                  {attendanceData.totalPresents}
+              {/* Liste des Alertes Absences */}
+              <div className="flex flex-col gap-3 w-full">
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                  <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide">🚨 Alertes Absences</h3>
                 </div>
-                <p className="text-xs text-slate-500 mt-2 font-medium bg-white px-2 py-1 rounded border border-slate-200">
-                  Sur {attendanceData.totalPossibleSessions} sessions
-                </p>
-              </div>
-
-              {/* Absents */}
-              <div className="bg-red-50 rounded-2xl p-5 border border-red-100 flex flex-col justify-center items-center">
-                <p className="text-sm font-bold text-red-800 mb-1 uppercase tracking-wider">Cumul Absences</p>
-                <div className="text-3xl sm:text-4xl font-black text-red-600 tracking-tight">
-                  {attendanceData.totalAbsences}
-                </div>
-                <p className="text-xs text-red-500 mt-2 font-medium">Jours cumulés</p>
+                
+                {attendanceData.alerts.length > 0 ? (
+                  <ul className="space-y-3">
+                    {attendanceData.alerts.map((student, i) => (
+                      <li key={i} className="flex items-center justify-between p-3 bg-red-50 rounded-xl border border-red-100 w-full overflow-hidden">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-red-200 flex flex-col items-center justify-center shrink-0">
+                            <UserCircle className="w-5 h-5 text-red-600" />
+                          </div>
+                          <span className="font-bold text-slate-800 truncate">{student.name}</span>
+                        </div>
+                        <span className="shrink-0 font-black text-red-600 text-sm bg-red-100 px-2 py-1 rounded-lg">
+                          {student.abs} abs.
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center min-h-[120px] bg-emerald-50 border border-emerald-100 rounded-xl">
+                    <Star className="w-8 h-8 text-emerald-500 mb-2" />
+                    <p className="text-sm font-bold text-emerald-800">Aucune alerte</p>
+                    <p className="text-xs font-medium text-emerald-600/80">Excellente assiduité !</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           {/* Carte 1 (Pleine largeur) */}
-          <div className="lg:col-span-2 bg-white rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300">
+          <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl md:rounded-3xl p-3 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300 w-full overflow-hidden">
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-4 sm:mb-6 leading-tight">
               🎯 Maîtrise des Compétences
             </h2>
             {!isMounted ? renderChartSkeleton() : (
-              <div className="w-full h-[200px] sm:h-[250px] min-h-[200px] relative">
+              <div className="w-full h-[200px] sm:h-[250px] min-h-[200px] relative -ml-2 sm:ml-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activeData.competences} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                  <BarChart data={activeData.competences} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} dy={10} interval={0} />
                     <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} tickFormatter={(value) => `${value}%`} />
@@ -309,7 +355,7 @@ export default function StatisticsPage() {
           </div>
 
           {/* Carte 2 */}
-          <div className="bg-white rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300">
+          <div className="bg-white rounded-2xl md:rounded-3xl p-3 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300 w-full overflow-hidden">
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-4 sm:mb-6">
               🆘 Radar de Soutien
             </h2>
@@ -343,14 +389,14 @@ export default function StatisticsPage() {
           </div>
 
           {/* Carte 3 - Évolution Adaptative */}
-          <div className="bg-white rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300">
+          <div className="bg-white rounded-2xl md:rounded-3xl p-3 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300 w-full overflow-hidden">
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-4 sm:mb-6">
               📈 Évolution
             </h2>
             {!isMounted ? renderChartSkeleton() : (
-              <div className="w-full h-[200px] sm:h-[250px] min-h-[200px] relative">
+              <div className="w-full h-[200px] sm:h-[250px] min-h-[200px] relative -ml-2 sm:ml-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={activeEvolution} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                  <LineChart data={activeEvolution} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                     <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} dy={10} />
                     <YAxis domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} />
@@ -390,14 +436,14 @@ export default function StatisticsPage() {
           </div>
 
           {/* Carte 4 - Pyramide dynamique */}
-          <div className="bg-white rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300">
+          <div className="bg-white rounded-2xl md:rounded-3xl p-3 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300 w-full overflow-hidden">
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-4 sm:mb-6">
               📊 Pyramide des Âges
             </h2>
             {!isMounted ? renderChartSkeleton() : (
-              <div className="w-full h-[200px] sm:h-[250px] min-h-[200px] relative">
+              <div className="w-full h-[200px] sm:h-[250px] min-h-[200px] relative -ml-2 sm:ml-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activeData.ages} margin={{ top: 10, right: 0, left: -25, bottom: 20 }}>
+                  <BarChart data={activeData.ages} margin={{ top: 10, right: 10, left: -25, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                     <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} angle={-45} textAnchor="end" dy={10} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} />
@@ -416,7 +462,7 @@ export default function StatisticsPage() {
           </div>
 
           {/* Carte 5 - Classe Championne (Statique globalement) */}
-          <div className="bg-[#EEF2FF] rounded-2xl md:rounded-3xl p-5 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:bg-white print:shadow-none print:border print:border-gray-300">
+          <div className="bg-[#EEF2FF] rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:bg-white print:shadow-none print:border print:border-gray-300 w-full overflow-hidden">
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-indigo-900 mb-4 flex items-center gap-2">
               🏫 Classe Championne
             </h2>
@@ -434,7 +480,7 @@ export default function StatisticsPage() {
           </div>
 
           {/* Carte 6 - Top Élèves (Dynamique et Pleine largeur) */}
-          <div className="lg:col-span-2 bg-white rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300">
+          <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl md:rounded-3xl p-3 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300 w-full overflow-hidden">
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-4 sm:mb-6 flex items-center gap-2">
               🏆 Top Élèves <span className="text-slate-400 font-medium text-sm sm:text-lg">({selectedFilter === 'global' ? 'Toutes classes' : selectedFilter})</span>
             </h2>

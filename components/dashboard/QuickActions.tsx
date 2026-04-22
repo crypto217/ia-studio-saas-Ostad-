@@ -7,38 +7,62 @@ const actions = [
   {
     name: "Vision classe",
     icon: Presentation,
-    color: "text-white",
-    bgColor: "bg-gradient-to-br from-blue-500 to-indigo-600",
-    shadow: "shadow-indigo-500/30",
+    color: "text-amber-600",
+    bgColor: "bg-white",
+    cardBg: "bg-amber-50",
+    borderColor: "border-amber-100",
+    textColor: "text-amber-900",
+    hoverColor: "group-hover:text-amber-700",
+    shadow: "shadow-sm",
     href: "/live-session/1",
     hideOnMobile: true,
   },
   {
-    name: "Évaluer une classe",
+    name: "Évaluer classe",
     icon: GraduationCap,
-    color: "text-indigo-600",
-    bgColor: "bg-indigo-50",
+    color: "text-emerald-600",
+    bgColor: "bg-white",
+    cardBg: "bg-emerald-50",
+    borderColor: "border-emerald-100",
+    textColor: "text-emerald-900",
+    hoverColor: "group-hover:text-emerald-700",
+    shadow: "shadow-sm",
     href: "/grades",
   },
   {
     name: "Faire l'appel",
     icon: UserCheck,
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-50",
+    color: "text-orange-600",
+    bgColor: "bg-white",
+    cardBg: "bg-orange-50",
+    borderColor: "border-orange-100",
+    textColor: "text-orange-900",
+    hoverColor: "group-hover:text-orange-700",
+    shadow: "shadow-sm",
     href: "/attendance",
   },
   {
-    name: "Préparer un cours (IA)",
+    name: "Préparer cours",
     icon: Sparkles,
-    color: "text-purple-600",
-    bgColor: "bg-purple-50",
+    color: "text-violet-600",
+    bgColor: "bg-white",
+    cardBg: "bg-violet-50",
+    borderColor: "border-violet-100",
+    textColor: "text-violet-900",
+    hoverColor: "group-hover:text-violet-700",
+    shadow: "shadow-sm",
     href: "/ai-generator",
   },
   {
-    name: "Bilan trimestriel",
+    name: "Bilan complet",
     icon: BarChart3,
-    color: "text-amber-600",
-    bgColor: "bg-amber-50",
+    color: "text-blue-600",
+    bgColor: "bg-white",
+    cardBg: "bg-blue-50",
+    borderColor: "border-blue-100",
+    textColor: "text-blue-900",
+    hoverColor: "group-hover:text-blue-700",
+    shadow: "shadow-sm",
     href: "/statistics",
   },
 ]
@@ -49,17 +73,17 @@ export function QuickActions() {
       <div className="flex items-center justify-between mb-5 px-1">
         <h3 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Accès Rapide</h3>
       </div>
-      <div className="-mx-4 px-4 sm:mx-0 sm:px-0 flex flex-row overflow-x-auto lg:grid lg:grid-cols-5 gap-4 pb-4 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
         {actions.map((action) => (
           <Link 
             key={action.name} 
             href={action.href} 
-            className={`shrink-0 w-36 lg:w-auto snap-start bg-white rounded-[1.5rem] sm:rounded-3xl p-5 sm:p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center justify-center text-center gap-3 group ${action.hideOnMobile ? 'hidden lg:flex' : ''}`}
+            className={`${action.cardBg} ${action.borderColor} border rounded-2xl min-h-24 p-3 sm:p-4 shadow-sm hover:shadow-md hover:-translate-y-1 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center text-center gap-2 sm:gap-3 group ${action.hideOnMobile ? 'hidden lg:flex' : 'flex'}`}
           >
-            <div className={`w-14 h-14 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center ${action.bgColor} ${action.color} group-hover:scale-110 transition-transform duration-300 ${action.shadow ? 'shadow-lg ' + action.shadow : ''}`}>
+            <div className={`w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-2xl flex items-center justify-center ${action.bgColor} ${action.color} shadow-sm group-hover:scale-110 transition-transform duration-300`}>
               <action.icon className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
             </div>
-            <span className="font-bold text-slate-700 text-[13px] sm:text-base leading-tight group-hover:text-slate-900 transition-colors">
+            <span className={`font-bold ${action.textColor} text-xs sm:text-sm leading-tight ${action.hoverColor} transition-colors`}>
               {action.name}
             </span>
           </Link>

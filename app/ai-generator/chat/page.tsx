@@ -10,14 +10,18 @@ import Markdown from "react-markdown"
 
 const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY })
 
-const SYSTEM_INSTRUCTION = `Tu es l'Assistant Ostad, une intelligence artificielle spécialisée pour les enseignants du primaire (Professeurs des écoles).
-Ton rôle est d'apporter des conseils pédagogiques, de corriger des textes, de générer des idées de leçons, ou de répondre à toute question liée à l'enseignement.
+const SYSTEM_INSTRUCTION = `Tu es l'Assistant Ostad, une intelligence artificielle spécialisée pour les enseignants d'école primaire. Ton objectif est de fasciner et d'encourager les enseignants !
 
-CRITÈRES DE RÉPONSE OBLIGATOIRES :
-- Sois DYNAMIQUE, CONCIS et va droit au but. Donne uniquement "la crème de l'information" pour ne pas perdre le temps précieux de l'enseignant.
-- Évite les longues phrases, les introductions futiles et les conclusions génériques.
-- Structure toutes tes réponses de façon très visuelle et aérée : utilise des listes à puces, mets en gras les concepts clés, crée de courts paragraphes.
-- Adopte un ton professionnel, encourageant et adapté au milieu scolaire. Parle toujours en français.`
+CRITÈRES DE RÉPONSE OBLIGATOIRES (TRÈS IMPORTANT) :
+- Sois TRÈS DYNAMIQUE, CHALEUREUX et POSITIF. Donne du courage et de l'énergie à l'enseignant !
+- Utilise BEAUCOUP le formatage Markdown de la manière suivante pour rendre tes réponses MAGNIFIQUES :
+  - Utilise le **gras** (double astérisque) pour les termes pédagogiques clés, les concepts importants, ou les réussites. (Cela s'affichera sous forme de magnifiques badges colorés !).
+  - Utilise l'*italique* (simple astérisque) pour les exemples, les citations d'élèves ou les astuces. (Cela sera souligné avec une belle vague !).
+  - Utilise des titres ## pour délimiter clairement les grandes étapes ou les types d'exercices.
+  - Utilise systématiquement des listes à puces pour énumérer tes idées, cela aère le texte.
+  - Utilise le bloc de citation (>) pour mettre en valeur les "Règles d'or" ou les conseils très importants.
+- Sois EXTRÊMEMENT CONCIS : tes réponses doivent être le plus court possible. Va directement à l'essentiel, pas de longs pavés, fais des paragraphes de 1 à 2 lignes maximum.
+- Parle comme un mentor bienveillant, et utilise des emojis avec parcimonie pour égayer le tout.`
 
 type Message = {
   id: string
@@ -26,15 +30,16 @@ type Message = {
 }
 
 const QUICK_PROMPTS = [
-  "🎭 Idée de jeu de rôle (Séquence 1)",
-  "📝 Corriger un texte d'élève",
-  "💡 Expliquer les fractions"
+  "🎭 Idée de jeu éducatif",
+  "📝 Rendre un exercice plus ludique",
+  "💡 Expliquer la grammaire simplement",
+  "✨ Activité de 5 minutes"
 ]
 
 const INITIAL_MESSAGE: Message = {
   id: "1",
   role: "model",
-  content: "Bonjour ! 👋 Je suis l'Assistant Ostad. Comment puis-je vous aider aujourd'hui avec vos classes ou vos cours ?"
+  content: "Bonjour ! 👋 Je suis l'Assistant Ostad. Prêt(e) à préparer une leçon extraordinaire aujourd'hui ? Je suis là pour vous donner des idées créatives, corriger vos textes ou simplifier les notions complexes. Comment puis-je vous aider ?"
 }
 
 export default function ChatPage() {
@@ -148,10 +153,40 @@ export default function ChatPage() {
                 className={`max-w-[90%] sm:max-w-[75%] overflow-hidden ${
                   isUser 
                     ? 'bg-indigo-600 text-white rounded-2xl rounded-tr-none p-4 md:p-5 shadow-md leading-relaxed text-[15px]' 
-                    : 'bg-white border border-slate-100 rounded-2xl rounded-tl-none p-4 md:p-5 shadow-sm leading-relaxed text-[15px] prose prose-sm md:prose-base prose-slate max-w-none'
+                    : 'bg-white border border-slate-100 rounded-2xl rounded-tl-none p-4 md:p-5 shadow-sm leading-relaxed text-[15px]'
                 }`}
               >
-                {isUser ? msg.content : <Markdown>{msg.content}</Markdown>}
+                {isUser ? msg.content : (
+                  <Markdown
+                    components={{
+                      strong: ({node, ...props}) => <strong className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100 shadow-sm" {...props} />,
+                      em: ({node, ...props}) => <em className="not-italic font-semibold text-rose-700 underline decoration-rose-400 decoration-wavy decoration-2 underline-offset-4" {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-lg sm:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-indigo-600 mt-6 mb-3 inline-block border-b-2 border-indigo-100 pb-1" {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-base sm:text-lg font-bold text-violet-700 mt-4 mb-2" {...props} />,
+                      ul: ({node, ...props}) => <ul className="space-y-2.5 mt-3 mb-5" {...props} />,
+                      ol: ({node, ...props}) => <ol className="space-y-2.5 mt-3 mb-5 list-decimal pl-5 marker:text-indigo-600 marker:font-bold" {...props} />,
+                      li: ({node, className, children, ...props}: any) => {
+                        // On vérifie si par hasard on est dans un composant "ol" ou si ça se comporte comme tel
+                        // On prend une option safe pour les listes non ordonnées:
+                        return (
+                          <li className="flex items-start gap-3 text-slate-700 leading-relaxed" {...props}>
+                            {node?.parent?.tagName === 'ol' ? (
+                              <span className="shrink-0 mt-0.5 text-indigo-600 font-bold">•</span>
+                            ) : (
+                              <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-violet-400 to-indigo-400 mt-2.5 shrink-0 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                            )}
+                            <span className="flex-1">{children}</span>
+                          </li>
+                        )
+                      },
+                      p: ({node, ...props}) => <p className="mb-4 last:mb-0 text-slate-700 leading-relaxed" {...props} />,
+                      blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-amber-400 bg-gradient-to-r from-amber-50 to-amber-50/10 pl-4 py-3 text-slate-700 my-4 rounded-r-xl italic shadow-sm" {...props} />,
+                      a: ({node, ...props}) => <a className="text-indigo-600 hover:text-indigo-800 underline decoration-indigo-300 decoration-2 underline-offset-2 transition-colors font-medium" {...props} />
+                    }}
+                  >
+                    {msg.content}
+                  </Markdown>
+                )}
               </div>
             </motion.div>
           )

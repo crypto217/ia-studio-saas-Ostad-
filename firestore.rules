@@ -16,7 +16,7 @@ service cloud.firestore {
     }
     
     function isDocOwner() {
-      return isAuthenticated() && request.auth.uid == resource.data.teacherId;
+      return isAuthenticated() && (resource == null || request.auth.uid == resource.data.teacherId);
     }
     
     function hasRequiredFields(fields) {
@@ -124,56 +124,64 @@ service cloud.firestore {
     }
 
     match /classes/{classId} {
-      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow list: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow get: if isAuthenticated() && (resource == null || resource.data.teacherId == request.auth.uid);
       allow create: if isAuthenticated() && isValidClass(request.resource.data) && request.resource.data.teacherId == request.auth.uid;
       allow update: if isDocOwner() && isValidClass(request.resource.data) && areImmutableFieldsUnchanged(['id', 'teacherId', 'createdAt']);
       allow delete: if isDocOwner();
     }
 
     match /students/{studentId} {
-      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow list: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow get: if isAuthenticated() && (resource == null || resource.data.teacherId == request.auth.uid);
       allow create: if isAuthenticated() && isValidStudent(request.resource.data) && request.resource.data.teacherId == request.auth.uid;
       allow update: if isDocOwner() && isValidStudent(request.resource.data) && areImmutableFieldsUnchanged(['id', 'teacherId', 'createdAt']);
       allow delete: if isDocOwner();
     }
 
     match /lessons/{lessonId} {
-      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow list: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow get: if isAuthenticated() && (resource == null || resource.data.teacherId == request.auth.uid);
       allow create: if isAuthenticated() && isValidLesson(request.resource.data) && request.resource.data.teacherId == request.auth.uid;
       allow update: if isDocOwner() && isValidLesson(request.resource.data) && areImmutableFieldsUnchanged(['id', 'teacherId', 'createdAt']);
       allow delete: if isDocOwner();
     }
 
     match /tasks/{taskId} {
-      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow list: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow get: if isAuthenticated() && (resource == null || resource.data.teacherId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.teacherId == request.auth.uid;
       allow update: if isDocOwner() && areImmutableFieldsUnchanged(['id', 'teacherId', 'createdAt']);
       allow delete: if isDocOwner();
     }
     
     match /student_alerts/{alertId} {
-      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow list: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow get: if isAuthenticated() && (resource == null || resource.data.teacherId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.teacherId == request.auth.uid;
       allow update: if isDocOwner() && areImmutableFieldsUnchanged(['id', 'teacherId', 'createdAt']);
       allow delete: if isDocOwner();
     }
 
     match /activities/{activityId} {
-      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow list: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow get: if isAuthenticated() && (resource == null || resource.data.teacherId == request.auth.uid);
       allow create: if isAuthenticated() && isValidActivity(request.resource.data) && request.resource.data.teacherId == request.auth.uid;
       allow update: if isDocOwner() && isValidActivity(request.resource.data) && areImmutableFieldsUnchanged(['id', 'teacherId', 'createdAt']);
       allow delete: if isDocOwner();
     }
 
     match /courses/{courseId} {
-      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow list: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow get: if isAuthenticated() && (resource == null || resource.data.teacherId == request.auth.uid);
       allow create: if isAuthenticated() && isValidCourse(request.resource.data) && request.resource.data.teacherId == request.auth.uid;
       allow update: if isDocOwner() && isValidCourse(request.resource.data) && areImmutableFieldsUnchanged(['teacherId', 'createdAt']);
       allow delete: if isDocOwner();
     }
 
     match /attendances/{attendanceId} {
-      allow read: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow list: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow get: if isAuthenticated() && (resource == null || resource.data.teacherId == request.auth.uid);
       allow create: if isAuthenticated() && isValidAttendance(request.resource.data) && request.resource.data.teacherId == request.auth.uid;
       allow update: if isDocOwner() && isValidAttendance(request.resource.data) && areImmutableFieldsUnchanged(['teacherId', 'classId', 'date', 'createdAt']);
       allow delete: if isDocOwner();
