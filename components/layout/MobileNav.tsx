@@ -33,6 +33,7 @@ const rightItems: NavItem[] = [
 
 export function MobileNav() {
   const pathname = usePathname()
+  const isDashboard = pathname === "/"
 
   const renderItem = (item: NavItem) => {
     const isActive = pathname === item.href
@@ -77,7 +78,7 @@ export function MobileNav() {
           </div>
           
           {/* Center Spacer for AIMagicHub */}
-          <div className="w-[5.5rem] h-14 shrink-0" />
+          {isDashboard && <div className="w-[5.5rem] h-14 shrink-0" />}
           
           <div className="flex flex-1 justify-around">
             {rightItems.map(renderItem)}

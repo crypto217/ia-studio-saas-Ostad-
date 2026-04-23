@@ -11,8 +11,10 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6 md:space-y-12 max-w-7xl mx-auto">
       <WelcomeBanner />
 
-      {/* Le Radar des Élèves (Bandeau TV Interactive) */}
-      <StudentNewsRadar />
+      {/* Le Radar des Élèves (Bandeau TV Interactive) - Mobile only */}
+      <div className="md:hidden">
+        <StudentNewsRadar />
+      </div>
 
       {/* Quick Actions - App-like horizontal row or dense grid on mobile */}
       <QuickActions />

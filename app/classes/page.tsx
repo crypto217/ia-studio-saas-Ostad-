@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import Link from "next/link"
 import { 
@@ -15,7 +15,9 @@ import {
   Sparkles,
   BookOpen,
   ChevronRight,
-  Plus
+  Plus,
+  Trash2,
+  Check
 } from "lucide-react"
 
 // --- MOCK DATA ---
@@ -41,7 +43,7 @@ interface ClassData {
   students: Student[]
 }
 
-const mockClasses: ClassData[] = [
+const initialMockClasses: ClassData[] = [
   {
     id: "3ap-a",
     name: "3ème AP - Groupe A",
@@ -154,12 +156,66 @@ const getInitials = (name: string) => {
 }
 
 export default function ClassesPage() {
+  const [classes, setClasses] = useState<ClassData[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ostad_mock_classes')
+      if (saved) {
+        try {
+          return JSON.parse(saved)
+        } catch (e) {
+          console.error("Error parsing", e)
+        }
+      }
+    }
+    return initialMockClasses
+  })
+  
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null)
   const [filterCycle, setFilterCycle] = useState<string>("Toutes")
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  
+  // New Class Form State
+  const [newName, setNewName] = useState("")
+  const [newCycle, setNewCycle] = useState("Primaire")
+  const [newTheme, setNewTheme] = useState<ClassData['theme']>("emerald")
+
+  useEffect(() => {
+    localStorage.setItem('ostad_mock_classes', JSON.stringify(classes))
+  }, [classes])
+
+  const deleteClass = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation() // Prevent opening the details modal
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette classe ?")) {
+      setClasses(prev => prev.filter(c => c.id !== id))
+    }
+  }
+
+  const addClass = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newName.trim()) return
+
+    const newClassData: ClassData = {
+      id: Date.now().toString(),
+      name: newName,
+      cycle: newCycle,
+      theme: newTheme,
+      studentsCount: 0,
+      average: 0,
+      schedule: "À définir",
+      room: "À définir",
+      students: []
+    }
+
+    setClasses(prev => [...prev, newClassData])
+    setIsAddModalOpen(false)
+    setNewName("")
+    setNewCycle("Primaire")
+    setNewTheme("emerald")
+  }
 
   const filteredClasses = filterCycle === "Toutes" 
-    ? mockClasses 
-    : mockClasses.filter(c => c.cycle === filterCycle)
+    ? classes 
+    : classes.filter(c => c.cycle === filterCycle)
 
   return (
     <div className="min-h-screen pb-24 bg-slate-50/50">
@@ -182,7 +238,7 @@ export default function ClassesPage() {
       {/* STICKY TABS BAR */}
       <div className="sticky top-0 z-30 bg-slate-50/90 backdrop-blur-md px-4 py-3 sm:px-8 border-b border-slate-200/50 shadow-sm">
         <div className="max-w-6xl mx-auto flex items-center gap-2 overflow-x-auto no-scrollbar">
-          {["Toutes", "Primaire", "Moyen"].map((tab) => (
+          {["Toutes", "Primaire", "Moyen", "Secondaire"].map((tab) => (
             <button
               key={tab}
               onClick={() => setFilterCycle(tab)}
@@ -200,21 +256,43 @@ export default function ClassesPage() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-8 mt-4 sm:mt-8">
         {/* CLASSES GRID / LIST (Mobile vs Desktop) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-          {filteredClasses.map((cls) => {
-            const theme = themeStyles[cls.theme]
-            const Icon = theme.icon
-            
-            return (
-              <motion.div
-                key={cls.id}
-                layoutId={`class-card-${cls.id}`}
-                onClick={() => setSelectedClass(cls)}
-                whileHover={{ y: -2, scale: 1.01 }}
-                whileTap={{ scale: 0.98 }}
-                className={`cursor-pointer bg-white rounded-[1.25rem] sm:rounded-[2rem] p-3 sm:p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 relative overflow-hidden group flex flex-row sm:flex-col items-center sm:items-start gap-4 sm:gap-0`}
-              >
-                {/* Desktop background flourish */}
+        {filteredClasses.length === 0 ? (
+          <div className="py-20 flex flex-col items-center justify-center text-center">
+            <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+              <BookOpen className="w-10 h-10 text-slate-300" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-700 mb-2">Aucune classe trouvée</h2>
+            <p className="text-slate-500 font-medium max-w-sm">Vous n&apos;avez pas encore de classe dans ce cycle. Cliquez sur le bouton + pour en créer une.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+            <AnimatePresence>
+              {filteredClasses.map((cls) => {
+                const theme = themeStyles[cls.theme]
+                const Icon = theme.icon
+                
+                return (
+                  <motion.div
+                    key={cls.id}
+                    layoutId={`class-card-${cls.id}`}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    onClick={() => setSelectedClass(cls)}
+                    whileHover={{ y: -2, scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`cursor-pointer bg-white rounded-[1.25rem] sm:rounded-[2rem] p-3 sm:p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 relative overflow-hidden group flex flex-row sm:flex-col items-center sm:items-start gap-4 sm:gap-0`}
+                  >
+                    {/* Trash Button */}
+                    <button 
+                      onClick={(e) => deleteClass(e, cls.id)}
+                      className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 sm:p-2.5 rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all z-20 shadow-sm"
+                      title="Supprimer la classe"
+                    >
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
+
+                    {/* Desktop background flourish */}
                 <div className={`hidden sm:block absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br ${theme.gradient} rounded-full opacity-10 group-hover:scale-150 transition-transform duration-500`} />
                 
                 {/* Left: Icon in circle */}
@@ -256,13 +334,105 @@ export default function ClassesPage() {
               </motion.div>
             )
           })}
+          </AnimatePresence>
         </div>
+        )}
       </div>
 
       {/* FAB: Floating Action Button */}
-      <button className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] right-4 md:bottom-8 md:right-8 w-14 h-14 rounded-full bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white shadow-[0_10px_25px_-5px_rgba(244,63,94,0.5)] z-30 hover:scale-105 active:scale-95 transition-all">
+      <button 
+        onClick={() => setIsAddModalOpen(true)}
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] right-4 md:bottom-8 md:right-8 w-14 h-14 rounded-full bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white shadow-[0_10px_25px_-5px_rgba(244,63,94,0.5)] z-30 hover:scale-105 active:scale-95 transition-all"
+      >
         <Plus className="w-7 h-7" strokeWidth={2.5} />
       </button>
+
+      {/* ADD CLASS MODAL */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAddModalOpen(false)}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50"
+            />
+            <div className="fixed inset-0 z-[51] flex items-center justify-center p-4 pointer-events-none">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden pointer-events-auto"
+              >
+                <div className="bg-slate-50 border-b border-slate-100 p-6 flex items-center justify-between">
+                  <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-indigo-500" />
+                    Nouvelle Classe
+                  </h3>
+                  <button onClick={() => setIsAddModalOpen(false)} className="p-2 bg-white rounded-full text-slate-400 hover:text-slate-600 shadow-sm border border-slate-100">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                <form onSubmit={addClass} className="p-6 space-y-6">
+                  {/* Name Input */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Nom de la classe</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="Ex: 5ème AP - B"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                    />
+                  </div>
+
+                  {/* Cycle Select */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Cycle</label>
+                    <select 
+                      value={newCycle}
+                      onChange={(e) => setNewCycle(e.target.value)}
+                      className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="Primaire">Primaire</option>
+                      <option value="Moyen">Moyen</option>
+                      <option value="Secondaire">Secondaire</option>
+                    </select>
+                  </div>
+
+                  {/* Theme Select */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Thème de couleur</label>
+                    <div className="flex items-center gap-3">
+                      {(Object.keys(themeStyles) as Array<ClassData['theme']>).map((theme) => (
+                        <button
+                          key={theme}
+                          type="button"
+                          onClick={() => setNewTheme(theme)}
+                          className={`w-10 h-10 rounded-full bg-gradient-to-br ${themeStyles[theme].gradient} flex items-center justify-center transition-transform ${newTheme === theme ? 'ring-4 ring-offset-2 ring-indigo-500 scale-110' : 'hover:scale-110'}`}
+                        >
+                          {newTheme === theme && <Check className="w-5 h-5 text-white" strokeWidth={3} />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="pt-2">
+                    <button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-4 rounded-2xl shadow-lg transition-colors flex items-center justify-center gap-2">
+                      <Plus className="w-5 h-5" />
+                      Créer la classe
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* EXPANDED CLASS MODAL */}
       <AnimatePresence>

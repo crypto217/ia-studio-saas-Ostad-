@@ -10,6 +10,7 @@ import { AIMagicHub } from '@/components/ui/AIMagicHub'
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isLoginPage = pathname === "/login"
+  const isDashboard = pathname === "/"
 
   if (isLoginPage) {
     return (
@@ -31,7 +32,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       <MobileNav />
-      <AIMagicHub />
+      {isDashboard && <AIMagicHub />}
     </ProtectedRoute>
   )
 }
