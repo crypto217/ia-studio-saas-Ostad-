@@ -101,12 +101,18 @@ export default function ChatPage() {
         content: response.text || "Désolé, je n'ai pas pu formuler de réponse."
       }
       setMessages(prev => [...prev, newAiMsg])
-    } catch (error) {
+    } catch (error: any) {
        console.error("Erreur Gemini API:", error)
+       
+       let errorContent = "Oups... Il semblerait que j'aie rencontré un problème avec ma connexion. Veuillez réessayer."
+       if (error?.message?.includes("429") || error?.message?.includes("RESOURCE_EXHAUSTED") || error?.message?.includes("exceeded your current quota")) {
+         errorContent = "Limite d'utilisation de l'intelligence artificielle atteinte. Veuillez patienter un peu avant de réessayer."
+       }
+
        const errorMsg: Message = {
          id: (Date.now() + 1).toString(),
          role: "model",
-         content: "Oups... Il semblerait que j'aie rencontré un problème avec ma connexion. Veuillez réessayer."
+         content: errorContent
        }
        setMessages(prev => [...prev, errorMsg])
     } finally {

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, Search, Info, Rocket, Sparkles, Menu, X, LayoutDashboard, Calendar, BookOpen, Users, GraduationCap, BarChart3, Settings, LogOut, ClipboardList, User, CreditCard, HelpCircle, Keyboard, LogIn } from "lucide-react"
+import { Bell, Search, Info, Rocket, Sparkles, Menu, X, LayoutDashboard, Calendar, BookOpen, Users, GraduationCap, BarChart3, Settings, LogOut, ClipboardList, User, CreditCard, HelpCircle, Keyboard, LogIn, AlertCircle, Cake, TrendingUp, CheckCircle2, ChevronRight } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AnimatePresence, motion } from "motion/react"
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow"
@@ -40,9 +40,22 @@ export function Header() {
     return () => clearTimeout(timeoutId);
   }, [isAuthReady, user, onboardingCompleted])
 
+  useEffect(() => {
+    const handleOpenNotifs = () => setShowNotification(true);
+    window.addEventListener('open-notifications', handleOpenNotifs);
+    return () => window.removeEventListener('open-notifications', handleOpenNotifs);
+  }, []);
+
+  const dummyNotifications = [
+    { id: 1, type: "alert", text: "Sarah B. : Devoir non rendu (Maths)", time: "08:15", icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-100" },
+    { id: 2, type: "birthday", text: "Anniversaire de Lina M. 🎂", time: "Hier", icon: Cake, color: "text-amber-500", bg: "bg-amber-100" },
+    { id: 3, type: "success", text: "Amine K. : +2 pts de moyenne", time: "Hier", icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-100" },
+    { id: 4, type: "system", text: "Nouveau module IA activé", time: "Lun.", icon: Sparkles, color: "text-indigo-500", bg: "bg-indigo-100" },
+  ];
+
   return (
     <>
-      <header className="fixed top-0 right-0 left-0 md:left-64 z-30 flex h-20 items-center justify-between border-b border-indigo-50 bg-white/80 px-4 md:px-8 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 flex shrink-0 w-full h-20 items-center justify-between border-b border-indigo-50 bg-white/80 px-4 md:px-8 backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -103,25 +116,42 @@ export function Header() {
                   animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
                   exit={{ opacity: 0, y: 15, scale: 0.95, rotate: 2 }}
                   transition={{ type: "spring", bounce: 0.5, duration: 0.5 }}
-                  className="absolute -right-2 sm:-right-4 md:right-0 top-full mt-4 w-[280px] sm:w-[300px] md:w-[340px] rounded-2xl bg-amber-400 p-3 shadow-2xl z-50 origin-top-right"
+                  className="absolute -right-2 sm:-right-4 md:right-0 top-full mt-4 w-[300px] sm:w-[340px] rounded-3xl bg-white p-2 shadow-2xl z-50 origin-top-right border border-slate-100"
                 >
-                  <div className="relative rounded-xl border-[3px] border-dashed border-amber-900/40 p-4 sm:p-5">
-                    {/* Tape decoration */}
-                    <div className="absolute -top-6 left-1/2 h-8 w-24 -translate-x-1/2 -rotate-3 rounded bg-white/40 shadow-sm backdrop-blur-md" />
-                    
-                    <div className="flex flex-col gap-4 mt-2">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-900 text-amber-400 shadow-inner">
-                          <Info className="h-5 w-5" />
+                  <div className="flex items-center justify-between px-4 pb-3 pt-2 border-b border-slate-100 mb-2">
+                    <h4 className="font-black text-slate-800 text-lg tracking-tight flex items-center gap-2">
+                      <Bell className="w-5 h-5 text-slate-400" />
+                      Notifications
+                    </h4>
+                    <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                      2 nvx
+                    </span>
+                  </div>
+                  
+                  <div className="flex flex-col gap-1 max-h-[320px] overflow-y-auto px-1 pb-1">
+                    {dummyNotifications.map((n) => (
+                      <div key={n.id} className="flex items-start gap-3 p-2.5 rounded-2xl hover:bg-slate-50 transition-colors cursor-pointer group">
+                        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", n.bg, n.color)}>
+                          <n.icon className="h-5 w-5" strokeWidth={2.5} />
                         </div>
-                        <h4 className="font-black text-amber-950 text-xl tracking-tight">Petit Mot ! 📝</h4>
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <p className="text-sm font-bold text-slate-700 leading-tight group-hover:text-slate-900 transition-colors">
+                            {n.text}
+                          </p>
+                          <p className="text-xs font-semibold text-slate-400 mt-0.5">
+                            {n.time}
+                          </p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity self-center shrink-0" />
                       </div>
-                      <p className="text-sm font-bold text-amber-900/90 leading-relaxed">
-                        Coucou ! Cette version est un petit bijou taillé sur mesure pour les <span className="text-amber-950 bg-amber-300/80 px-1.5 py-0.5 rounded-md inline-block -rotate-1 shadow-sm">super-profs de français en primaire</span> 🎒. 
-                        <br/><br/>
-                        Pas de panique, les autres matières arrivent bientôt dans le cartable ! ✨
-                      </p>
-                    </div>
+                    ))}
+                  </div>
+                  
+                  <div className="p-2 border-t border-slate-100 mt-1">
+                    <button className="w-full py-2 flex items-center justify-center gap-2 text-sm font-bold text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Tout marquer comme lu
+                    </button>
                   </div>
                 </motion.div>
               )}

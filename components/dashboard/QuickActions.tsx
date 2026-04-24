@@ -78,10 +78,10 @@ export function QuickActions() {
           <Link 
             key={action.name} 
             href={action.href} 
-            className={`${action.cardBg} ${action.borderColor} border rounded-2xl min-h-24 p-3 sm:p-4 shadow-sm hover:shadow-md hover:-translate-y-1 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center text-center gap-2 sm:gap-3 group ${action.hideOnMobile ? 'hidden lg:flex' : 'flex'}`}
+            className={`${action.cardBg} ${action.borderColor} border rounded-2xl min-h-24 p-3 sm:p-6 shadow-sm hover:shadow-md hover:-translate-y-1 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center text-center gap-2 group ${action.hideOnMobile ? 'hidden lg:flex' : 'flex'}`}
           >
-            <div className={`w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-2xl flex items-center justify-center ${action.bgColor} ${action.color} shadow-sm group-hover:scale-110 transition-transform duration-300`}>
-              <action.icon className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
+            <div className={`w-10 h-10 sm:w-14 sm:h-14 shrink-0 rounded-2xl flex items-center justify-center ${action.bgColor} ${action.color} shadow-sm group-hover:scale-110 transition-transform duration-300`}>
+              <action.icon className="w-5 h-5 sm:w-7 sm:h-7" strokeWidth={2.5} />
             </div>
             <span className={`font-bold ${action.textColor} text-xs sm:text-sm leading-tight ${action.hoverColor} transition-colors`}>
               {action.name}

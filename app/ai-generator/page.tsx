@@ -32,10 +32,12 @@ export default function AIGeneratorPage() {
   const [projet, setProjet] = useState("Projet 1")
   const [sequence, setSequence] = useState("Séquence 1")
   const [topic, setTopic] = useState("")
+  const [grammarRule, setGrammarRule] = useState("")
   const [isEcoMode, setIsEcoMode] = useState(false)
 
   // Gardés pour rétrocompatibilité
-  const [activityType, setActivityType] = useState("Compréhension de l'oral")
+  const [courseType, setCourseType] = useState("Grammaire")
+  const [courseName, setCourseName] = useState("")
   const [examType, setExamType] = useState("Devoir")
   const [exerciseType, setExerciseType] = useState("Grammaire")
   const [exerciseCount, setExerciseCount] = useState("3")
@@ -129,11 +131,19 @@ export default function AIGeneratorPage() {
       const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
       
       let paramsText = `- Niveau / Cycle : ${classLevel}\n`;
-      paramsText += `- Période : ${term}\n`;
-      paramsText += `- Progression : ${projet}\n`;
-      paramsText += `- Séquence : ${sequence}\n`;
+      if (selectedType !== 'dictation') {
+        paramsText += `- Période : ${term}\n`;
+      }
+      if (selectedType === 'lesson' || selectedType === 'text') {
+        paramsText += `- Progression : ${projet}\n`;
+        paramsText += `- Séquence : ${sequence}\n`;
+      }
 
       if (selectedType === 'lesson') {
+        paramsText += `- Matière/Domaine visé : ${courseType}\n`;
+        if (courseName) {
+          paramsText += `- Titre exact du cours : ${courseName}\n`;
+        }
         paramsText += `- Type de document : Fiche de préparation de cours (pour l'enseignant)\n`;
       } else if (selectedType === 'text') {
         paramsText += `- Type de document : Texte de lecture (pour l'élève)\n`;
@@ -143,10 +153,15 @@ export default function AIGeneratorPage() {
         paramsText += `- RÈGLE STRICTE SUR LE CONTENU : Limite-toi à la dictée pure sans longues informations superflues.\n`;
       } else if (selectedType === 'exam') {
         paramsText += `- Type de document : Sujet de composition / Évaluation (pour l'élève)\n`;
+        paramsText += `- Niveau de difficulté : ${difficulty}\n`;
       }
 
       if (topic.trim()) {
-        paramsText += `- Thème spécifique ou mots à inclure : ${topic}\n`;
+        if (selectedType === 'exam') {
+          paramsText += `- Instructions / Suggestions générales : ${topic}\n`;
+        } else {
+          paramsText += `- Thème spécifique ou mots à inclure : ${topic}\n`;
+        }
       }
 
       if (isEcoMode) {
@@ -211,7 +226,22 @@ p { margin: 2px 0; }
 .fiche-table th { background-color: #f8fafc; font-weight: bold; }`;
       }
 
-      const basePrompt = `Tu es un Inspecteur de l'Éducation Nationale en Algérie et un expert en conception pédagogique. Tu maîtrises parfaitement les programmes officiels du Ministère de l'Éducation Nationale algérien pour le cycle Primaire (AP).
+      let finalPrompt = "";
+      let targetModel = "gemini-3.1-pro-preview";
+
+      if (selectedType === 'dictation') {
+        finalPrompt = `Tu es un inspecteur de l'éducation nationale en Algérie. Rédige un texte de dictée très court (3 à 4 phrases maximum) pour des élèves de primaire. 
+Niveau : ${classLevel}
+Thème : ${topic}
+Règle de grammaire/conjugaison à évaluer : ${grammarRule}
+Consignes : Le vocabulaire doit être simple, adapté au contexte algérien, et sans aucun jargon complexe. Mets en évidence (en Markdown gras) les mots liés à la règle demandée.
+
+FORMAT DE SORTIE :
+Génère le texte final dans une balise <div> avec de simples paragraphes <p>. Le texte mis en évidence doit utiliser la balise HTML <strong> au lieu de Markdown. N'ajoute pas de CSS externe ni de balise <style>. Ne mets pas de balises markdown englobantes (\`\`\`html).
+`;
+        targetModel = "gemini-3.1-flash-lite-preview";
+      } else {
+        finalPrompt = `Tu es un Inspecteur de l'Éducation Nationale en Algérie et un expert en conception pédagogique. Tu maîtrises parfaitement les programmes officiels du Ministère de l'Éducation Nationale algérien pour le cycle Primaire (AP).
 
 MISSION :
 Ta mission est d'assister les enseignants algériens en générant du contenu pédagogique sur mesure. Ton contenu doit respecter rigoureusement l'Approche Par Compétences (APC), les progressions annuelles officielles, et s'adapter au contexte culturel et scolaire algérien.
@@ -244,6 +274,7 @@ ${styleInstructions}
 Voici les paramètres du document à générer :
 ${paramsText}
 `;
+      }
 
       const imagePromptText = `Course Theme: ${topic || selectedType}. Class level: ${classLevel}.
 REQUIREMENTS:
@@ -253,18 +284,16 @@ REQUIREMENTS:
 
       const [textResponse, imageResponse] = await Promise.all([
         ai.models.generateContent({
-          model: "gemini-3.1-flash-lite-preview",
-          contents: basePrompt,
-          config: {
-            maxOutputTokens: 8192,
-          }
+          model: targetModel,
+          contents: finalPrompt,
         }),
         ai.models.generateContent({
           model: "gemini-2.5-flash-image",
           contents: imagePromptText,
           config: {
             imageConfig: {
-              aspectRatio: "16:9"
+              aspectRatio: "16:9",
+              imageSize: "1K"
             }
           }
         }).catch(err => {
@@ -276,6 +305,9 @@ REQUIREMENTS:
       // Nettoyer la réponse au cas où l'IA ajouterait des balises markdown ```html
       let htmlContent = textResponse.text || "";
       htmlContent = htmlContent.replace(/```html/gi, "").replace(/```/gi, "").trim();
+
+      // Convertir le markdown gras en HTML fort 
+      htmlContent = htmlContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
       setGeneratedContent(htmlContent);
 
@@ -290,9 +322,13 @@ REQUIREMENTS:
         }
       }
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Une erreur s'est produite lors de la génération du contenu. Veuillez réessayer.");
+      if (err?.message?.includes("429") || err?.message?.includes("RESOURCE_EXHAUSTED") || err?.message?.includes("exceeded your current quota")) {
+        setError("Limite d'utilisation de l'intelligence artificielle atteinte. Veuillez patienter un peu avant de réessayer.");
+      } else {
+        setError(`Une erreur s'est produite: ${err?.message || "Erreur inconnue"}. Veuillez réessayer.`);
+      }
     } finally {
       setIsGenerating(false)
     }
@@ -325,11 +361,8 @@ REQUIREMENTS:
       - Renvoie UNIQUEMENT le code HTML complet mis à jour. Aucun texte brut avant ou après. Ne mets pas de balises markdown \`\`\`html.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite-preview",
+        model: "gemini-3.1-pro-preview",
         contents: prompt,
-        config: {
-          maxOutputTokens: 8192,
-        }
       });
 
       let htmlContent = response.text || "";
@@ -337,9 +370,13 @@ REQUIREMENTS:
 
       setGeneratedContent(htmlContent);
       setModificationPrompt("");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Une erreur s'est produite lors de la modification. Veuillez réessayer.");
+      if (err?.message?.includes("429") || err?.message?.includes("RESOURCE_EXHAUSTED") || err?.message?.includes("exceeded your current quota")) {
+        setError("Limite d'utilisation de l'intelligence artificielle atteinte. Veuillez patienter un peu avant de réessayer.");
+      } else {
+        setError(`Une erreur s'est produite lors de la modification: ${err?.message || "Erreur inconnue"}`);
+      }
     } finally {
       setIsModifying(false);
     }
@@ -560,56 +597,120 @@ REQUIREMENTS:
                       </select>
                     </div>
                     
-                    <div className="space-y-1.5 sm:space-y-2.5 col-span-2 sm:col-span-1">
-                      <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Période</label>
-                      <select value={term} onChange={(e) => setTerm(e.target.value)} className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-800 transition-all">
-                        <option>1er Trimestre</option>
-                        <option>2ème Trimestre</option>
-                        <option>3ème Trimestre</option>
-                      </select>
-                    </div>
+                    {selectedType !== 'dictation' && (
+                      <>
+                        <div className="space-y-1.5 sm:space-y-2.5 col-span-2 sm:col-span-1">
+                          <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Période</label>
+                          <select value={term} onChange={(e) => setTerm(e.target.value)} className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-800 transition-all">
+                            <option>1er Trimestre</option>
+                            <option>2ème Trimestre</option>
+                            <option>3ème Trimestre</option>
+                          </select>
+                        </div>
 
-                    <div className="space-y-1.5 sm:space-y-2.5">
-                      <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Progression</label>
-                      <select value={projet} onChange={(e) => setProjet(e.target.value)} className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-800 transition-all">
-                        <option>Projet 1</option>
-                        <option>Projet 2</option>
-                        <option>Projet 3</option>
-                      </select>
-                    </div>
+                        {(selectedType === 'lesson' || selectedType === 'text') && (
+                          <>
+                            <div className="space-y-1.5 sm:space-y-2.5">
+                              <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Progression</label>
+                              <select value={projet} onChange={(e) => setProjet(e.target.value)} className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-800 transition-all">
+                                <option>Projet 1</option>
+                                <option>Projet 2</option>
+                                <option>Projet 3</option>
+                              </select>
+                            </div>
 
-                    <div className="space-y-1.5 sm:space-y-2.5">
-                      <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Séquence</label>
-                      <select value={sequence} onChange={(e) => setSequence(e.target.value)} className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-800 transition-all">
-                        <option>Séquence 1</option>
-                        <option>Séquence 2</option>
-                        <option>Séquence 3</option>
-                      </select>
-                    </div>
+                            <div className="space-y-1.5 sm:space-y-2.5">
+                              <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Séquence</label>
+                              <select value={sequence} onChange={(e) => setSequence(e.target.value)} className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-800 transition-all">
+                                <option>Séquence 1</option>
+                                <option>Séquence 2</option>
+                                <option>Séquence 3</option>
+                              </select>
+                            </div>
+                          </>
+                        )}
+                        
+                        {selectedType === 'exam' && (
+                          <div className="space-y-1.5 sm:space-y-2.5 col-span-2 sm:col-span-1">
+                            <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Difficulté du sujet</label>
+                            <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-800 transition-all">
+                              <option>Facile</option>
+                              <option>Intermédiaire</option>
+                              <option>Difficile</option>
+                            </select>
+                          </div>
+                        )}
+                        
+                        {selectedType === 'lesson' && (
+                          <>
+                            <div className="space-y-1.5 sm:space-y-2.5 col-span-2 sm:col-span-1">
+                              <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Domaine / Matière</label>
+                              <select value={courseType} onChange={(e) => setCourseType(e.target.value)} className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-800 transition-all">
+                                <option>Grammaire</option>
+                                <option>Conjugaison</option>
+                                <option>Orthographe</option>
+                                <option>Vocabulaire</option>
+                                <option>Compréhension de l&apos;écrit</option>
+                                <option>Production écrite</option>
+                                <option>Compréhension de l&apos;oral</option>
+                                <option>Production orale</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1.5 sm:space-y-2.5 col-span-2 sm:col-span-1">
+                              <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Titre du cours (Optionnel)</label>
+                              <input 
+                                type="text"
+                                value={courseName} 
+                                onChange={(e) => setCourseName(e.target.value)} 
+                                placeholder="Ex: Le pluriel en -s" 
+                                className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 text-slate-800 transition-all"
+                              />
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   <div className="space-y-1.5 sm:space-y-2.5">
-                    <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Thème ou mots clés <span className="text-slate-400 font-normal">(Optionnel)</span></label>
+                    <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">
+                      {selectedType === 'exam' ? 'Suggestion ou instruction pour l\'IA' : 'Thème ou mots clés'} <span className="text-slate-400 font-normal">(Optionnel)</span>
+                    </label>
                     <textarea 
                       value={topic} 
                       onChange={(e) => setTopic(e.target.value)} 
-                      placeholder="ex: La famille, les animaux de la ferme..." 
+                      placeholder={selectedType === 'exam' ? 'ex: Un texte sur la nature avec 2 questions de grammaire...' : 'ex: La famille, les animaux de la ferme...'} 
                       className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 h-20 sm:h-24 resize-none text-slate-800 disabled:opacity-50 transition-all"
                     />
                   </div>
+
+                  {selectedType === 'dictation' && (
+                    <div className="space-y-1.5 sm:space-y-2.5">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Règle de grammaire/conjugaison à évaluer</label>
+                      <input 
+                        type="text"
+                        value={grammarRule} 
+                        onChange={(e) => setGrammarRule(e.target.value)} 
+                        placeholder="Ex: pluriel en -s, verbes du 1er groupe au présent..." 
+                        className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 text-slate-800 transition-all"
+                      />
+                    </div>
+                  )}
                 </div>
                 
-                <div className="mt-5 sm:mt-6 flex flex-col gap-4">
-                  <label className="relative flex items-center p-4 sm:p-4 rounded-xl sm:rounded-lg border sm:border-slate-200 bg-amber-50/50 sm:bg-slate-50 cursor-pointer border-amber-200/50">
-                    <div className="flex items-center h-5">
-                      <input type="checkbox" className="w-5 h-5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-600" checked={isEcoMode} onChange={(e) => setIsEcoMode(e.target.checked)} />
-                    </div>
-                    <div className="ml-3 text-xs sm:text-sm leading-tight text-slate-700 flex-1">
-                      <span className="font-bold text-slate-800 block sm:inline">Mode Économique ✂️</span>
-                      <span className="block text-slate-500 mt-1 sm:ml-1 sm:mt-0 sm:inline">Imprimer 4 exemplaires par page</span>
-                    </div>
-                  </label>
-                </div>
+                {selectedType === 'text' && (
+                  <div className="mt-5 sm:mt-6 flex flex-col gap-4">
+                    <label className="relative flex items-center p-4 sm:p-4 rounded-xl sm:rounded-lg border sm:border-slate-200 bg-amber-50/50 sm:bg-slate-50 cursor-pointer border-amber-200/50">
+                      <div className="flex items-center h-5">
+                        <input type="checkbox" className="w-5 h-5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-600" checked={isEcoMode} onChange={(e) => setIsEcoMode(e.target.checked)} />
+                      </div>
+                      <div className="ml-3 text-xs sm:text-sm leading-tight text-slate-700 flex-1">
+                        <span className="font-bold text-slate-800 block sm:inline">Mode Économique ✂️</span>
+                        <span className="block text-slate-500 mt-1 sm:ml-1 sm:mt-0 sm:inline">Imprimer 4 exemplaires par page</span>
+                      </div>
+                    </label>
+                  </div>
+                )}
 
                 {error && <p className="text-red-500 text-sm font-medium mt-4 text-center pb-2">{error}</p>}
                 

@@ -4,15 +4,22 @@ import { getFirestore, initializeFirestore, doc, getDocFromServer, setLogLevel }
 import firebaseConfig from './firebase-applet-config.json';
 
 // Suppress Firestore internal GrpcConnection warnings in dev
-setLogLevel('error');
+setLogLevel('silent');
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Use long-polling to prevent connection unavailable errors in restricted browser spaces / iframes
-export const db = !getApps().length ? initializeFirestore(app, {
-  experimentalForceLongPolling: true
-}, firebaseConfig.firestoreDatabaseId) : getFirestore(app, firebaseConfig.firestoreDatabaseId);
+let firestoreDb;
+try {
+  firestoreDb = initializeFirestore(app, {
+    experimentalForceLongPolling: true
+  }, firebaseConfig.firestoreDatabaseId);
+} catch (e) {
+  // If already initialized
+  firestoreDb = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+}
+
+export const db = firestoreDb;
 
 export const auth = getAuth(app);
 
@@ -26,4 +33,7 @@ async function testConnection() {
     }
   }
 }
-testConnection();
+
+if (typeof window !== 'undefined') {
+  testConnection();
+}

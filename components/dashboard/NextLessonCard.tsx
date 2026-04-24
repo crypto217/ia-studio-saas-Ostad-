@@ -186,12 +186,12 @@ export function NextLessonCard() {
       
       <CardHeader className="relative z-10 p-4 sm:p-6 pb-0 sm:pb-0">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 sm:gap-2.5 bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.4)] border border-white/20">
-            <div className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 bg-gradient-to-r from-amber-400 to-orange-500 px-2 py-1 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.4)] border border-white/20">
+            <div className="relative flex h-1.5 w-1.5 sm:h-2.5 sm:w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-white"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 sm:h-2.5 sm:w-2.5 bg-white"></span>
             </div>
-            <span className="text-[10px] sm:text-xs font-black tracking-wide text-white uppercase drop-shadow-sm">
+            <span className="text-[9px] sm:text-xs font-black tracking-wide text-white uppercase drop-shadow-sm">
               Prochainement
             </span>
           </div>
@@ -202,7 +202,7 @@ export function NextLessonCard() {
         </div>
       </CardHeader>
       
-      <CardContent className="relative z-10 p-6 sm:p-8 sm:pb-8 flex-1 flex flex-col justify-end">
+      <CardContent className="relative z-10 p-4 sm:p-8 pt-2 sm:pt-4 flex-1 flex flex-col justify-end">
         <div className="space-y-1 sm:space-y-2 mt-2 sm:mt-4">
           <div className="inline-flex items-center gap-2 mb-1">
             <span className="bg-white/20 border border-white/30 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl backdrop-blur-md shadow-sm flex items-center gap-1.5">

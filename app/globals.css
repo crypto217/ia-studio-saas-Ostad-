@@ -53,4 +53,26 @@
   .a4-page:last-child {
     page-break-after: auto;
   }
+  table { 
+    page-break-inside: auto; 
+    border-collapse: collapse;
+  }
+  tr { 
+    page-break-inside: avoid; 
+    page-break-after: auto; 
+  }
+  thead { 
+    display: table-header-group; 
+  }
+  tfoot { 
+    display: table-footer-group; 
+  }
+  /* Empêcher les paragraphes et les titres d'être coupés en deux */
+  h1, h2, h3, h4, h5 { 
+    page-break-after: avoid; 
+  }
+  p { 
+    orphans: 3; 
+    widows: 3; 
+  }
 }

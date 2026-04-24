@@ -101,22 +101,22 @@ export function TasksPanel() {
 
   return (
     <Card className="border border-slate-200 bg-white flex flex-col h-full rounded-[2rem] sm:rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-      <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-100 px-6 sm:px-8 pt-6 sm:pt-8">
+      <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-100 px-4 sm:px-8 pt-5 sm:pt-8">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
             <Target className="h-5 w-5 sm:h-7 sm:w-7" />
           </div>
           <div>
             <CardTitle className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Priorités du Jour</CardTitle>
-            <p className="text-xs sm:text-sm font-bold text-slate-400 pt-1">À faire en priorité</p>
+            <p className="text-xs sm:text-sm font-bold text-slate-400 pt-0.5">À faire en priorité</p>
           </div>
         </div>
         <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-slate-100 font-black text-slate-600 border border-slate-200 text-sm sm:text-base">
           {pendingCount}
         </div>
       </CardHeader>
-      <CardContent className="flex-1 pt-6 sm:pt-8 flex flex-col px-6 sm:px-8 pb-6 sm:pb-8 overflow-hidden">
-        <div className="space-y-4 sm:space-y-6 flex-1 overflow-y-auto pr-2">
+      <CardContent className="flex-1 pt-4 sm:pt-8 flex flex-col px-4 sm:px-8 pb-4 sm:pb-8 overflow-hidden">
+        <div className="space-y-3 sm:space-y-6 flex-1 overflow-y-auto pr-2">
           {tasks.length === 0 && !isAdding && (
             <div className="text-center py-8 text-slate-500 font-medium">
               Aucune tâche pour le moment.
@@ -183,7 +183,7 @@ export function TasksPanel() {
         {!isAdding && (
           <Button 
             onClick={() => setIsAdding(true)}
-            className="mt-6 sm:mt-8 w-full h-12 sm:h-14 rounded-2xl border-b-4 border-indigo-700 bg-indigo-500 text-base sm:text-lg font-bold hover:bg-indigo-600 hover:-translate-y-1 transition-transform active:translate-y-0 active:border-b-0 shrink-0"
+            className="mt-4 sm:mt-8 w-full h-12 sm:h-14 rounded-2xl border-b-4 border-indigo-700 bg-indigo-500 text-base sm:text-lg font-bold hover:bg-indigo-600 hover:-translate-y-1 transition-transform active:translate-y-0 active:border-b-0 shrink-0"
           >
             <Plus className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
             Nouvelle Tâche

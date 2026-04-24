@@ -22,17 +22,19 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <ProtectedRoute>
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 pt-20 md:pt-24 pb-24 md:pb-0">
-          <div className="mx-auto max-w-7xl">
-            {children}
-          </div>
-        </main>
+      <div className="flex h-[100dvh] w-full overflow-hidden bg-slate-50">
+        <Sidebar />
+        <div className="relative flex flex-1 flex-col overflow-hidden">
+          <Header />
+          <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8">
+            <div className="mx-auto max-w-7xl">
+              {children}
+            </div>
+          </main>
+        </div>
+        <MobileNav />
+        {isDashboard && <AIMagicHub />}
       </div>
-      <MobileNav />
-      {isDashboard && <AIMagicHub />}
     </ProtectedRoute>
   )
 }
