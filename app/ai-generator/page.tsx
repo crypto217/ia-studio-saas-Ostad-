@@ -323,10 +323,11 @@ REQUIREMENTS:
       }
 
     } catch (err: any) {
-      console.error(err);
       if (err?.message?.includes("429") || err?.message?.includes("RESOURCE_EXHAUSTED") || err?.message?.includes("exceeded your current quota")) {
+        console.warn("Gemini Rate Limit (429) hit.");
         setError("Limite d'utilisation de l'intelligence artificielle atteinte. Veuillez patienter un peu avant de réessayer.");
       } else {
+        console.error(err);
         setError(`Une erreur s'est produite: ${err?.message || "Erreur inconnue"}. Veuillez réessayer.`);
       }
     } finally {
@@ -371,10 +372,11 @@ REQUIREMENTS:
       setGeneratedContent(htmlContent);
       setModificationPrompt("");
     } catch (err: any) {
-      console.error(err);
       if (err?.message?.includes("429") || err?.message?.includes("RESOURCE_EXHAUSTED") || err?.message?.includes("exceeded your current quota")) {
+        console.warn("Gemini Rate Limit (429) hit during modification.");
         setError("Limite d'utilisation de l'intelligence artificielle atteinte. Veuillez patienter un peu avant de réessayer.");
       } else {
+        console.error(err);
         setError(`Une erreur s'est produite lors de la modification: ${err?.message || "Erreur inconnue"}`);
       }
     } finally {

@@ -1,555 +1,529 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-  LineChart, Line, Legend, PieChart, Pie
-} from 'recharts';
-import { UserCircle, AlertTriangle, Sparkles, Trophy, Star, Calendar } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { motion } from "motion/react";
+import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, AreaChart, Area } from "recharts";
+import { Trophy, CheckCircle, Feather, Sparkles, TrendingUp, FileBarChart } from "lucide-react";
 
-// --- MOCK DATA DYNAMIQUE ---
-const classesData: Record<string, any> = {
-  '3ème AP - A': {
-    competences: [
-      { name: 'Comp. Orale', score: 80, color: '#10B981' },
-      { name: 'Prod. Orale', score: 65, color: '#10B981' },
-      { name: "Comp. de l'écrit", score: 55, color: '#F59E0B' },
-      { name: 'Prod. Écrite', score: 40, color: '#EF4444' }
-    ],
-    evolution: [
-      { month: 'Sept', value: 10.5 }, { month: 'Oct', value: 11.0 }, { month: 'Nov', value: 11.5 },
-      { month: 'Déc', value: 11.2 }, { month: 'Jan', value: 12.8 }, { month: 'Fév', value: 13.5 }, { month: 'Mar', value: 14.0 }
-    ],
-    ages: [
-      { year: '2015', Garçons: 6, Filles: 8 },
-      { year: '2016', Garçons: 8, Filles: 7 }
-    ],
-    support: [
-      { id: 101, name: 'Amine', issue: 'Difficulté en Lecture', level: 'danger' },
-      { id: 102, name: 'Yanis', issue: 'Compréhension', level: 'warning' }
-    ],
-    top: [
-      { id: 1, name: 'Lina', seed: 'Lina', homework: '9.8', exam: '9.5', overall: '9.6', rank: 1, colorHex: '#FBBF24' },
-      { id: 2, name: 'Rayane', seed: 'Rayane', homework: '9.2', exam: '9.0', overall: '9.1', rank: 2, colorHex: '#94A3B8' },
-      { id: 3, name: 'Inès', seed: 'Ines', homework: '8.5', exam: '8.9', overall: '8.7', rank: 3, colorHex: '#D97706' }
-    ],
-    totalStudents: 29
-  },
-  '4ème AP - B': {
-    competences: [
-      { name: 'Comp. Orale', score: 88, color: '#10B981' },
-      { name: 'Prod. Orale', score: 72, color: '#10B981' },
-      { name: "Comp. de l'écrit", score: 65, color: '#F59E0B' },
-      { name: 'Prod. Écrite', score: 48, color: '#EF4444' }
-    ],
-    evolution: [
-      { month: 'Sept', value: 11.2 }, { month: 'Oct', value: 11.8 }, { month: 'Nov', value: 12.5 },
-      { month: 'Déc', value: 12.8 }, { month: 'Jan', value: 14.0 }, { month: 'Fév', value: 14.5 }, { month: 'Mar', value: 15.2 }
-    ],
-    ages: [
-      { year: '2014', Garçons: 7, Filles: 5 },
-      { year: '2015', Garçons: 6, Filles: 8 }
-    ],
-    support: [
-      { id: 201, name: 'Sarah', issue: 'Production écrite', level: 'warning' }
-    ],
-    top: [
-      { id: 4, name: 'Ayoub', seed: 'Ayoub', homework: '9.9', exam: '9.8', overall: '9.8', rank: 1, colorHex: '#FBBF24' },
-      { id: 5, name: 'Kenza', seed: 'Kenza', homework: '9.5', exam: '9.2', overall: '9.3', rank: 2, colorHex: '#94A3B8' },
-      { id: 6, name: 'Walid', seed: 'Walid', homework: '9.0', exam: '8.8', overall: '8.9', rank: 3, colorHex: '#D97706' }
-    ],
-    totalStudents: 26
-  }
+// --- MOCK DATA ---
+const sparklineMoyenne = [{ v: 6 }, { v: 6.5 }, { v: 7 }, { v: 7.2 }, { v: 8.0 }, { v: 8.5 }, { v: 9.1 }];
+const sparklinePresence = [{ v: 85 }, { v: 88 }, { v: 82 }, { v: 90 }, { v: 95 }, { v: 97 }, { v: 95.8 }];
+const sparklineDevoirs = [{ v: 20 }, { v: 25 }, { v: 22 }, { v: 30 }, { v: 35 }, { v: 40 }, { v: 42 }];
+
+const podiumData = [
+  { rank: 2, name: 'Rayane', score: 9.1, colorHex: '#94A3B8', height: '140px', seed: 'Rayane' },
+  { rank: 1, name: 'Lina', score: 9.6, colorHex: '#FBBF24', height: '180px', seed: 'Lina' },
+  { rank: 3, name: 'Inès', score: 8.7, colorHex: '#D97706', height: '110px', seed: 'Ines' }
+];
+
+const aiInsights = [
+  "La lecture est en progrès constant (+15% ce mois-ci). Bonne dynamique !",
+  "La conjugaison nécessite une révision collective (notamment les verbes du 3ème groupe).",
+  "L'assiduité est excellente dans la classe A, un bel engagement des élèves !"
+];
+
+const ringData1 = [{ name: 'Fait', value: 78, color: '#8B5CF6' }, { name: 'Reste', value: 22, color: '#EDE9FE' }];
+const ringData2 = [{ name: 'Fait', value: 92, color: '#10B981' }, { name: 'Reste', value: 8, color: '#D1FAE5' }];
+
+const ageData = [
+  { age: '8 ans', garcons: 12, filles: 15 },
+  { age: '9 ans', garcons: 25, filles: 22 },
+  { age: '10 ans', garcons: 18, filles: 20 },
+  { age: '11 ans', garcons: 5, filles: 4 },
+];
+
+const absenceData = [
+  { month: 'Sep', absences: 12 },
+  { month: 'Oct', absences: 8 },
+  { month: 'Nov', absences: 15 },
+  { month: 'Déc', absences: 20 },
+  { month: 'Jan', absences: 5 },
+  { month: 'Fév', absences: 10 },
+];
+
+const totalGarcons = ageData.reduce((sum, item) => sum + item.garcons, 0);
+const totalFilles = ageData.reduce((sum, item) => sum + item.filles, 0);
+const totalEffectif = totalGarcons + totalFilles;
+const pariteData = [
+  { name: 'Garçons', value: totalGarcons, fill: '#3B82F6' },
+  { name: 'Filles', value: totalFilles, fill: '#EC4899' }
+];
+
+// --- VARIANTS FRAMER MOTION ---
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.15 } }
 };
 
-const MOCK_GLOBAL = {
-  competences: [
-    { name: 'Comp. Orale', score: 85, color: '#10B981' },
-    { name: 'Prod. Orale', score: 70, color: '#10B981' },
-    { name: "Comp. de l'écrit", score: 60, color: '#F59E0B' },
-    { name: 'Prod. Écrite', score: 45, color: '#EF4444' }
-  ],
-  evolution: [
-    { month: 'Sept', value: 11.0 }, { month: 'Oct', value: 11.5 }, { month: 'Nov', value: 12.2 },
-    { month: 'Déc', value: 12.0 }, { month: 'Jan', value: 13.5 }, { month: 'Fév', value: 14.1 }, { month: 'Mar', value: 14.8 }
-  ],
-  ages: [
-    { year: '2013', Garçons: 2, Filles: 3 },
-    { year: '2014', Garçons: 8, Filles: 7 },
-    { year: '2015', Garçons: 12, Filles: 10 },
-    { year: '2016', Garçons: 4, Filles: 5 }
-  ],
-  support: [
-    { id: 1, name: 'Amine', issue: 'Difficulté en Lecture', level: 'danger' },
-    { id: 2, name: 'Sarah', issue: 'Production écrite', level: 'warning' },
-    { id: 3, name: 'Yanis', issue: 'Compréhension', level: 'warning' }
-  ],
-  top: [
-    { id: 7, name: 'Ayoub', seed: 'Ayoub', homework: '9.9', exam: '9.8', overall: '9.8', rank: 1, colorHex: '#FBBF24' },
-    { id: 8, name: 'Lina', seed: 'Lina', homework: '9.8', exam: '9.5', overall: '9.6', rank: 2, colorHex: '#94A3B8' },
-    { id: 9, name: 'Kenza', seed: 'Kenza', homework: '9.5', exam: '9.2', overall: '9.3', rank: 3, colorHex: '#D97706' }
-  ],
-  totalStudents: 55
+const itemVariants = {
+  hidden: { opacity: 0, y: 30 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", bounce: 0.5 } }
 };
 
 export default function StatisticsPage() {
   const [isMounted, setIsMounted] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('global');
-  
-  // Attendance period state (instead of date range)
-  const [attendancePeriod, setAttendancePeriod] = useState('annee');
+  const [selectedClass, setSelectedClass] = useState("Global");
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
   }, []);
 
-  const handlePrint = () => {
-    window.print();
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+  const getDynamicMessage = () => {
+    if (selectedClass === "Global") return "Bravo ! Le niveau général a augmenté de 8% ce mois-ci !";
+    return `Bravo ! Le niveau de la ${selectedClass} est en excellente progression !`;
   };
 
-  const renderChartSkeleton = () => (
-    <div className="w-full h-[250px] animate-pulse bg-gray-100 rounded-xl"></div>
-  );
-
-  // Computed data based on selection
-  const activeData = selectedFilter === 'global' ? MOCK_GLOBAL : classesData[selectedFilter];
-  
-  // Mixed Evolution data for Chart (Class curve vs Global curve)
-  const activeEvolution = MOCK_GLOBAL.evolution.map((glob, i) => {
-    const dataPoint: any = { month: glob.month, globalAvg: glob.value };
-    if (selectedFilter !== 'global') {
-      dataPoint.classAvg = classesData[selectedFilter].evolution[i].value;
+  const handleExportPDF = async () => {
+    try {
+      setIsGeneratingPDF(true);
+      const elementHtml = document.getElementById('rapport-inspecteur')?.outerHTML;
+      if (!elementHtml) return;
+      
+      const iframe = document.createElement('iframe');
+      iframe.style.visibility = 'hidden';
+      iframe.style.position = 'absolute';
+      iframe.style.left = '-9999px';
+      iframe.style.width = '210mm';
+      document.body.appendChild(iframe);
+      
+      const iframeDoc = iframe.contentWindow?.document;
+      if (!iframeDoc) throw new Error("Iframe not created");
+      
+      iframeDoc.open();
+      iframeDoc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Rapport Inspecteur</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+            <style>
+              body, html { margin: 0; padding: 0; background: white; width: 210mm; height: auto; font-family: sans-serif; }
+              #content-to-print { width: 210mm; height: auto; overflow: visible; }
+              * { box-shadow: none !important; }
+            </style>
+          </head>
+          <body>
+            <div id="content-to-print">
+              ${elementHtml}
+            </div>
+            <script>
+              window.onload = function() {
+                setTimeout(() => {
+                  const element = document.getElementById('content-to-print');
+                  // On retire les classes qui cachent l'élément pour être sûr qu'il soit généré
+                  const rapport = element.querySelector('#rapport-inspecteur');
+                  if (rapport) {
+                    rapport.classList.remove('opacity-0', 'pointer-events-none', 'fixed', '-top-[9999px]');
+                  }
+                  const opt = {
+                    margin:       10,
+                    filename:     'Rapport_Inspecteur.pdf',
+                    image:        { type: 'jpeg', quality: 1 },
+                    html2canvas:  { scale: 2, useCORS: true, logging: false },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                  };
+                  html2pdf().set(opt).from(element).save().then(() => {
+                    window.parent.postMessage('pdf-done', '*');
+                  }).catch(err => {
+                    window.parent.postMessage('pdf-error:' + err.message, '*');
+                  });
+                }, 1000);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      iframeDoc.close();
+      
+      await new Promise((resolve, reject) => {
+        const handleMessage = (event) => {
+          if (event.data === 'pdf-done') {
+            window.removeEventListener('message', handleMessage);
+            resolve(true);
+          } else if (typeof event.data === 'string' && event.data.startsWith('pdf-error:')) {
+            window.removeEventListener('message', handleMessage);
+            reject(new Error(event.data.split(':')[1]));
+          }
+        };
+        window.addEventListener('message', handleMessage);
+        
+        setTimeout(() => {
+          window.removeEventListener('message', handleMessage);
+          reject(new Error("PDF generation timed out"));
+        }, 15000);
+      });
+      
+      document.body.removeChild(iframe);
+    } catch (error) {
+      console.error("Erreur PDF:", error);
+      alert("Erreur lors de la génération du PDF. Si vous êtes dans l'aperçu, ouvrez d'abord l'application dans un nouvel onglet.");
+    } finally {
+      setIsGeneratingPDF(false);
     }
-    return dataPoint;
-  });
-
-  // Calculate Mock Attendance Data based on Period
-  const getAttendanceData = () => {
-    const totalSessionsBase = activeData.totalStudents * 50; // just a base number
-    let rateNum = 90;
-    let alerts: {name: string, abs: number}[] = [];
-    
-    switch (attendancePeriod) {
-      case 'T1': 
-         rateNum = 95; 
-         alerts = [{ name: 'Yanis Kadi', abs: 3 }, { name: 'Sarah Djouadi', abs: 2 }];
-         break;
-      case 'T2': 
-         rateNum = 85; 
-         alerts = [{ name: 'Yanis Kadi', abs: 8 }, { name: 'Amine Benali', abs: 6 }, { name: 'Lina Merzoug', abs: 5 }];
-         break;
-      case 'T3': 
-         rateNum = 92; 
-         alerts = [{ name: 'Amine Benali', abs: 4 }];
-         break;
-      case 'annee': 
-      default: 
-         rateNum = 90.6; 
-         alerts = [{ name: 'Yanis Kadi', abs: 15 }, { name: 'Amine Benali', abs: 12 }, { name: 'Sarah Djouadi', abs: 8 }];
-         break;
-    }
-
-    const rate = rateNum.toFixed(1);
-    const totalPresents = Math.floor((rateNum / 100) * totalSessionsBase);
-    const totalAbsences = totalSessionsBase - totalPresents;
-
-    return {
-      totalPossibleSessions: totalSessionsBase,
-      totalPresents,
-      totalAbsences,
-      rate,
-      alerts,
-      chartData: [
-        { name: 'Présent', value: totalPresents, color: '#10B981' },
-        { name: 'Absent', value: totalAbsences, color: '#EF4444' }
-      ]
-    };
   };
 
-  const attendanceData = getAttendanceData();
+  if (!isMounted) return <div className="min-h-screen bg-slate-50 p-4" />;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-3 md:p-8 print:block print:w-full print:m-0 print:p-0 print:bg-white">
-      <div className="max-w-7xl mx-auto space-y-4 md:space-y-8">
-        
-        {/* Navigation / Header - Hide on print */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:mb-8 print:hidden">
-          <div className="space-y-1 sm:space-y-2">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-              Tableau de Bord<br className="sm:hidden" /> de la Classe
-            </h1>
-            <p className="text-sm sm:text-base text-slate-500 font-medium">
-              Aperçu analytique pédagogique et administratif
-            </p>
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-8 font-sans pb-24">
+      
+      {/* VUE IMPRESSION : Le Rapport Officiel rendu hors-champ pour le PDF export */}
+      <div id="rapport-inspecteur" className="fixed -top-[9999px] left-0 opacity-0 pointer-events-none -z-50 print:opacity-100 print:relative print:top-0 print:z-auto a4-page w-full max-w-[210mm] mx-auto bg-white p-12 text-slate-900 border border-slate-200">
+        <div className="text-center mb-10 border-b-2 border-slate-800 pb-6">
+          <p className="font-bold text-sm tracking-widest uppercase mb-1">République Algérienne Démocratique et Populaire</p>
+          <p className="font-bold text-sm uppercase mb-6">Ministère de l&apos;Éducation Nationale</p>
+          <h1 className="text-3xl font-black uppercase tracking-tight">Fiche Statistique de la Classe</h1>
+          <p className="text-lg font-medium text-slate-600 mt-2">Année Scolaire 2025/2026</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-12">
+          {/* Graphique 1: Pyramide des Âges */}
+          <div>
+             <h2 className="text-xl font-bold border-b border-slate-300 border-dotted pb-2 mb-6">1. Pyramide des Âges</h2>
+             <div className="h-64 flex justify-center">
+                  <BarChart width={700} height={256} data={ageData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
+                    <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontWeight: 600 }} />
+                    <YAxis dataKey="age" type="category" axisLine={false} tickLine={false} tick={{ fill: '#0F172A', fontWeight: 700 }} width={60} />
+                    <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px' }} />
+                    <Bar dataKey="garcons" name="Garçons" fill="#3B82F6" isAnimationActive={false} barSize={20} />
+                    <Bar dataKey="filles" name="Filles" fill="#EC4899" isAnimationActive={false} barSize={20} />
+                  </BarChart>
+             </div>
           </div>
-          
-          <button
-            onClick={handlePrint}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 bg-blue-600 text-white font-bold rounded-xl sm:rounded-full hover:bg-blue-700 sm:hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl active:scale-95 sm:active:scale-100"
-          >
-            🖨️ Sauver en PDF
-          </button>
-        </div>
 
-        {/* Barre de Filtre des Classes */}
-        <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-2 sm:pb-4 sm:mb-8 print:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth w-full">
-          <button
-            onClick={() => setSelectedFilter('global')}
-            className={`shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all ${
-              selectedFilter === 'global' 
-                ? 'bg-indigo-600 text-white shadow-md' 
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            🌍 Global
-          </button>
-          {Object.keys(classesData).map((className) => (
-            <button
-              key={className}
-              onClick={() => setSelectedFilter(className)}
-              className={`shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all ${
-                selectedFilter === className 
-                  ? 'bg-indigo-600 text-white shadow-md' 
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-               {className}
-            </button>
-          ))}
-        </div>
-
-        {/* Print-only title */}
-        <div className="hidden print:block mb-8 text-center border-b border-gray-300 pb-4">
-          <h1 className="text-3xl font-black text-black">
-            Bilan Statistique - {selectedFilter === 'global' ? 'Toutes classes' : selectedFilter}
-          </h1>
-        </div>
-
-        {/* Grille principale */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-8 md:gap-12 w-full">
-          
-          {/* Carte 0 - Assiduité (Pleine largeur) */}
-          <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl md:rounded-3xl p-3 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300 w-full">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-              <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
-                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
-                Assiduité & Présences
-              </h2>
-
-              {/* Sélecteur de Période (Pill buttons) */}
-              <div className="flex items-center gap-2 bg-slate-50/50 p-1 rounded-xl sm:rounded-full border border-slate-200 print:hidden overflow-x-auto w-full sm:w-auto">
-                {['T1', 'T2', 'T3', 'annee'].map((period) => (
-                  <button
-                    key={period}
-                    onClick={() => setAttendancePeriod(period)}
-                    className={`shrink-0 px-4 py-1.5 sm:py-2 flex-1 sm:flex-none rounded-lg sm:rounded-full text-xs sm:text-sm font-bold transition-all ${
-                      attendancePeriod === period 
-                        ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' 
-                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    {period === 'annee' ? 'Année globale' : period}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
-              
-              {/* Graphique Donut */}
-              <div className="flex flex-col items-center justify-center p-4 bg-slate-50/50 rounded-2xl border border-slate-100 relative">
-                <p className="absolute top-4 left-4 text-xs font-bold text-slate-500 uppercase tracking-widest hidden sm:block">Répartition</p>
-                {!isMounted ? renderChartSkeleton() : (
-                  <div className="relative w-full max-w-[250px] mx-auto h-[200px] flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={attendanceData.chartData}
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={2}
-                          dataKey="value"
-                          stroke="none"
-                        >
-                          {attendanceData.chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          formatter={(value: any) => [`${value} sessions`, 'Total']}
-                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-3xl font-black text-slate-800">{attendanceData.rate}%</span>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Présents</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Liste des Alertes Absences */}
-              <div className="flex flex-col gap-3 w-full">
-                <div className="flex items-center gap-2 mb-1">
-                  <AlertTriangle className="w-5 h-5 text-red-500" />
-                  <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide">🚨 Alertes Absences</h3>
+          {/* Graphique 2: Répartition Filles/Garçons */}
+          <div>
+             <h2 className="text-xl font-bold border-b border-slate-300 border-dotted pb-2 mb-6">2. Parité Filles / Garçons</h2>
+             <div className="flex items-center justify-around h-64 gap-8">
+                <div className="flex-1 flex justify-center h-full">
+                    <PieChart width={300} height={256}>
+                      <Pie 
+                        data={pariteData}
+                        dataKey="value" 
+                        nameKey="name" 
+                        cx="50%" 
+                        cy="50%" 
+                        outerRadius={80} 
+                        label 
+                        isAnimationActive={false}
+                      >
+                        {pariteData.map((entry, index) => (
+                           <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Legend iconType="circle" />
+                    </PieChart>
                 </div>
                 
-                {attendanceData.alerts.length > 0 ? (
-                  <ul className="space-y-3">
-                    {attendanceData.alerts.map((student, i) => (
-                      <li key={i} className="flex items-center justify-between p-3 bg-red-50 rounded-xl border border-red-100 w-full overflow-hidden">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-8 h-8 rounded-full bg-red-200 flex flex-col items-center justify-center shrink-0">
-                            <UserCircle className="w-5 h-5 text-red-600" />
-                          </div>
-                          <span className="font-bold text-slate-800 truncate">{student.name}</span>
-                        </div>
-                        <span className="shrink-0 font-black text-red-600 text-sm bg-red-100 px-2 py-1 rounded-lg">
-                          {student.abs} abs.
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center min-h-[120px] bg-emerald-50 border border-emerald-100 rounded-xl">
-                    <Star className="w-8 h-8 text-emerald-500 mb-2" />
-                    <p className="text-sm font-bold text-emerald-800">Aucune alerte</p>
-                    <p className="text-xs font-medium text-emerald-600/80">Excellente assiduité !</p>
-                  </div>
-                )}
-              </div>
+                {/* Tableau récapitulatif */}
+                <div className="flex-1 max-w-sm border border-slate-300 rounded-lg overflow-hidden">
+                   <table className="w-full text-left text-sm">
+                     <thead className="bg-slate-100 border-b border-slate-300">
+                       <tr><th className="p-3 font-bold">Catégorie</th><th className="p-3 font-bold text-right">Effectif</th><th className="p-3 font-bold text-right">%</th></tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-200">
+                       <tr><td className="p-3 font-medium text-slate-800">Garçons</td><td className="p-3 text-right">{totalGarcons}</td><td className="p-3 text-right">{((totalGarcons / totalEffectif) * 100).toFixed(1)}%</td></tr>
+                       <tr><td className="p-3 font-medium text-slate-800">Filles</td><td className="p-3 text-right">{totalFilles}</td><td className="p-3 text-right">{((totalFilles / totalEffectif) * 100).toFixed(1)}%</td></tr>
+                       <tr className="bg-slate-50"><td className="p-3 font-bold text-slate-900">Total</td><td className="p-3 font-bold text-right">{totalEffectif}</td><td className="p-3 font-bold text-right">100%</td></tr>
+                     </tbody>
+                   </table>
+                </div>
+             </div>
+          </div>
+        </div>
+
+        {/* Pied de page */}
+        <div className="mt-16 pt-8 border-t-2 border-slate-800 flex justify-between text-sm font-bold text-slate-500">
+           <p>Généré par Ostad © {new Date().getFullYear()}</p>
+           <p>Cachet et Signature de l&apos;Inspecteur</p>
+        </div>
+      </div>
+
+      <motion.div 
+        className="max-w-6xl mx-auto space-y-6 sm:space-y-8 print:hidden"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
+        
+        {/* Bouton Rapport Inspecteur */}
+        <motion.div variants={itemVariants} className="flex justify-end mb-4 sm:mb-0">
+          <button 
+            onClick={handleExportPDF}
+            disabled={isGeneratingPDF}
+            className="flex items-center gap-2 bg-emerald-500 text-white border-b-4 border-emerald-700 hover:bg-emerald-400 disabled:opacity-50 active:border-b-0 active:translate-y-1 rounded-2xl px-6 py-3 font-black transition-all shadow-sm"
+          >
+            <FileBarChart className="w-5 h-5" />
+            {isGeneratingPDF ? "Génération..." : "Générer le Rapport Inspecteur (PDF) ✨"}
+          </button>
+        </motion.div>
+
+        {/* Header Magique */}
+        <motion.div variants={itemVariants} className="bg-gradient-to-br from-indigo-600 via-purple-600 to-fuchsia-500 rounded-[2.5rem] p-8 sm:p-10 shadow-xl shadow-indigo-200/50 text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-20">
+            <Sparkles className="w-32 h-32" />
+          </div>
+          <div className="relative z-10">
+            <h1 className="font-black text-3xl sm:text-5xl mb-4 tracking-tight">
+              L&apos;Observatoire de mes Classes ✨
+            </h1>
+            <div className="inline-flex items-center bg-white/20 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/30">
+              <span className="font-medium text-lg text-indigo-50">{getDynamicMessage()}</span>
             </div>
           </div>
+        </motion.div>
 
-          {/* Carte 1 (Pleine largeur) */}
-          <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl md:rounded-3xl p-3 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300 w-full overflow-hidden">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-4 sm:mb-6 leading-tight">
-              🎯 Maîtrise des Compétences
-            </h2>
-            {!isMounted ? renderChartSkeleton() : (
-              <div className="w-full h-[200px] sm:h-[250px] min-h-[200px] relative -ml-2 sm:ml-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activeData.competences} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} dy={10} interval={0} />
-                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} tickFormatter={(value) => `${value}%`} />
-                    <Tooltip 
-                      cursor={{ fill: '#F8FAFC' }} 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
-                      formatter={(value: any) => [`${value}%`, 'Score']}
-                      wrapperStyle={{ zIndex: 100 }}
-                    />
-                    <Bar dataKey="score" radius={[6, 6, 0, 0]} maxBarSize={60}>
-                      {activeData.competences.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+        {/* Filter */}
+        <motion.div variants={itemVariants} className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {['Global', '3ème AP - A', '4ème AP - B', '5ème AP - C'].map(cls => (
+            <button 
+              key={cls}
+              onClick={() => setSelectedClass(cls)}
+              className={`shrink-0 px-6 py-3 rounded-full font-bold transition-all border-2 ${selectedClass === cls ? 'bg-slate-900 border-slate-900 text-white scale-105 shadow-md' : 'bg-white border-transparent text-slate-600 hover:border-slate-200'}`}
+            >
+              {cls}
+            </button>
+          ))}
+        </motion.div>
+
+        {/* Cartes de Performance (Bento 3D) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* Carte 1 : Moyenne (Rose) */}
+          <motion.div variants={itemVariants} className="bg-white border-2 border-slate-200 border-b-[6px] rounded-[2.5rem] p-4 sm:p-6 flex flex-col justify-between hover:-translate-y-2 transition-transform duration-300">
+            <div className="flex justify-between items-start mb-4">
+              <div className="bg-pink-100 p-3 rounded-2xl w-14 h-14 flex items-center justify-center">
+                <Trophy className="w-8 h-8 text-pink-500" />
               </div>
-            )}
-          </div>
-
-          {/* Carte 2 */}
-          <div className="bg-white rounded-2xl md:rounded-3xl p-3 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300 w-full overflow-hidden">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-4 sm:mb-6">
-              🆘 Radar de Soutien
-            </h2>
-            <ul className="space-y-3 sm:space-y-4">
-              {activeData.support.map((student: any) => (
-                <li key={student.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50 gap-3 sm:gap-4 print:bg-white print:border-gray-200">
-                  <div className="flex items-center gap-3">
-                    <UserCircle className="w-10 h-10 text-slate-400 shrink-0" />
-                    <div>
-                      <p className="font-bold text-slate-800 text-sm sm:text-base">{student.name}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5 sm:mt-1">
-                        <AlertTriangle className={`w-3 h-3 sm:w-4 sm:h-4 shrink-0 ${student.level === 'danger' ? 'text-red-500' : 'text-orange-500'}`} />
-                        <span className={`text-[10px] sm:text-xs font-semibold ${student.level === 'danger' ? 'text-red-600 bg-red-100' : 'text-orange-600 bg-orange-100'} px-2 py-0.5 rounded-md`}>
-                          {student.issue}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <Link href="/ai-generator" className="print:hidden w-full sm:w-auto mt-1 sm:mt-0">
-                    <button className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 active:bg-indigo-200 font-bold text-xs sm:text-sm rounded-lg sm:rounded-xl transition-colors w-full">
-                      <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
-                      Créer exo
-                    </button>
-                  </Link>
-                </li>
-              ))}
-              {activeData.support.length === 0 && (
-                 <p className="text-center text-slate-400 py-6 sm:py-8 text-sm sm:text-base font-medium">Aucun élève en grande difficulté détecté.</p>
-              )}
-            </ul>
-          </div>
-
-          {/* Carte 3 - Évolution Adaptative */}
-          <div className="bg-white rounded-2xl md:rounded-3xl p-3 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300 w-full overflow-hidden">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-4 sm:mb-6">
-              📈 Évolution
-            </h2>
-            {!isMounted ? renderChartSkeleton() : (
-              <div className="w-full h-[200px] sm:h-[250px] min-h-[200px] relative -ml-2 sm:ml-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={activeEvolution} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} dy={10} />
-                    <YAxis domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} />
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
-                      wrapperStyle={{ zIndex: 100 }}
-                    />
-                    
-                    {/* Courbe Globale (en grise pointillé si on filtre une classe) */}
-                    {selectedFilter !== 'global' && (
-                      <Line 
-                        type="monotone" 
-                        dataKey="globalAvg" 
-                        name="Moyenne Globale" 
-                        stroke="#94A3B8" 
-                        strokeWidth={2} 
-                        strokeDasharray="4 4" 
-                        dot={false}
-                        activeDot={{ r: 4 }} 
-                      />
-                    )}
-                    
-                    {/* Courbe Principale (Bleue/Indigo) */}
-                    <Line 
-                      type="monotone" 
-                      dataKey={selectedFilter === 'global' ? "globalAvg" : "classAvg"} 
-                      name={selectedFilter === 'global' ? "Moyenne" : `Moyenne ${selectedFilter}`}
-                      stroke="#4F46E5" 
-                      strokeWidth={3} 
-                      dot={{ r: 4, fill: '#4F46E5', strokeWidth: 2, stroke: '#fff' }} 
-                      activeDot={{ r: 6 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+              <div className="flex items-center gap-1 bg-green-50 text-green-600 px-2 py-1 rounded-lg text-sm font-bold border border-green-100">
+                <TrendingUp className="w-4 h-4" /> +1.2
               </div>
-            )}
-          </div>
+            </div>
+            <div>
+              <h3 className="text-slate-500 font-bold mb-1">Moyenne Générale</h3>
+              <div className="text-4xl font-black text-slate-800">8.5<span className="text-xl text-slate-400">/10</span></div>
+            </div>
+            <div className="h-16 mt-4 -mx-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={sparklineMoyenne}>
+                  <Line type="monotone" dataKey="v" stroke="#EC4899" strokeWidth={4} dot={false} strokeLinecap="round" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
 
-          {/* Carte 4 - Pyramide dynamique */}
-          <div className="bg-white rounded-2xl md:rounded-3xl p-3 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300 w-full overflow-hidden">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-4 sm:mb-6">
-              📊 Pyramide des Âges
-            </h2>
-            {!isMounted ? renderChartSkeleton() : (
-              <div className="w-full h-[200px] sm:h-[250px] min-h-[200px] relative -ml-2 sm:ml-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activeData.ages} margin={{ top: 10, right: 10, left: -25, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} angle={-45} textAnchor="end" dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} />
-                    <Tooltip 
-                      cursor={{ fill: '#F8FAFC' }} 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                      wrapperStyle={{ zIndex: 100 }} 
-                    />
-                    <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px' }} iconType="circle" />
-                    <Bar dataKey="Garçons" fill="#3B82F6" radius={[4, 4, 0, 0]} maxBarSize={30} />
-                    <Bar dataKey="Filles" fill="#EC4899" radius={[4, 4, 0, 0]} maxBarSize={30} />
-                  </BarChart>
-                </ResponsiveContainer>
+          {/* Carte 2 : Présence (Vert) */}
+          <motion.div variants={itemVariants} className="bg-white border-2 border-slate-200 border-b-[6px] rounded-[2.5rem] p-4 sm:p-6 flex flex-col justify-between hover:-translate-y-2 transition-transform duration-300">
+            <div className="flex justify-between items-start mb-4">
+              <div className="bg-emerald-100 p-3 rounded-2xl w-14 h-14 flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-emerald-500" />
               </div>
-            )}
-          </div>
-
-          {/* Carte 5 - Classe Championne (Statique globalement) */}
-          <div className="bg-[#EEF2FF] rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:bg-white print:shadow-none print:border print:border-gray-300 w-full overflow-hidden">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-indigo-900 mb-4 flex items-center gap-2">
-              🏫 Classe Championne
-            </h2>
-            {!isMounted ? renderChartSkeleton() : (
-              <div className="flex flex-col items-center justify-center p-4 sm:p-6 text-center h-[180px] sm:h-[250px] relative bg-white/50 rounded-xl sm:rounded-2xl border border-indigo-100 print:border-gray-200 print:bg-white">
-                <div className="animate-bounce mb-2 sm:mb-4">
-                  <Trophy className="w-12 h-12 sm:w-16 sm:h-16 text-indigo-600 drop-shadow-md" strokeWidth={1.5} />
-                </div>
-                <h3 className="text-2xl sm:text-3xl font-black text-indigo-950 tracking-tight">4ème AP - B</h3>
-                <p className="text-indigo-700 font-medium mt-2 flex items-center gap-1.5 bg-indigo-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm">
-                  <Star className="w-3 h-3 sm:w-4 sm:h-4 fill-indigo-600" /> Meilleure progression
-                </p>
+              <div className="flex items-center gap-1 bg-green-50 text-green-600 px-2 py-1 rounded-lg text-sm font-bold border border-green-100">
+                <TrendingUp className="w-4 h-4" /> +4%
               </div>
-            )}
-          </div>
+            </div>
+            <div>
+              <h3 className="text-slate-500 font-bold mb-1">Taux de Présence</h3>
+              <div className="text-4xl font-black text-slate-800">95.8<span className="text-xl text-slate-400">%</span></div>
+            </div>
+            <div className="h-16 mt-4 -mx-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={sparklinePresence}>
+                  <Line type="monotone" dataKey="v" stroke="#10B981" strokeWidth={4} dot={false} strokeLinecap="round" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
 
-          {/* Carte 6 - Top Élèves (Dynamique et Pleine largeur) */}
-          <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl md:rounded-3xl p-3 sm:p-6 md:p-8 shadow-sm hover:shadow-xl transition-all duration-300 print:shadow-none print:border print:border-gray-300 w-full overflow-hidden">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-800 mb-4 sm:mb-6 flex items-center gap-2">
-              🏆 Top Élèves <span className="text-slate-400 font-medium text-sm sm:text-lg">({selectedFilter === 'global' ? 'Toutes classes' : selectedFilter})</span>
-            </h2>
-            {!isMounted ? renderChartSkeleton() : (
-              <div className="flex flex-col gap-3 sm:gap-4">
-                {activeData.top.map((student: any) => (
-                  <div key={student.id} className="flex flex-row items-center gap-3 sm:gap-6 p-3 sm:p-5 bg-slate-50/50 rounded-xl sm:rounded-2xl hover:scale-[1.02] transition-transform shadow-sm border border-slate-100 group print:bg-white print:border-gray-200 print:shadow-none">
-                    
-                    {/* Photo de l'élève (Avatar) */}
-                    <div className="relative shrink-0">
-                      <div 
-                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 bg-white flex items-center justify-center shadow-sm"
-                        style={{ borderColor: student.colorHex }}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img 
-                          src={`https://api.dicebear.com/7.x/notionists/svg?seed=${student.seed}&backgroundColor=transparent`} 
-                          alt={`Avatar de ${student.name}`} 
-                          className="w-full h-full object-cover rounded-full p-0.5 sm:p-1 bg-slate-50" 
-                        />
-                      </div>
-                      {/* Badge de Rang (Or, Argent, Bronze) */}
-                      <div 
-                        className="absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-1 w-5 h-5 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-white text-[10px] sm:text-xs font-black shadow-md border-[1.5px] sm:border-2 border-white"
-                        style={{ backgroundColor: student.colorHex }}
-                      >
-                        #{student.rank}
-                      </div>
-                    </div>
-
-                    {/* Vraies Métriques (Centre) */}
-                    <div className="flex-1 text-left min-w-0">
-                      <h3 className="text-base sm:text-xl font-bold text-slate-800 truncate">{student.name}</h3>
-                      <div className="flex flex-wrap items-center justify-start gap-1.5 sm:gap-3 mt-1 sm:mt-2 hidden sm:flex">
-                        <span className="text-xs sm:text-sm font-medium text-slate-500 bg-white px-2 py-0.5 sm:px-3 sm:py-1 rounded-md sm:rounded-lg border border-slate-200 shadow-sm print:border-gray-300">
-                          Devoir: <strong className="text-slate-700">{student.homework}</strong>
-                        </span>
-                        <span className="text-xs sm:text-sm font-medium text-slate-500 bg-white px-2 py-0.5 sm:px-3 sm:py-1 rounded-md sm:rounded-lg border border-slate-200 shadow-sm print:border-gray-300">
-                          Examen: <strong className="text-slate-700">{student.exam}</strong>
-                        </span>
-                      </div>
-                      {/* Mobile minimal text limits */}
-                      <div className="flex sm:hidden items-center gap-2 mt-0.5 whitespace-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                         <span className="text-[11px] font-medium text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-sm">
-                           Dev: <strong className="text-slate-700">{student.homework}</strong>
-                         </span>
-                         <span className="text-[11px] font-medium text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-sm">
-                           Ex: <strong className="text-slate-700">{student.exam}</strong>
-                         </span>
-                      </div>
-                    </div>
-
-                    {/* Moyenne Générale (Droite) */}
-                    <div className="shrink-0 text-right sm:bg-transparent rounded-xl sm:border-none min-w-[60px] sm:min-w-[120px] flex sm:block flex-col justify-center items-end">
-                      <p className="text-[9px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest sm:mb-1 hidden sm:block">Moyenne</p>
-                      <div className="text-lg sm:text-3xl font-black text-emerald-600 tracking-tight leading-none">
-                        {student.overall}<span className="text-[10px] sm:text-lg text-emerald-400">/10</span>
-                      </div>
-                    </div>
-                    
-                  </div>
-                ))}
+          {/* Carte 3 : Devoirs (Orange) */}
+          <motion.div variants={itemVariants} className="bg-white border-2 border-slate-200 border-b-[6px] rounded-[2.5rem] p-4 sm:p-6 flex flex-col justify-between hover:-translate-y-2 transition-transform duration-300">
+            <div className="flex justify-between items-start mb-4">
+              <div className="bg-orange-100 p-3 rounded-2xl w-14 h-14 flex items-center justify-center">
+                <Feather className="w-8 h-8 text-orange-500" />
               </div>
-            )}
-          </div>
+              <div className="flex items-center gap-1 bg-green-50 text-green-600 px-2 py-1 rounded-lg text-sm font-bold border border-green-100">
+                <TrendingUp className="w-4 h-4" /> +12
+              </div>
+            </div>
+            <div>
+              <h3 className="text-slate-500 font-bold mb-1">Devoirs Terminés</h3>
+              <div className="text-4xl font-black text-slate-800">42<span className="text-xl text-slate-400">/45</span></div>
+            </div>
+            <div className="h-16 mt-4 -mx-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={sparklineDevoirs}>
+                  <Line type="monotone" dataKey="v" stroke="#F97316" strokeWidth={4} dot={false} strokeLinecap="round" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
 
         </div>
 
-      </div>
+        {/* Row 2 : Nouvelles Statistiques (Pyramide & Absences) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Pyramide des Âges */}
+          <motion.div variants={itemVariants} className="bg-white border-2 border-slate-200 border-b-[6px] rounded-[2.5rem] p-6 lg:p-8 flex flex-col h-[400px]">
+            <h3 className="text-xl font-black text-slate-800 mb-6">Répartition par Âge et Sexe</h3>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={ageData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                <XAxis dataKey="age" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontWeight: 600 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontWeight: 600 }} />
+                <Tooltip cursor={{ fill: '#F1F5F9' }} contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px', fontWeight: 'bold' }} />
+                <Bar dataKey="garcons" name="Garçons" fill="#6366F1" radius={[8, 8, 0, 0]} barSize={24} />
+                <Bar dataKey="filles" name="Filles" fill="#EC4899" radius={[8, 8, 0, 0]} barSize={24} />
+              </BarChart>
+            </ResponsiveContainer>
+          </motion.div>
+
+          {/* Historique des Absences */}
+          <motion.div variants={itemVariants} className="bg-white border-2 border-slate-200 border-b-[6px] rounded-[2.5rem] p-6 lg:p-8 flex flex-col h-[400px]">
+            <h3 className="text-xl font-black text-slate-800 mb-6">Historique des Absences</h3>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={absenceData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorAbsences" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#EF4444" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontWeight: 600 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontWeight: 600 }} />
+                <Tooltip cursor={{ stroke: '#EF4444', strokeWidth: 2, strokeDasharray: '5 5' }} contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                <Area type="monotone" dataKey="absences" name="Absences Mensuelles" stroke="#EF4444" strokeWidth={4} fillOpacity={1} fill="url(#colorAbsences)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </motion.div>
+
+        </div>
+
+        {/* Row 3 : Progress Rings & Podium */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Progress Rings Géants */}
+          <motion.div variants={itemVariants} className="bg-white border-2 border-slate-200 border-b-[6px] rounded-[2.5rem] p-6 lg:p-8 flex flex-col items-center">
+            <h3 className="w-full text-left text-xl font-black text-slate-800 mb-8">Objectifs Trimestriels</h3>
+            <div className="flex flex-col sm:flex-row w-full justify-around items-center gap-8">
+              
+              {/* Ring 1 */}
+              <div className="relative w-40 h-40 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={ringData1} innerRadius={55} outerRadius={75} dataKey="value" startAngle={90} endAngle={-270} stroke="none">
+                      {ringData1.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-2xl font-black text-slate-800">78%</span>
+                </div>
+                <div className="absolute -bottom-8 text-center text-sm font-bold text-slate-500 w-full">Prog. couvert</div>
+              </div>
+
+              {/* Ring 2 */}
+              <div className="relative w-40 h-40 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={ringData2} innerRadius={55} outerRadius={75} dataKey="value" startAngle={90} endAngle={-270} stroke="none">
+                      {ringData2.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-2xl font-black text-slate-800">92%</span>
+                </div>
+                <div className="absolute -bottom-8 text-center text-sm font-bold text-slate-500 w-full">Objectifs atteints</div>
+              </div>
+
+            </div>
+          </motion.div>
+
+          {/* Podium des Meilleurs Élèves */}
+          <motion.div variants={itemVariants} className="bg-white border-2 border-slate-200 border-b-[6px] rounded-[2.5rem] p-6 lg:p-8 flex flex-col h-full overflow-hidden">
+            <h3 className="text-xl font-black text-slate-800 mb-8">Podium des Meilleurs Élèves</h3>
+            
+            <div className="flex-1 flex items-end justify-center w-full gap-2 sm:gap-6 pt-10">
+              {podiumData.map((student) => (
+                <motion.div 
+                  key={student.rank}
+                  whileHover={{ y: -10 }}
+                  className="flex flex-col items-center relative w-1/3"
+                >
+                  {/* Badge / Couronne */}
+                  <div 
+                    className="absolute -top-6 sm:-top-8 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white font-black shadow-lg border-2 border-white"
+                    style={{ backgroundColor: student.colorHex }}
+                  >
+                    #{student.rank}
+                  </div>
+                  {/* Avatar */}
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-4 bg-white z-10 shadow-md relative -mb-4 sm:-mb-6" style={{ borderColor: student.colorHex }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                      src={`https://api.dicebear.com/7.x/notionists/svg?seed=${student.seed}&backgroundColor=transparent`} 
+                      alt={student.name}
+                      className="w-full h-full object-cover bg-slate-50"
+                    />
+                  </div>
+                  {/* Colonne Podium */}
+                  <div 
+                    className="w-full rounded-t-2xl shadow-inner flex flex-col items-center justify-end pb-3 sm:pb-6 relative overflow-hidden"
+                    style={{ height: student.height, backgroundColor: `${student.colorHex}22` }} 
+                  >
+                    <div className="absolute top-0 left-0 w-full h-2" style={{ backgroundColor: student.colorHex }} />
+                    <span className="font-bold text-slate-800 truncate px-1 text-sm sm:text-base">{student.name}</span>
+                    <span className="font-black text-lg sm:text-2xl mt-1" style={{ color: student.colorHex }}>{student.score}</span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+          </motion.div>
+
+        </div>
+
+        {/* Insight IA (Sensation) */}
+        <motion.div variants={itemVariants} className="bg-fuchsia-50 border-2 border-fuchsia-100 border-b-[6px] rounded-[2.5rem] p-6 sm:p-10 relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 opacity-10">
+             <Sparkles className="w-64 h-64 text-fuchsia-400" />
+          </div>
+          <div className="flex items-center gap-3 mb-6 relative z-10">
+            <motion.div 
+              animate={{ rotate: [0, 10, -10, 0] }} 
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="bg-fuchsia-200 p-3 rounded-2xl"
+            >
+              <Sparkles className="w-8 h-8 text-fuchsia-600" />
+            </motion.div>
+            <h2 className="text-2xl sm:text-3xl font-black text-fuchsia-900">L&apos;Analyse de l&apos;IA</h2>
+          </div>
+          
+          <ul className="space-y-4 relative z-10">
+            {aiInsights.map((insight, i) => (
+              <motion.li 
+                key={i} 
+                className="flex gap-4 items-start bg-white/60 p-4 rounded-2xl border border-fuchsia-100/50"
+                whileHover={{ scale: 1.01 }}
+              >
+                <div className="bg-fuchsia-500 rounded-full p-1.5 shrink-0 mt-0.5 shadow-sm shadow-fuchsia-300">
+                  <Sparkles className="w-4 h-4 text-white" />
+                </div>
+                <p className="text-fuchsia-900 font-bold text-base sm:text-lg leading-snug">{insight}</p>
+              </motion.li>
+            ))}
+          </ul>
+        </motion.div>
+
+      </motion.div>
     </div>
   );
 }

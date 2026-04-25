@@ -102,11 +102,12 @@ export default function ChatPage() {
       }
       setMessages(prev => [...prev, newAiMsg])
     } catch (error: any) {
-       console.error("Erreur Gemini API:", error)
-       
        let errorContent = "Oups... Il semblerait que j'aie rencontré un problème avec ma connexion. Veuillez réessayer."
        if (error?.message?.includes("429") || error?.message?.includes("RESOURCE_EXHAUSTED") || error?.message?.includes("exceeded your current quota")) {
+         console.warn("Gemini Rate Limit (429) hit in chat.");
          errorContent = "Limite d'utilisation de l'intelligence artificielle atteinte. Veuillez patienter un peu avant de réessayer."
+       } else {
+         console.error("Erreur Gemini API:", error)
        }
 
        const errorMsg: Message = {
