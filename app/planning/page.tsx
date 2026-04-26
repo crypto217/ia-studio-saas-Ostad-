@@ -9,14 +9,10 @@ import { motion, AnimatePresence } from "motion/react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/AuthProvider"
 import { db } from "@/firebase"
-import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore"
+import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc, serverTimestamp, setDoc } from "firebase/firestore"
 import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
 
-const CLASSES = [
-  { id: "c1", name: "5ème AP - A", color: "bg-sky-400", border: "border-sky-500", text: "text-sky-950", lightBg: "bg-sky-100", lightText: "text-sky-700" },
-  { id: "c2", name: "4ème AP - B", color: "bg-rose-400", border: "border-rose-500", text: "text-rose-950", lightBg: "bg-rose-100", lightText: "text-rose-700" },
-  { id: "c3", name: "3ème AP - C", color: "bg-emerald-400", border: "border-emerald-500", text: "text-emerald-950", lightBg: "bg-emerald-100", lightText: "text-emerald-700" },
-]
+
 
 const TASK_TYPES = {
   cours: { label: 'Cours', icon: BookOpen },
@@ -26,38 +22,31 @@ const TASK_TYPES = {
 
 type TaskPriority = 'high' | 'medium' | 'low';
 
-const THEME_PALETTE = [
-  { color: "bg-sky-400", border: "border-sky-500" },
-  { color: "bg-rose-400", border: "border-rose-500" },
-  { color: "bg-emerald-400", border: "border-emerald-500" },
-  { color: "bg-amber-400", border: "border-amber-500" },
-  { color: "bg-violet-400", border: "border-violet-500" },
-  { color: "bg-fuchsia-400", border: "border-fuchsia-500" },
-  { color: "bg-indigo-400", border: "border-indigo-500" },
-];
+const THEME_COLORS: Record<string, { bg: string, border: string, text: string }> = {
+  sky: { bg: "bg-sky-400", border: "border-sky-500", text: "text-sky-950" },
+  rose: { bg: "bg-rose-400", border: "border-rose-500", text: "text-rose-950" },
+  emerald: { bg: "bg-emerald-400", border: "border-emerald-500", text: "text-emerald-950" },
+  amber: { bg: "bg-amber-400", border: "border-amber-500", text: "text-amber-950" },
+  indigo: { bg: "bg-indigo-400", border: "border-indigo-500", text: "text-indigo-950" },
+};
 
 function getThemeForString(str: string) {
-  if (!str) return THEME_PALETTE[0];
+  const keys = Object.keys(THEME_COLORS);
+  if (!str) return THEME_COLORS[keys[0]];
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return THEME_PALETTE[Math.abs(hash) % THEME_PALETTE.length];
+  return THEME_COLORS[keys[Math.abs(hash) % keys.length]];
 }
 
 interface TodoTask {
-  id: number;
+  id: string;
   title: string;
   priority: TaskPriority;
   completed: boolean;
   dueDate?: string;
 }
-
-const initialTasks: TodoTask[] = [
-  { id: 1, title: "Corriger les copies de 5ème AP", priority: 'high', completed: false, dueDate: "Aujourd'hui" },
-  { id: 2, title: "Préparer l'examen de mathématiques", priority: 'medium', completed: false, dueDate: "Demain" },
-  { id: 3, title: "Acheter des craies de couleur", priority: 'low', completed: true },
-];
 
 const hours = Array.from({ length: 9 }, (_, i) => i + 8) // 8:00 to 16:00
 
@@ -77,7 +66,7 @@ export default function PlanningPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [newActivity, setNewActivity] = useState({
     title: "Cours",
-    classId: CLASSES[0].id,
+    classId: "",
     taskType: "cours",
     room: "Salle 01",
     day: 0,
@@ -85,26 +74,56 @@ export default function PlanningPage() {
     duration: 1
   })
 
+  const [classes, setClasses] = useState<any[]>([])
+  const [tasks, setTasks] = useState<TodoTask[]>([])
+
   // Data fetching
   useEffect(() => {
     if (!isAuthReady || !user?.uid) return
 
+    // Lessons
     const lessonsQuery = query(collection(db, "lessons"), where("teacherId", "==", user.uid))
     const unsubscribeLessons = onSnapshot(lessonsQuery, (snapshot) => {
       const lessonsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       }))
       setLessons(lessonsData)
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, "lessons")
     })
 
-    return () => unsubscribeLessons()
+    // Classes
+    const classesQuery = query(collection(db, "classes"), where("teacherId", "==", user.uid))
+    const unsubscribeClasses = onSnapshot(classesQuery, (snapshot) => {
+      const classesData = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      }))
+      setClasses(classesData)
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "classes")
+    })
+
+    // Tasks
+    const tasksQuery = query(collection(db, "tasks"), where("teacherId", "==", user.uid))
+    const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
+      const tasksData = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      })) as TodoTask[]
+      setTasks(tasksData)
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "tasks")
+    })
+
+    return () => {
+      unsubscribeLessons()
+      unsubscribeClasses()
+      unsubscribeTasks()
+    }
   }, [user, isAuthReady])
 
-  // Task State
-  const [tasks, setTasks] = useState<TodoTask[]>(initialTasks)
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false)
   const [newTask, setNewTask] = useState<Partial<TodoTask>>({
     title: "",
@@ -126,21 +145,25 @@ export default function PlanningPage() {
   // Sunday to Thursday (5 days)
   const weekDays = Array.from({ length: 5 }, (_, i) => addDays(startDate, i))
 
+  const todayIndex = new Date().getDay();
+
   const handleAddActivity = async () => {
     if (!user?.uid) return
+    
+    const newDocRef = doc(collection(db, "lessons"))
     const lessonData = {
       ...newActivity,
-      id: Date.now().toString(),
+      id: newDocRef.id,
       teacherId: user.uid,
       createdAt: new Date().toISOString()
     }
     
     try {
-      await addDoc(collection(db, "lessons"), lessonData)
+      await setDoc(newDocRef, lessonData)
       setIsAddModalOpen(false)
       setNewActivity({
         title: "Cours",
-        classId: CLASSES[0].id,
+        classId: classes.length > 0 ? classes[0].id : "",
         taskType: "cours",
         room: "Salle 01",
         day: 0,
@@ -164,7 +187,7 @@ export default function PlanningPage() {
   const handleEmptySlotClick = (dayIndex: number, hour: number) => {
     setNewActivity({
       title: "Cours",
-      classId: CLASSES[0].id,
+      classId: classes.length > 0 ? classes[0].id : "",
       taskType: "cours",
       room: "Salle 01",
       day: dayIndex,
@@ -174,31 +197,45 @@ export default function PlanningPage() {
     setIsAddModalOpen(true)
   }
 
-  const handleAddTask = () => {
-    if (!newTask.title?.trim()) return
-    const task: TodoTask = {
-      id: Date.now(),
-      title: newTask.title,
-      priority: newTask.priority as TaskPriority,
-      completed: false,
-      dueDate: newTask.dueDate
+  const handleAddTask = async () => {
+    if (!newTask.title?.trim() || !user?.uid) return
+    
+    try {
+      await addDoc(collection(db, "tasks"), {
+        title: newTask.title,
+        priority: newTask.priority as TaskPriority,
+        completed: false,
+        dueDate: newTask.dueDate || null,
+        teacherId: user.uid,
+        createdAt: serverTimestamp()
+      })
+      
+      setIsAddTaskModalOpen(false)
+      setNewTask({
+        title: "",
+        priority: "medium",
+        completed: false,
+        dueDate: "Aujourd'hui"
+      })
+    } catch(error) {
+      handleFirestoreError(error, OperationType.CREATE, "tasks")
     }
-    setTasks([...tasks, task])
-    setIsAddTaskModalOpen(false)
-    setNewTask({
-      title: "",
-      priority: "medium",
-      completed: false,
-      dueDate: "Aujourd'hui"
-    })
   }
 
-  const handleDeleteTask = (id: number) => {
-    setTasks(tasks.filter(t => t.id !== id))
+  const handleDeleteTask = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "tasks", id))
+    } catch(error) {
+      handleFirestoreError(error, OperationType.DELETE, `tasks/${id}`)
+    }
   }
 
-  const toggleTaskCompletion = (id: number) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t))
+  const toggleTaskCompletion = async (id: string, currentCompleted: boolean) => {
+    try {
+      await updateDoc(doc(db, "tasks", id), { completed: !currentCompleted })
+    } catch(error) {
+      handleFirestoreError(error, OperationType.UPDATE, `tasks/${id}`)
+    }
   }
 
   return (
@@ -231,17 +268,26 @@ export default function PlanningPage() {
       </div>
 
       {/* Classes Legend */}
-      <div className="flex flex-wrap gap-2 sm:gap-4 items-center px-4 sm:px-6 py-3 sm:py-4 bg-white rounded-[1.5rem] sm:rounded-[2rem] border-2 sm:border-4 border-slate-100 shadow-sm w-fit mx-auto md:mx-0">
-        <span className="text-xs sm:text-sm font-black text-slate-400 uppercase tracking-wider mr-1 sm:mr-2 flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-slate-300"/> Vos Classes
-        </span>
-        {CLASSES.map(c => (
-          <div key={c.id} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl ${c.lightBg} ${c.lightText} font-bold text-xs sm:text-sm border-2 border-transparent hover:border-current cursor-pointer transition-all hover:scale-105 hover:-rotate-1`}>
-            <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full ${c.color} shadow-sm`} />
-            {c.name}
-          </div>
-        ))}
-      </div>
+      {classes.length > 0 ? (
+        <div className="flex flex-wrap gap-2 sm:gap-4 items-center px-4 sm:px-6 py-3 sm:py-4 bg-white rounded-[1.5rem] sm:rounded-[2rem] border-2 sm:border-4 border-slate-100 shadow-sm w-fit mx-auto md:mx-0">
+          <span className="text-xs sm:text-sm font-black text-slate-400 uppercase tracking-wider mr-1 sm:mr-2 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-slate-300"/> Vos Classes
+          </span>
+          {classes.map(c => {
+            const theme = c.theme ? THEME_COLORS[c.theme as keyof typeof THEME_COLORS] || THEME_COLORS.indigo : getThemeForString(c.id)
+            return (
+              <div key={c.id} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm border-2 border-transparent hover:border-current cursor-pointer transition-all hover:scale-105 hover:-rotate-1`}>
+                <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full ${theme.bg} shadow-sm`} />
+                {c.name}
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="text-sm font-bold text-slate-500 bg-white px-6 py-4 rounded-2xl border-2 border-dashed border-slate-200">
+           Aucune classe configurée. Créez-en une dans le menu Classes !
+        </div>
+      )}
 
       {/* Mobile View (Visible only on small screens) */}
       <div className="block lg:hidden space-y-6">
@@ -249,7 +295,7 @@ export default function PlanningPage() {
         <div className="flex gap-3 overflow-x-auto pb-4 pt-2 px-1 snap-x no-scrollbar">
           {weekDays.map((day, dayIndex) => {
             const isSelected = selectedMobileDay === dayIndex;
-            const isToday = isSameDay(day, new Date());
+            const isToday = dayIndex === todayIndex;
             return (
               <button 
                 key={dayIndex}
@@ -258,23 +304,23 @@ export default function PlanningPage() {
                   isSelected 
                     ? 'bg-indigo-600 border-indigo-800 text-white shadow-lg shadow-indigo-500/30 scale-105 z-10' 
                     : isToday 
-                      ? 'bg-amber-50 border-amber-200 text-amber-900'
+                      ? 'border-2 border-orange-500 bg-orange-50 text-orange-600 shadow-sm ring-4 ring-orange-500/20'
                       : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                 }`}
               >
                 {isSelected && isToday && (
-                  <div className="absolute -top-2 bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-amber-100 flex items-center gap-0.5">
+                  <div className="absolute -top-2 bg-orange-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-orange-100 flex items-center gap-0.5">
                     <Sparkles className="w-2 h-2" /> AUJ
                   </div>
                 )}
                 {!isSelected && isToday && (
-                  <div className="absolute -top-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-white shadow-sm" />
+                  <div className="absolute -top-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-white shadow-sm" />
                 )}
                 <span className={`text-[10px] sm:text-xs font-black uppercase tracking-widest mb-0.5 sm:mb-1 ${isSelected ? 'text-indigo-200' : ''}`}>
                   {format(day, "EEE", { locale: fr })}
                 </span>
                 {/* The Today Circle */}
-                <div className={`text-2xl sm:text-3xl font-black flex items-center justify-center ${isToday ? 'w-10 h-10 bg-amber-500 text-white rounded-full shadow-md' : ''}`}>{format(day, "d")}</div>
+                <div className={`text-2xl sm:text-3xl font-black flex items-center justify-center ${isToday ? 'w-10 h-10 bg-orange-500 text-white rounded-full shadow-md' : ''}`}>{format(day, "d")}</div>
               </button>
             )
           })}
@@ -334,10 +380,10 @@ export default function PlanningPage() {
                     }
 
                     const lesson = event as typeof lessons[0];
-                    const classInfo = CLASSES.find(c => c.id === lesson.classId)
+                    const classInfo = classes.find(c => c.id === lesson.classId)
                     const taskInfo = TASK_TYPES[lesson.taskType as keyof typeof TASK_TYPES] || { label: 'Inconnu', icon: BookOpen }
                     const TaskIcon = taskInfo.icon
-                    const theme = classInfo ? { color: classInfo.color, border: classInfo.border } : getThemeForString(lesson.classId)
+                    const theme = classInfo?.theme ? THEME_COLORS[classInfo.theme as keyof typeof THEME_COLORS] || THEME_COLORS.indigo : getThemeForString(lesson.classId)
                     
                     // Format time
                     const startTime = `${Math.floor(lesson.start)}h${(lesson.start % 1) * 60 === 0 ? '00' : (lesson.start % 1) * 60}`
@@ -351,31 +397,36 @@ export default function PlanningPage() {
                         
                         {/* Timeline Dot */}
                         <div className="relative mt-5">
-                          <div className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full ${theme.color} border-4 border-white shadow-sm relative z-10`} />
+                          <div className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full ${theme.bg} border-4 border-white shadow-sm relative z-10`} />
                         </div>
 
                         {/* Card */}
                         <motion.div 
                           whileTap={{ scale: 0.98 }}
-                          className={`flex-1 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-sm border-b-4 ${theme.color} ${theme.border} text-white`}
+                          className={`flex-1 rounded-2xl sm:rounded-3xl shadow-sm border-b-4 flex flex-col justify-between p-2 sm:p-2.5 overflow-hidden box-border ${theme.bg} ${theme.border} text-white`}
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0 pr-2 pb-1">
-                              <h3 className="font-black text-2xl sm:text-3xl leading-none drop-shadow-sm mb-2">
-                                {classInfo?.name || 'Classe inconnue'}
-                              </h3>
-                              <div className="flex items-center gap-1.5 text-white/90 font-black text-sm sm:text-base">
-                                <MapPin className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-                                <span>{lesson.room || "Salle --"}</span>
+                          <div className="flex items-start justify-between gap-2 h-full">
+                            <div className="flex-1 min-w-0 pr-1 flex flex-col h-full">
+                              <div>
+                                <h3 className="font-black text-xs sm:text-sm leading-tight tracking-wide drop-shadow-sm line-clamp-1">
+                                  {classInfo?.name || 'Classe inconnue'}
+                                </h3>
+                                <div className="font-bold text-[10px] sm:text-[11px] opacity-90 leading-tight line-clamp-1 mt-0.5">
+                                  {taskInfo.label}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 mt-auto pt-1">
+                                <MapPin size={12} className="shrink-0" />
+                                <span className="font-bold text-[9px] sm:text-[11px] opacity-95 truncate">{lesson.room || "Salle --"}</span>
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                               <button 
                                 onClick={(e) => handleDeleteActivity(e, lesson.id)}
-                                className="bg-white/20 hover:bg-rose-500/80 p-2 sm:p-2.5 rounded-xl backdrop-blur-sm transition-colors"
+                                className="bg-white/20 hover:bg-rose-500/80 p-1.5 sm:p-2 rounded-xl backdrop-blur-sm transition-colors"
                                 title="Supprimer"
                               >
-                                <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           </div>
@@ -415,38 +466,41 @@ export default function PlanningPage() {
           {/* Days Columns */}
           <div className="flex-1 grid grid-cols-5 gap-6">
             {weekDays.map((day, dayIndex) => {
-              const isToday = isSameDay(day, new Date())
+              const isToday = dayIndex === todayIndex;
               
               return (
                 <div key={day.toISOString()} className="flex flex-col">
                   {/* Day Header */}
                   <div className={`h-24 flex flex-col items-center justify-center mb-6 rounded-[2rem] border-b-4 transition-all relative ${
                     isToday
-                    ? 'bg-amber-100 border-amber-300 text-amber-800 shadow-xl scale-110 origin-bottom z-10'
+                    ? 'border-2 border-orange-500 bg-orange-50 text-orange-600 shadow-sm ring-4 ring-orange-500/20 z-10'
                     : 'bg-white border-slate-200 text-slate-600 shadow-sm'
                   }`}>
                     {isToday && (
-                      <div className="absolute -top-3 bg-amber-500 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-md border-2 border-white flex items-center gap-1">
+                      <div className="absolute -top-3 bg-orange-500 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-md border-2 border-white flex items-center gap-1">
                         <Sparkles className="w-3 h-3" /> AUJOURD&apos;HUI
                       </div>
                     )}
-                    <span className={`text-xs font-black uppercase tracking-widest mb-1 ${isToday ? 'text-amber-500/80' : 'text-slate-400'}`}>
+                    <span className={`text-xs font-black uppercase tracking-widest mb-1 ${isToday ? 'text-orange-500/80' : 'text-slate-400'}`}>
                       {format(day, "EEEE", { locale: fr })}
                     </span>
-                    <div className={`text-3xl font-black ${isToday ? 'w-12 h-12 bg-amber-500 text-white rounded-[1.2rem] flex items-center justify-center shadow-lg transform rotate-3' : ''}`}>{format(day, "d")}</div>
+                    <div className={`text-3xl font-black ${isToday ? 'w-12 h-12 bg-orange-500 text-white rounded-[1.2rem] flex items-center justify-center shadow-lg transform rotate-3' : ''}`}>{format(day, "d")}</div>
                   </div>
 
                   {/* Day Grid */}
                   <div className={`relative flex-1 rounded-[2rem] border-4 overflow-hidden transition-all duration-500 ${
                     isToday 
-                      ? 'bg-amber-50/40 border-amber-300 shadow-[0_0_30px_rgba(245,158,11,0.15)] ring-4 ring-amber-400/20 transform scale-[1.02] z-10' 
+                      ? 'bg-orange-50/30 border-orange-300 shadow-[0_0_30px_rgba(245,158,11,0.15)] ring-4 ring-orange-400/20 transform scale-[1.02] z-10' 
                       : 'bg-white border-slate-200/60 shadow-sm'
                   }`}>
                     {/* Horizontal Grid Lines */}
                     {hours.map((hour, i) => (
-                      <div 
-                        key={hour} 
-                        onClick={() => handleEmptySlotClick(dayIndex, hour)}
+                    <div 
+                      key={hour}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleEmptySlotClick(dayIndex, hour)
+                      }}
                         className={`h-24 border-t-2 border-dashed ${isToday ? 'border-amber-300/60' : 'border-slate-300'} relative ${i === 0 ? 'border-t-0' : ''} cursor-pointer hover:bg-slate-500/5 transition-colors group`}
                       >
                         {/* Ligne de la demi-heure (30 min) */}
@@ -475,39 +529,44 @@ export default function PlanningPage() {
                     {lessons
                       .filter((lesson) => lesson.day === dayIndex)
                       .map((lesson) => {
-                        const classInfo = CLASSES.find(c => c.id === lesson.classId)
+                        const classInfo = classes.find(c => c.id === lesson.classId)
                         const taskInfo = TASK_TYPES[lesson.taskType as keyof typeof TASK_TYPES] || { label: 'Inconnu', icon: BookOpen }
                         const TaskIcon = taskInfo.icon
-                        const theme = classInfo ? { color: classInfo.color, border: classInfo.border } : getThemeForString(lesson.classId)
+                        const theme = classInfo?.theme ? THEME_COLORS[classInfo.theme as keyof typeof THEME_COLORS] || THEME_COLORS.indigo : getThemeForString(lesson.classId)
 
                         return (
                           <motion.div
                             key={lesson.id}
                             onClick={(e) => e.stopPropagation()}
                             whileHover={{ scale: 1.04, zIndex: 50, rotate: 1 }}
-                            className={`group absolute left-2 right-2 rounded-2xl p-3 shadow-md border-b-4 cursor-pointer flex flex-col gap-1 ${theme.color} ${theme.border} text-white transition-shadow hover:shadow-xl`}
+                            className={`group absolute left-2 right-2 rounded-2xl shadow-md border-b-4 cursor-pointer flex flex-col justify-between p-2 sm:p-2.5 overflow-hidden box-border ${theme.bg} ${theme.border} text-white transition-shadow hover:shadow-xl`}
                             style={{
                               top: `${(lesson.start - 8) * 96 + 8}px`, // 96px per hour (h-24), +8px padding
                               height: `${lesson.duration * 96 - 16}px`, // -16px for padding
                             }}
                           >
                           <div className="flex items-start justify-between gap-2 h-full">
-                             <div className="flex-1 min-w-0 pr-1 flex flex-col justify-center">
-                              <span className="font-black text-xl leading-none drop-shadow-sm block mb-1.5">
-                                {classInfo?.name || 'Classe inconnue'}
-                              </span>
-                              <div className="flex items-center gap-1.5 text-white/90 font-black text-xs">
-                                <MapPin className="w-3.5 h-3.5 shrink-0" />
-                                <span>{lesson.room || "Salle --"}</span>
+                             <div className="flex-1 min-w-0 pr-1 flex flex-col h-full">
+                              <div>
+                                <h3 className="font-black text-xs sm:text-sm leading-tight tracking-wide drop-shadow-sm line-clamp-1 block">
+                                  {classInfo?.name || 'Classe inconnue'}
+                                </h3>
+                                <span className="font-bold text-[10px] sm:text-[11px] opacity-90 leading-tight line-clamp-1 mt-0.5 block">
+                                  {taskInfo.label}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 mt-auto pt-1">
+                                <MapPin size={12} className="shrink-0" />
+                                <span className="font-bold text-[9px] sm:text-[11px] opacity-95 truncate">{lesson.room || "Salle --"}</span>
                               </div>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <button 
                                 onClick={(e) => handleDeleteActivity(e, lesson.id)}
-                                className="bg-white/20 hover:bg-rose-500/90 p-2 rounded-xl backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"
+                                className="bg-white/20 hover:bg-rose-500/90 p-1.5 rounded-xl backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"
                                 title="Supprimer"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 size={14} />
                               </button>
                             </div>
                           </div>
@@ -569,7 +628,7 @@ export default function PlanningPage() {
               >
                 <div className="flex items-start gap-4">
                   <button 
-                    onClick={() => toggleTaskCompletion(task.id)}
+                    onClick={() => toggleTaskCompletion(task.id, task.completed)}
                     className={`mt-0.5 shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
                       task.completed 
                         ? 'bg-emerald-500 text-white' 
@@ -674,9 +733,13 @@ export default function PlanningPage() {
                         onChange={(e) => setNewActivity({...newActivity, classId: e.target.value})}
                         className="w-full bg-slate-50 border-2 border-slate-200 focus:border-indigo-500 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none transition-colors appearance-none"
                       >
-                        {CLASSES.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
+                        {classes.length === 0 ? (
+                          <option value="">Aucune classe</option>
+                        ) : (
+                          classes.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))
+                        )}
                       </select>
                     </div>
 

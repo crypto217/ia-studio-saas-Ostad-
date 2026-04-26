@@ -9,10 +9,10 @@ import { AIMagicHub } from '@/components/ui/AIMagicHub'
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isLoginPage = pathname === "/login"
+  const isAuthPage = pathname === "/login" || pathname === "/onboarding"
   const isDashboard = pathname === "/"
 
-  if (isLoginPage) {
+  if (isAuthPage) {
     return (
       <ProtectedRoute>
         {children}

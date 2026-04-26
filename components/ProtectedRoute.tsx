@@ -5,15 +5,19 @@ import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/components/AuthProvider"
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isAuthReady } = useAuth()
+  const { user, isAuthReady, onboardingCompleted } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
   useEffect(() => {
-    if (isAuthReady && !user && pathname !== "/login") {
-      router.push("/login")
+    if (isAuthReady) {
+      if (!user && pathname !== "/login") {
+        router.push("/login")
+      } else if (user && !onboardingCompleted && pathname !== "/onboarding") {
+        router.push("/onboarding")
+      }
     }
-  }, [user, isAuthReady, router, pathname])
+  }, [user, isAuthReady, onboardingCompleted, router, pathname])
 
   if (!isAuthReady) {
     return (
@@ -23,8 +27,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // If not logged in and trying to access a protected route, don't render anything while redirecting
+  // Prevent rendering protected routes while redirecting
   if (!user && pathname !== "/login") {
+    return null
+  }
+  
+  if (user && !onboardingCompleted && pathname !== "/onboarding") {
     return null
   }
 

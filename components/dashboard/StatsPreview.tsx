@@ -48,22 +48,11 @@ export function StatsPreview() {
           }
         })
         
-        let localClassesCount = classesSnapshot.size
-        try {
-          const savedLocal = localStorage.getItem('ostad_mock_classes')
-          if (savedLocal) {
-            localClassesCount = JSON.parse(savedLocal).length
-          } else {
-             // Default length based on our mockup
-             localClassesCount = 4
-          }
-        } catch(e) {}
-        
         setStats({
           averageScore: scoreCount > 0 ? Number((totalScore / scoreCount).toFixed(1)) : 0,
           totalStudents: snapshot.size,
           studentsInDifficulty: difficultyCount,
-          totalClasses: localClassesCount
+          totalClasses: classesSnapshot.size
         })
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, "dashboard_stats")

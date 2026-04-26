@@ -5,6 +5,11 @@ import { motion, AnimatePresence } from "motion/react"
 import { useRouter } from "next/navigation"
 import { Sparkles, ArrowRight, ArrowLeft, Check, GraduationCap, BookOpen, Layers } from "lucide-react"
 
+import { useAuth } from "@/components/AuthProvider"
+import { db } from "@/firebase"
+import { doc, writeBatch, collection } from "firebase/firestore"
+import { OperationType, handleFirestoreError } from "@/lib/firebase-error"
+
 interface FormData {
   civility: "Monsieur" | "Madame" | ""
   firstName: string
@@ -16,26 +21,28 @@ interface FormData {
 }
 
 const CYCLES = [
-  { id: "Primaire", label: "Primaire", icon: <BookOpen className="w-6 h-6" /> },
-  { id: "Moyen", label: "Moyen", icon: <Layers className="w-6 h-6" /> },
-  { id: "Secondaire", label: "Secondaire", icon: <GraduationCap className="w-6 h-6" /> },
+  { id: "Primaire", label: "Primaire", icon: <BookOpen className="w-6 h-6" />, locked: false },
+  { id: "Moyen", label: "Moyen", icon: <Layers className="w-6 h-6" />, locked: true },
+  { id: "Secondaire", label: "Secondaire", icon: <GraduationCap className="w-6 h-6" />, locked: true },
 ]
 
 const LEVELS = ["3AP", "4AP", "5AP"]
 
 export default function Onboarding() {
   const router = useRouter()
+  const { user, setOnboardingCompleted } = useAuth()
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState<FormData>({
     civility: "",
     firstName: "",
     lastName: "",
-    cycle: "",
+    cycle: "Primaire",
     subject: "Français",
     levels: [],
     schoolName: "",
   })
   const [errorMsg, setErrorMsg] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
 
   const handleNext = () => {
     setErrorMsg("")
@@ -67,13 +74,57 @@ export default function Onboarding() {
     })
   }
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     setErrorMsg("")
     if (!formData.schoolName.trim()) {
       return setErrorMsg("Veuillez saisir le nom de votre école.")
     }
-    // Final logic (save to db, etc.)
-    router.push("/")
+
+    if (!user) {
+      router.push("/login")
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      const batch = writeBatch(db)
+
+      // Update User profile
+      const userRef = doc(db, "users", user.uid)
+      batch.update(userRef, {
+        cycle: formData.cycle,
+        subject: formData.subject,
+        civility: formData.civility,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        schoolName: formData.schoolName,
+        onboardingCompleted: true,
+        updatedAt: new Date().toISOString()
+      })
+
+      // Create a class document for each selected level
+      const colors = ["sky", "rose", "emerald", "amber", "indigo"]
+      formData.levels.forEach((lvl, index) => {
+        const classRef = doc(collection(db, "classes"))
+        const theme = colors[index % colors.length]
+        batch.set(classRef, {
+          id: classRef.id,
+          teacherId: user.uid,
+          name: `Classe ${lvl}`,
+          theme: theme,
+          createdAt: new Date().toISOString()
+        })
+      })
+
+      await batch.commit()
+      setOnboardingCompleted(true)
+      router.push("/")
+    } catch (error: any) {
+      handleFirestoreError(error, OperationType.WRITE, "onboarding")
+      setErrorMsg("Une erreur est survenue lors de la sauvegarde.")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const progress = (step / 4) * 100
@@ -84,7 +135,7 @@ export default function Onboarding() {
       <div className="absolute -top-20 -left-20 w-[400px] h-[400px] bg-sky-300/30 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute -bottom-20 -right-20 w-[400px] h-[400px] bg-pink-300/30 rounded-full blur-[100px] pointer-events-none" />
 
-      <div className="w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl p-6 sm:p-10 relative z-10 border border-slate-100">
+      <div className="w-full max-w-3xl bg-white rounded-[2.5rem] shadow-2xl p-6 md:p-12 relative z-10 border border-slate-100">
         
         {/* Progress Bar Container */}
         <div className="mb-10">
@@ -127,7 +178,7 @@ export default function Onboarding() {
                 <div className="flex justify-center gap-4 mb-6">
                   <button
                     onClick={() => setFormData({ ...formData, civility: "Monsieur" })}
-                    className={`w-32 h-32 rounded-3xl border-2 border-b-8 flex flex-col items-center justify-center gap-2 transition-all hover:-translate-y-1 active:translate-y-2 active:border-b-2 ${
+                    className={`w-32 h-32 rounded-3xl border-2 border-b-[6px] flex flex-col items-center justify-center gap-2 transition-all hover:-translate-y-1 active:translate-y-[4px] active:border-b-2 ${
                       formData.civility === "Monsieur"
                         ? "bg-sky-100 border-sky-400 text-sky-800"
                         : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
@@ -139,7 +190,7 @@ export default function Onboarding() {
 
                   <button
                     onClick={() => setFormData({ ...formData, civility: "Madame" })}
-                    className={`w-32 h-32 rounded-3xl border-2 border-b-8 flex flex-col items-center justify-center gap-2 transition-all hover:-translate-y-1 active:translate-y-2 active:border-b-2 ${
+                    className={`w-32 h-32 rounded-3xl border-2 border-b-[6px] flex flex-col items-center justify-center gap-2 transition-all hover:-translate-y-1 active:translate-y-[4px] active:border-b-2 ${
                       formData.civility === "Madame"
                         ? "bg-pink-100 border-pink-400 text-pink-800"
                         : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
@@ -152,23 +203,23 @@ export default function Onboarding() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest pl-2 mb-2">Prénom</label>
+                    <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-3 pl-2">Prénom</label>
                     <input
                       type="text"
                       placeholder="Ex: Lyes"
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      className="w-full px-5 py-4 bg-slate-50 border-2 border-b-4 border-slate-200 rounded-2xl focus:border-b-indigo-500 focus:bg-white focus:ring-0 transition-all font-black text-slate-800 placeholder:text-slate-300 outline-none hover:border-slate-300"
+                      className="w-full px-5 py-4 md:py-5 text-lg bg-slate-50 border-2 border-b-4 border-slate-200 rounded-2xl focus:border-b-indigo-500 focus:bg-white focus:ring-0 transition-all font-black text-slate-800 placeholder:text-slate-300 outline-none hover:border-slate-300"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest pl-2 mb-2">Nom</label>
+                    <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-3 pl-2">Nom</label>
                     <input
                       type="text"
                       placeholder="Ex: Djouadi"
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      className="w-full px-5 py-4 bg-slate-50 border-2 border-b-4 border-slate-200 rounded-2xl focus:border-b-indigo-500 focus:bg-white focus:ring-0 transition-all font-black text-slate-800 placeholder:text-slate-300 outline-none hover:border-slate-300"
+                      className="w-full px-5 py-4 md:py-5 text-lg bg-slate-50 border-2 border-b-4 border-slate-200 rounded-2xl focus:border-b-indigo-500 focus:bg-white focus:ring-0 transition-all font-black text-slate-800 placeholder:text-slate-300 outline-none hover:border-slate-300"
                     />
                   </div>
                 </div>
@@ -192,18 +243,25 @@ export default function Onboarding() {
                 {errorMsg && <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold text-center">{errorMsg}</div>}
 
                 <div>
-                   <label className="block text-xs font-black text-slate-400 uppercase tracking-widest pl-2 mb-3">Cycle d'enseignement</label>
-                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                   <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-3 pl-2">Cycle d&apos;enseignement</label>
+                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                      {CYCLES.map((cycle) => (
                        <button
                          key={cycle.id}
+                         disabled={cycle.locked}
                          onClick={() => setFormData({ ...formData, cycle: cycle.id })}
-                         className={`flex flex-col items-center justify-center p-5 border-2 border-b-4 rounded-3xl transition-all hover:-translate-y-1 active:translate-y-1 active:border-b-2 ${
+                         className={`relative flex flex-col items-center justify-center p-5 border-2 border-b-[6px] rounded-3xl transition-all hover:-translate-y-1 active:translate-y-[4px] active:border-b-2 ${
                             formData.cycle === cycle.id 
                             ? "bg-indigo-50 border-indigo-500 text-indigo-700"
+                            : cycle.locked ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed opacity-80 border-b-4 hover:translate-y-0"
                             : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
                          }`}
                        >
+                         {cycle.locked && (
+                           <div className="absolute -top-3 text-[10px] uppercase font-black tracking-widest bg-slate-800 text-white px-3 py-1 rounded-full shadow-lg">
+                             Bientôt
+                           </div>
+                         )}
                          <div className={`p-3 rounded-2xl mb-2 ${formData.cycle === cycle.id ? "bg-indigo-100" : "bg-slate-100"}`}>
                            {cycle.icon}
                          </div>
@@ -214,20 +272,14 @@ export default function Onboarding() {
                 </div>
 
                 <div>
-                   <label className="block text-xs font-black text-slate-400 uppercase tracking-widest pl-2 mb-2">Matière enseignée</label>
-                   <div className="relative">
-                     <select
-                       value={formData.subject}
-                       onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                       className="w-full px-5 py-4 bg-slate-50 border-2 border-b-4 border-slate-200 rounded-2xl focus:border-b-indigo-500 focus:bg-white focus:ring-0 transition-colors font-black text-slate-800 outline-none appearance-none cursor-pointer hover:border-slate-300"
-                     >
-                       <option value="Français">Français</option>
-                       <option value="Arabe">Arabe</option>
-                       <option value="Mathématiques">Mathématiques</option>
-                       <option value="Anglais">Anglais</option>
-                     </select>
-                     <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 font-bold">
-                        ▼
+                   <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-3 pl-2">Matière enseignée</label>
+                   <div className="flex items-center gap-4 bg-pink-50 border-2 border-b-[6px] border-pink-400 rounded-3xl p-5 md:p-6 shadow-sm">
+                     <div className="bg-pink-100 p-3 rounded-2xl text-pink-600">
+                       <Check className="w-6 h-6 stroke-[3]" />
+                     </div>
+                     <div className="flex-1">
+                       <h3 className="font-black text-pink-800 text-lg">Français</h3>
+                       <p className="text-pink-600 font-medium text-sm">Spécialité du SaaS Ostad</p>
                      </div>
                    </div>
                 </div>
@@ -250,14 +302,14 @@ export default function Onboarding() {
                 
                 {errorMsg && <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold text-center">{errorMsg}</div>}
 
-                <div className="flex flex-wrap justify-center gap-4 py-4">
+                <div className="flex flex-wrap justify-center gap-6 py-4">
                   {LEVELS.map((lvl) => {
                     const isSelected = formData.levels.includes(lvl)
                     return (
                       <button
                         key={lvl}
                         onClick={() => toggleLevel(lvl)}
-                        className={`relative w-28 h-28 sm:w-32 sm:h-32 rounded-[2rem] border-2 border-b-8 flex flex-col items-center justify-center transition-all hover:-translate-y-1 active:translate-y-2 active:border-b-2 overflow-hidden ${
+                        className={`relative w-28 h-28 sm:w-32 sm:h-32 rounded-[2rem] border-2 border-b-[6px] flex flex-col items-center justify-center transition-all hover:-translate-y-1 active:translate-y-[4px] active:border-b-2 overflow-hidden ${
                           isSelected 
                             ? "bg-amber-100 border-amber-500 text-amber-800"
                             : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
@@ -300,13 +352,13 @@ export default function Onboarding() {
                 {errorMsg && <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold text-center">{errorMsg}</div>}
 
                 <div>
-                   <label className="block text-xs font-black text-slate-400 uppercase tracking-widest pl-2 mb-2 text-center">Nom de l'école</label>
+                   <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-3 text-center">Nom de l&apos;école</label>
                    <input
                      type="text"
                      placeholder="Ex: École Primaire El Amal"
                      value={formData.schoolName}
                      onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
-                     className="w-full px-6 py-5 text-center text-xl bg-slate-50 border-2 border-b-4 border-slate-200 rounded-[2rem] focus:border-b-indigo-500 focus:bg-white focus:ring-0 transition-all font-black text-slate-800 placeholder:text-slate-300 outline-none hover:border-slate-300"
+                     className="w-full px-6 py-5 md:py-6 text-center text-xl bg-slate-50 border-2 border-b-4 border-slate-200 rounded-[2rem] focus:border-b-indigo-500 focus:bg-white focus:ring-0 transition-all font-black text-slate-800 placeholder:text-slate-300 outline-none hover:border-slate-300"
                    />
                 </div>
               </motion.div>
@@ -320,7 +372,7 @@ export default function Onboarding() {
           {step > 1 && (
             <button
               onClick={handlePrev}
-              className="flex items-center justify-center p-4 sm:px-6 bg-white hover:bg-slate-50 text-slate-600 rounded-[1.5rem] border-2 border-b-4 border-slate-200 active:border-b-2 active:translate-y-[2px] transition-all font-black"
+              className="flex items-center justify-center p-4 sm:px-6 bg-white hover:bg-slate-50 text-slate-600 rounded-[1.5rem] border-2 border-b-[6px] border-slate-200 active:border-b-2 active:translate-y-[4px] transition-all font-black"
             >
               <ArrowLeft className="w-5 h-5 sm:hidden" strokeWidth={3} />
               <span className="hidden sm:inline">Retour</span>
@@ -330,7 +382,7 @@ export default function Onboarding() {
           {step < 4 ? (
             <button
               onClick={handleNext}
-              className="flex-1 flex items-center justify-center gap-2 p-4 bg-indigo-500 text-white rounded-[1.5rem] border-2 border-b-8 border-indigo-700 active:border-b-2 active:translate-y-[6px] font-black text-xl hover:bg-indigo-400 transition-all"
+              className="flex-1 flex items-center justify-center gap-2 p-4 bg-indigo-500 text-white rounded-[1.5rem] border-2 border-b-[6px] border-indigo-700 active:border-b-2 active:translate-y-[4px] font-black text-xl hover:bg-indigo-400 transition-all"
             >
               Continuer
               <ArrowRight className="w-6 h-6" strokeWidth={3} />
@@ -338,10 +390,11 @@ export default function Onboarding() {
           ) : (
             <button
               onClick={handleFinish}
-              className="flex-1 flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-fuchsia-500 to-indigo-500 text-white rounded-[1.5rem] border-2 border-b-8 border-indigo-800 active:border-b-2 active:translate-y-[6px] font-black text-xl hover:brightness-110 transition-all"
+              disabled={isSaving}
+              className="flex-1 flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-fuchsia-500 to-indigo-500 text-white rounded-[1.5rem] border-2 border-b-[6px] border-indigo-800 active:border-b-2 active:translate-y-[4px] font-black text-xl hover:brightness-110 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
             >
               <Sparkles className="w-6 h-6" />
-              Ouvrir mon carnet de bord ✨
+              {isSaving ? "Sauvegarde..." : "Ouvrir mon carnet de bord ✨"}
             </button>
           )}
         </div>

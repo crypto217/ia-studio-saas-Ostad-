@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { Bell, Search, Info, Rocket, Sparkles, Menu, X, LayoutDashboard, Calendar, BookOpen, Users, GraduationCap, BarChart3, Settings, LogOut, ClipboardList, User, CreditCard, HelpCircle, Keyboard, LogIn, AlertCircle, Cake, TrendingUp, CheckCircle2, ChevronRight } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AnimatePresence, motion } from "motion/react"
-import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -358,8 +357,6 @@ export function Header() {
         </>
       )}
     </AnimatePresence>
-
-    <OnboardingFlow isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} />
     </>
   )
 }

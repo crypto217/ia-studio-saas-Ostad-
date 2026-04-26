@@ -42,8 +42,13 @@ service cloud.firestore {
              data.onboardingCompleted is bool &&
              data.createdAt is string &&
              (!('displayName' in data) || data.displayName is string) &&
-             (!('cycle' in data) || data.cycle in ['primaire', 'moyen', 'lycee']) &&
-             (!('subject' in data) || data.subject in ['francais', 'arabe', 'tamazight', 'anglais', 'sport']);
+             (!('cycle' in data) || data.cycle is string) &&
+             (!('subject' in data) || data.subject is string) &&
+             (!('civility' in data) || data.civility is string) &&
+             (!('firstName' in data) || data.firstName is string) &&
+             (!('lastName' in data) || data.lastName is string) &&
+             (!('schoolName' in data) || data.schoolName is string) &&
+             (!('updatedAt' in data) || data.updatedAt is string);
     }
 
     function isValidClass(data) {

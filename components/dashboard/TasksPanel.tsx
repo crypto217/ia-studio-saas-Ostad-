@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Check, Plus, Clock, AlertCircle, Target, Trash2 } from "lucide-react"
+import { Check, Plus, Clock, AlertCircle, ListTodo, Trash2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/AuthProvider"
 import { db } from "@/firebase"
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, addDoc } from "firebase/firestore"
 import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import { motion, AnimatePresence } from "motion/react"
 
 type Task = {
   id: string
@@ -104,7 +105,7 @@ export function TasksPanel() {
       <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-100 px-4 sm:px-8 pt-5 sm:pt-8">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
-            <Target className="h-5 w-5 sm:h-7 sm:w-7" />
+            <ListTodo className="h-5 w-5 sm:h-7 sm:w-7" />
           </div>
           <div>
             <CardTitle className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Priorités du Jour</CardTitle>
@@ -122,57 +123,82 @@ export function TasksPanel() {
               Aucune tâche pour le moment.
             </div>
           )}
-          {tasks.map((task) => {
-            const colors = colorMap[task.color] || colorMap.sky
-            return (
-              <div 
-                key={task.id} 
-                onClick={() => toggleTask(task.id, task.completed)}
-                className={`group flex items-center gap-3 sm:gap-4 rounded-2xl border p-3 sm:p-4 transition-all cursor-pointer hover:-translate-y-1 hover:shadow-md ${task.completed ? 'bg-slate-50 border-slate-200 opacity-60' : `bg-white ${colors.border}`}`}
-              >
-                <button 
-                  className={`flex h-6 w-6 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 ${task.completed ? 'bg-emerald-400 border-emerald-500 text-white scale-110' : 'bg-slate-50 border-slate-300 text-transparent group-hover:border-slate-400'}`}
+          <AnimatePresence>
+            {tasks.map((task) => {
+              const colors = colorMap[task.color] || colorMap.sky
+              return (
+                <motion.div 
+                  key={task.id} 
+                  layout
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  whileHover={{ y: -4 }}
+                  className={`group relative p-5 rounded-[1.5rem] border-2 transition-all ${
+                    task.completed 
+                      ? 'bg-slate-50 border-slate-200 opacity-75' 
+                      : task.urgent
+                        ? 'bg-rose-50 border-rose-200 shadow-sm'
+                        : `${colors.bg} ${colors.border} shadow-sm`
+                  }`}
                 >
-                  <Check className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
-                </button>
-                
-                <div className="flex-1 space-y-0.5 sm:space-y-1">
-                  <p className={`text-base sm:text-lg font-black leading-tight transition-all duration-300 ${task.completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-                    {task.title}
-                  </p>
-                  <div className={`flex items-center gap-1.5 text-xs sm:text-sm font-bold ${task.completed ? 'text-slate-400' : colors.icon}`}>
-                    {task.urgent ? <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                    <span>{task.deadline}</span>
+                  <div className="flex items-start gap-4">
+                    <button 
+                      onClick={() => toggleTask(task.id, task.completed)}
+                      className={`mt-0.5 shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+                        task.completed 
+                          ? 'bg-emerald-500 text-white' 
+                          : 'bg-white border-2 border-slate-300 hover:border-indigo-500 text-transparent hover:text-indigo-200'
+                      }`}
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <h3 className={`font-bold text-base sm:text-lg leading-tight mb-1 ${task.completed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
+                        {task.title}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        {!task.completed && (
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                            task.urgent ? 'bg-rose-100 text-rose-700' :
+                            task.color === 'amber' ? 'bg-amber-100 text-amber-700' :
+                            'bg-sky-100 text-sky-700'
+                          }`}>
+                            {task.urgent ? <AlertCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                            {task.deadline || "À définir"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button 
+                      onClick={(e) => deleteTask(task.id, e)}
+                      className="shrink-0 p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                </div>
-                
-                <button 
-                  onClick={(e) => deleteTask(task.id, e)}
-                  className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                >
-                  <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                </button>
-              </div>
-            )
-          })}
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
           
           {isAdding && (
-            <form onSubmit={addTask} className="flex items-center gap-3 sm:gap-4 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-3 sm:p-4">
-              <div className="flex-1">
+            <form onSubmit={addTask} className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 p-1">
+              <div className="flex-1 w-full">
                 <input
                   type="text"
                   autoFocus
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
-                  placeholder="Nouvelle tâche..."
-                  className="w-full bg-transparent border-none focus:ring-0 text-base sm:text-lg font-bold text-slate-800 placeholder:text-slate-400 p-0"
+                  placeholder="Que devez-vous accomplir ?"
+                  className="w-full bg-slate-50 border-2 border-slate-200 focus:border-indigo-500 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none transition-colors"
                 />
               </div>
-              <div className="flex gap-2">
-                <Button type="button" variant="ghost" size="sm" onClick={() => setIsAdding(false)} className="text-slate-500">
-                  Annuler
+              <div className="flex gap-2 shrink-0">
+                <Button type="button" variant="ghost" onClick={() => setIsAdding(false)} className="text-slate-500 font-bold h-12 w-12 rounded-xl">
+                  <Trash2 className="w-5 h-5"/>
                 </Button>
-                <Button type="submit" size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl">
+                <Button type="submit" disabled={!newTaskTitle.trim()} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl border-b-[4px] border-indigo-800 active:translate-y-[2px] active:border-b-0 transition-all font-black h-12 px-6">
                   Ajouter
                 </Button>
               </div>
@@ -183,7 +209,7 @@ export function TasksPanel() {
         {!isAdding && (
           <Button 
             onClick={() => setIsAdding(true)}
-            className="mt-4 sm:mt-8 w-full h-12 sm:h-14 rounded-2xl border-b-4 border-indigo-700 bg-indigo-500 text-base sm:text-lg font-bold hover:bg-indigo-600 hover:-translate-y-1 transition-transform active:translate-y-0 active:border-b-0 shrink-0"
+            className="mt-4 sm:mt-8 w-full h-12 sm:h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black border-b-[4px] border-indigo-800 shadow-lg hover:-translate-y-1 active:translate-y-[2px] active:border-b-0 transition-all shrink-0 text-base sm:text-lg"
           >
             <Plus className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
             Nouvelle Tâche

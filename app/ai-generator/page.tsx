@@ -227,7 +227,7 @@ p { margin: 2px 0; }
       }
 
       let finalPrompt = "";
-      let targetModel = "gemini-3.1-pro-preview";
+      let targetModel = "gemini-3.1-flash-lite-preview";
 
       if (selectedType === 'dictation') {
         finalPrompt = `Tu es un inspecteur de l'éducation nationale en Algérie. Rédige un texte de dictée très court (3 à 4 phrases maximum) pour des élèves de primaire. 
@@ -362,7 +362,7 @@ REQUIREMENTS:
       - Renvoie UNIQUEMENT le code HTML complet mis à jour. Aucun texte brut avant ou après. Ne mets pas de balises markdown \`\`\`html.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3.1-flash-lite-preview",
         contents: prompt,
       });
 
