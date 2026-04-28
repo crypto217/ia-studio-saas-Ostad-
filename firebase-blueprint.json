@@ -89,6 +89,19 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "teacherId", "title", "deadline", "urgent", "color", "completed", "createdAt"]
+    },
+    "Resource": {
+      "title": "Resource",
+      "description": "A saved resource in the library.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "content", "type", "createdAt"]
     }
   },
   "firestore": {
@@ -115,6 +128,10 @@
     "activities/{activityId}": {
       "schema": { "$ref": "#/entities/Activity" },
       "description": "Recent activities of teachers."
+    },
+    "resources/{resourceId}": {
+      "schema": { "$ref": "#/entities/Resource" },
+      "description": "Saved resources."
     }
   }
 }

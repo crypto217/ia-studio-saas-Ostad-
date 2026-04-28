@@ -1,342 +1,425 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import Link from "next/link"
+import { useSearchParams, useParams } from "next/navigation"
+import { GenerateAIReportBtn } from "@/components/ui/GenerateAIReportBtn"
 import { 
   ArrowLeft, 
-  User,
-  Star, 
-  BookOpen, 
+  Clock,
+  Send,
+  Calendar,
   AlertCircle,
-  Sparkles,
-  MessageSquarePlus,
   BrainCircuit,
   Target,
-  Send,
-  Clock,
-  Zap,
-  Flame,
-  Calendar,
-  Award
+  ThumbsUp,
+  ThumbsDown,
+  Sparkles,
+  Loader2,
+  UserX
 } from "lucide-react"
 
-// --- MOCK DATA ---
-const initialStudentData = {
-  id: "s1",
-  name: "Amine Benali",
-  gender: "M",
-  className: "3ème AP - Groupe A",
-  status: "excellent",
-  average: 18.5,
-  absences: 3,
-  totalClasses: 60,
-  attendanceRate: 95,
-  rank: "3ème de la classe",
-  recentGrades: [
-    { subject: "Lecture", score: 19, date: "12 Oct", max: 20, color: "sky" },
-    { subject: "Écriture", score: 18, date: "10 Oct", max: 20, color: "pink" },
-    { subject: "Poésie", score: 18.5, date: "05 Oct", max: 20, color: "amber" },
-  ],
-  strengths: ["Très participatif", "Excellente lecture", "Curieux", "Esprit d'équipe"],
-  weaknesses: ["Écriture précipitée", "Bavardages"],
-  remarks: [
-    { 
-      id: 1, 
-      date: "08 Oct 2026", 
-      text: "Très bonne participation aujourd'hui, mais a eu du mal à se concentrer en fin de journée.", 
-      type: "observation" 
-    },
-    { 
-      id: 2, 
-      date: "01 Oct 2026", 
-      text: "A aidé un camarade pendant l'exercice de lecture. Excellent esprit d'équipe !", 
-      type: "positive" 
-    }
-  ],
-  aiAnalysis: {
-    summary: "Amine montre un excellent potentiel global. Sa dynamique d'apprentissage est très positive, portée par une forte curiosité. Les notes récentes confirment une maîtrise des fondamentaux en français.",
-    actionPlan: [
-      "Lui confier des rôles de 'tuteur' pour canaliser son énergie positive.",
-      "Proposer des exercices d'écriture avec contrainte de temps pour améliorer le soin.",
-      "Lui donner des textes légèrement plus complexes pour nourrir sa curiosité."
-    ]
-  }
+import { db, auth } from "@/firebase"
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp, orderBy } from "firebase/firestore"
+import { useAuthState } from "react-firebase-hooks/auth"
+
+const gradeFormat: Record<string, { label: string, color: string, bg: string, border: string, progress: string }> = {
+  "A": { label: "Très satisfaisant", color: "text-emerald-700", bg: "bg-emerald-100", border: "border-emerald-200", progress: "w-[90%] bg-emerald-500" },
+  "B": { label: "Satisfaisant", color: "text-indigo-700", bg: "bg-indigo-100", border: "border-indigo-200", progress: "w-[70%] bg-indigo-500" },
+  "C": { label: "Peu satisfaisant", color: "text-amber-700", bg: "bg-amber-100", border: "border-amber-200", progress: "w-[40%] bg-amber-500" },
+  "D": { label: "Non satisfaisant", color: "text-rose-700", bg: "bg-rose-100", border: "border-rose-200", progress: "w-[15%] bg-rose-500" },
 }
 
-type TabKey = "notes" | "observations" | "ia"
-
 export default function StudentProfile() {
-  const [remarks, setRemarks] = useState(initialStudentData.remarks)
+  const params = useParams()
+  const studentId = params.id as string
+  const searchParams = useSearchParams()
+  // Try to get classId from search params; otherwise we'll fall back to student's classId later
+  const initialClassId = searchParams.get("classId")
+
+  const [user, loadingUser] = useAuthState(auth)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  const [studentData, setStudentData] = useState<any>(null)
+  const [classData, setClassData] = useState<any>(null)
+  const [competencies, setCompetencies] = useState<any[]>([])
+  const [remarks, setRemarks] = useState<any[]>([])
+  const [absences, setAbsences] = useState(0)
+
   const [newRemark, setNewRemark] = useState("")
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
-  const [activeTab, setActiveTab] = useState<TabKey>("notes")
+  const [activeTab, setActiveTab] = useState<"competencies" | "observations" | "ia">("competencies")
 
-  const handleAddRemark = () => {
-    if (!newRemark.trim()) return
-    
-    const remark = {
-      id: Date.now(),
-      date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }),
-      text: newRemark,
-      type: "observation"
+  useEffect(() => {
+    async function fetchData() {
+      if (!user) return
+      try {
+        setLoading(true)
+
+        // 1. Fetch Student
+        const studentDoc = await getDoc(doc(db, "students", studentId))
+        if (!studentDoc.exists()) {
+          console.error("Student not found")
+          setError(true)
+          setLoading(false)
+          return
+        }
+        const student = studentDoc.data()
+        setStudentData(student)
+
+        const resolvedClassId = initialClassId || student.classId
+
+        // 2. Fetch Class
+        let className = "Classe inconnue"
+        if (resolvedClassId) {
+           const classDoc = await getDoc(doc(db, "classes", resolvedClassId))
+           if (classDoc.exists()) {
+             className = classDoc.data().name
+             setClassData(classDoc.data())
+           }
+        }
+        setStudentData(prev => ({ ...prev, className }))
+
+        // 3. Fetch Grades (Competencies)
+        const gradesQ = query(
+          collection(db, "grades"),
+          where("teacherId", "==", user.uid),
+          where("studentId", "==", studentId)
+        )
+        const gradesSnap = await getDocs(gradesQ)
+        const fetchedCompetencies = gradesSnap.docs.map(gDoc => {
+          const d = gDoc.data()
+          return {
+            id: gDoc.id,
+            subject: d.subject,
+            grade: typeof d.score === 'string' && gradeFormat[d.score.toUpperCase()] ? d.score.toUpperCase() : (d.score || "C"),
+            date: d.createdAt?.toDate ? d.createdAt.toDate().toLocaleDateString('fr-FR') : (d.date || "N/A"),
+            details: d.details || "Pas de détails"
+          }
+        })
+        setCompetencies(fetchedCompetencies)
+
+        // 4. Fetch Observations (Remarks)
+        const obsQ = query(
+          collection(db, "observations"),
+          where("teacherId", "==", user.uid),
+          where("studentId", "==", studentId)
+        )
+        const obsSnap = await getDocs(obsQ)
+        const fetchedRemarks = obsSnap.docs.map(oDoc => {
+           const d = oDoc.data()
+           return {
+             id: oDoc.id,
+             date: d.createdAt?.toDate ? d.createdAt.toDate().toLocaleDateString('fr-FR') : (d.date || "N/A"),
+             text: d.note || d.text,
+             type: "observation"
+           }
+        })
+        setRemarks(fetchedRemarks)
+
+        // 5. Fetch Attendances
+        let totalAbsences = 0
+        if (resolvedClassId) {
+          const attQ = query(
+            collection(db, "attendances"),
+            where("teacherId", "==", user.uid),
+            where("classId", "==", resolvedClassId)
+          )
+          const attSnap = await getDocs(attQ)
+          attSnap.docs.forEach(aDoc => {
+            const data = aDoc.data()
+            if (data.records && data.records[studentId]) {
+              const status = data.records[studentId]
+              if (status === "absent") totalAbsences++
+            }
+          })
+        }
+        setAbsences(totalAbsences)
+
+      } catch (err) {
+        console.error("Error fetching student profile data", err)
+      } finally {
+        setLoading(false)
+      }
     }
-    
-    setRemarks([remark, ...remarks])
-    setNewRemark("")
+
+    fetchData()
+  }, [user, studentId, initialClassId])
+
+  const handleAddRemark = async () => {
+    if (!newRemark.trim() || !user) return
+    try {
+      const payload = {
+        teacherId: user.uid,
+        studentId: studentId,
+        text: newRemark, // keeping it as text here, but observations in db use 'text' or 'note'
+        note: newRemark, // saving both for compatibility
+        createdAt: serverTimestamp(),
+      }
+      const docRef = await addDoc(collection(db, "observations"), payload)
+      const remark = {
+        id: docRef.id,
+        date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }),
+        text: newRemark,
+        type: "observation"
+      }
+      setRemarks([remark, ...remarks])
+      setNewRemark("")
+    } catch (err) {
+      console.error(err)
+      alert("Erreur lors de l'ajout de la remarque.")
+    }
   }
 
-  const handleGenerateAI = () => {
-    setIsGeneratingAI(true)
-    setTimeout(() => {
-      setIsGeneratingAI(false)
-    }, 2000)
+  if (loadingUser || loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+      </div>
+    )
   }
 
-  // Theme based on student status
-  const isExcellent = initialStudentData.status === 'excellent'
-  const isGood = initialStudentData.status === 'good'
-  const themeColor = isExcellent ? 'emerald' : isGood ? 'sky' : 'amber'
-  const themeBorder = isExcellent ? 'border-emerald-500' : isGood ? 'border-sky-500' : 'border-amber-500'
-  const themeBg = isExcellent ? 'bg-emerald-50' : isGood ? 'bg-sky-50' : 'bg-amber-50'
-  const themeText = isExcellent ? 'text-emerald-600' : isGood ? 'text-sky-600' : 'text-amber-600'
+  if (error || !studentData) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center text-center max-w-md w-full">
+          <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6">
+            <UserX className="w-12 h-12 text-slate-300" />
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 mb-2">Élève introuvable</h2>
+          <p className="text-slate-500 font-medium mb-8">
+            Ce profil a été supprimé ou n&apos;existe pas.
+          </p>
+          <Link 
+            href="/classes" 
+            className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 transition active:scale-95 shadow-md shadow-indigo-200"
+          >
+            Retour aux classes
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
-  // Dynamic Theme for Attendance
-  const { attendanceRate, absences } = initialStudentData;
-  const isAttendanceExcellent = attendanceRate >= 90;
-  const isAttendanceWarning = attendanceRate < 80;
-  const attBg = isAttendanceExcellent ? 'bg-emerald-50' : isAttendanceWarning ? 'bg-rose-50' : 'bg-amber-50';
-  const attBorder = isAttendanceExcellent ? 'border-emerald-100/50' : isAttendanceWarning ? 'border-rose-100/50' : 'border-amber-100/50';
-  const attIconBg = isAttendanceExcellent ? 'bg-emerald-100' : isAttendanceWarning ? 'bg-rose-100' : 'bg-amber-100';
-  const attText = isAttendanceExcellent ? 'text-emerald-700' : isAttendanceWarning ? 'text-rose-700' : 'text-amber-700';
-  const attLabelText = isAttendanceExcellent ? 'text-emerald-700/60' : isAttendanceWarning ? 'text-rose-700/60' : 'text-amber-700/60';
+  // Calculate stats
+  // Let's assume total classes are 60 for the sake of presentation if classData doesn't have it
+  const totalClasses = classData?.totalSessions || 60
+  const attendanceRate = totalClasses > 0 ? Math.round(((totalClasses - absences) / totalClasses) * 100) : 100
+  const isAttendanceExcellent = attendanceRate >= 90
+  const isAttendanceWarning = attendanceRate < 80
+  const attBg = isAttendanceExcellent ? 'bg-emerald-50' : isAttendanceWarning ? 'bg-rose-50' : 'bg-amber-50'
+  const attText = isAttendanceExcellent ? 'text-emerald-700' : isAttendanceWarning ? 'text-rose-700' : 'text-amber-700'
+  const attIconBg = isAttendanceExcellent ? 'bg-emerald-100' : isAttendanceWarning ? 'bg-rose-100' : 'bg-amber-100'
+
+  // Extract strengths/weaknesses from some logic (or keep static if not available)
+  const strengths = studentData.strengths || ["Participatif"]
+  const weaknesses = studentData.weaknesses || ["Bavardages"]
 
   return (
-    <div className="min-h-screen pb-24 bg-slate-50">
+    <div className="min-h-screen bg-slate-50 pb-24 font-sans">
       
-      {/* HEADER & BACK BUTTON */}
-      <div className="bg-slate-50 px-4 pt-4 pb-6 sm:px-8">
-        <div className="max-w-6xl mx-auto">
-          <Link href="/classes" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors mb-6 font-bold text-sm">
-            <ArrowLeft className="w-5 h-5" /> Retour
-          </Link>
+      {/* COVER BANNER */}
+      <div className="h-48 w-full bg-indigo-50/80 relative flex items-start px-4 pt-4 sm:px-8 border-b border-indigo-100/50">
+        <Link href={`/classes/${initialClassId || studentData.classId || ''}`} className="inline-flex items-center gap-2 text-indigo-900/60 hover:text-indigo-900 transition-colors bg-white/50 hover:bg-white/80 backdrop-blur px-3 py-1.5 rounded-xl font-bold text-sm z-20 relative">
+          <ArrowLeft className="w-4 h-4" /> Retour
+        </Link>
+        {/* Decorative elements */}
+        <div className="absolute right-10 bottom-0 top-0 w-64 bg-gradient-to-l from-indigo-200/40 to-transparent blur-3xl rounded-full" />
+      </div>
+
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-8">
+        {/* PROFILE HEADER OVERLAPPING */}
+        <div className="-mt-16 flex flex-col sm:flex-row sm:items-end justify-between gap-6 relative z-10 mb-8 sm:mb-12">
           
-          <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-12 lg:items-start">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-6 sm:gap-8">
+            <div className="w-32 h-32 rounded-full bg-white ring-8 ring-slate-50 flex items-center justify-center text-4xl font-black shadow-lg overflow-hidden shrink-0">
+              {studentData.gender === 'F' ? (
+                <div className="w-full h-full flex items-center justify-center bg-pink-100 text-pink-600">
+                  {studentData.name.substring(0, 2).toUpperCase()}
+                </div>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-sky-100 text-sky-600">
+                  {studentData.name.substring(0, 2).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div className="pb-2">
+              <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-slate-800 mb-2">
+                {studentData.name}
+              </h1>
+              <div className="flex items-center gap-3">
+                <span className="bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-black tracking-widest uppercase shadow-sm">
+                  {studentData.className}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="pb-2">
+            <GenerateAIReportBtn studentId={studentId} classId={initialClassId || studentData.classId || ''} />
+          </div>
+        </div>
+
+        {/* GRID LAYOUT */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* LEFT COLUMN: STATS & BADGES */}
+          <div className="lg:col-span-1 space-y-6">
             
-            {/* LIGNE INFO / PC LEFT COL */}
-            <div className="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-8">
-              
-              {/* Carte d'Identité */}
-              <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col pb-6">
-                {/* Cover Rectangle */}
-                <div className="h-32 md:h-48 w-full rounded-t-[2.5rem] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 relative mb-12">
-                  <div className="absolute -bottom-10 left-6">
-                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-slate-100 flex items-center justify-center text-3xl font-black border-4 border-white shadow-md overflow-hidden">
-                      {initialStudentData.gender === 'M' ? (
-                        <div className="w-full h-full flex items-center justify-center bg-sky-100 text-sky-600">AB</div>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-pink-100 text-pink-600">AB</div>
-                      )}
-                    </div>
-                  </div>
+            {/* Attendance Card */}
+            <div className={`p-6 rounded-[2rem] border shadow-sm ${attBg} border-white/60 relative overflow-hidden`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${attIconBg} ${attText}`}>
+                  <Calendar className="w-5 h-5" />
                 </div>
-                
-                <div className="px-6">
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-800 leading-tight mb-1">
-                    {initialStudentData.name}
-                  </h1>
-                  <p className="text-slate-500 font-bold text-sm flex items-center gap-2 mb-3">
-                    <Award className="w-4 h-4 text-amber-500" />
-                    {initialStudentData.rank}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                      {initialStudentData.className}
-                    </span>
-                  </div>
-                </div>
+                <h3 className={`font-black uppercase tracking-widest text-xs ${attText} opacity-80`}>Assiduité</h3>
               </div>
-
-              {/* BENTO STATS (Visible on mobile directly under header, on PC on the left) */}
-              <div className="grid grid-cols-2 gap-3 mt-2">
-                {/* Moyenne */}
-                <div className="bg-emerald-50 border border-emerald-100/50 p-4 rounded-3xl shadow-sm flex flex-col justify-center items-start relative overflow-hidden">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
-                      <Star className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <span className="text-emerald-700/80 text-[10px] font-black uppercase tracking-widest mb-0.5">Moyenne</span>
-                  <span className="text-3xl font-black tracking-tighter text-emerald-700 leading-none">
-                    {initialStudentData.average}
-                  </span>
-                </div>
-                
-                {/* Assiduité */}
-                <div className={`${attBg} border ${attBorder} p-4 rounded-3xl shadow-sm flex flex-col justify-center items-start relative overflow-hidden`}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className={`w-8 h-8 rounded-full ${attIconBg} flex items-center justify-center ${attText}`}>
-                      <Calendar className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <span className={`${attText} opacity-80 text-[10px] font-black uppercase tracking-widest mb-0.5`}>Assiduité</span>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-3xl font-black tracking-tighter ${attText} leading-none`}>
-                      {attendanceRate}%
-                    </span>
-                    {isAttendanceWarning && <AlertCircle className={`w-5 h-5 ${attText}`} />}
-                  </div>
-                  <span className={`${attText} opacity-70 text-xs font-bold`}>
-                    {absences} absence{absences > 1 ? 's' : ''} ce trimestre
-                  </span>
-                </div>
-
-                {/* Comportement */}
-                <div className={`${themeBg} border border-slate-100/50 p-4 rounded-3xl shadow-sm flex flex-col justify-center items-start`}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className={`w-8 h-8 rounded-full bg-white flex items-center justify-center ${themeText} shadow-sm`}>
-                      <AlertCircle className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <span className={`${themeText} opacity-80 text-[10px] font-black uppercase tracking-widest mb-0.5`}>Statut</span>
-                  <span className={`text-lg font-black ${themeText}`}>
-                    {isExcellent ? 'Excellent' : isGood ? 'Bon' : 'Fragile'}
-                  </span>
-                </div>
-
-                {/* Point Fort */}
-                <div className="bg-indigo-50 border border-indigo-100/50 p-4 rounded-3xl shadow-sm flex flex-col justify-center items-start">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
-                      <Zap className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <span className="text-indigo-700/80 text-[10px] font-black uppercase tracking-widest mb-1">Point Fort</span>
-                  <span className="text-sm font-black text-indigo-700 leading-tight">
-                    {initialStudentData.strengths[0]}
-                  </span>
-                </div>
+              <div className="flex items-baseline gap-2 mb-1">
+                <span className={`text-5xl font-black tracking-tighter ${attText}`}>{attendanceRate}%</span>
+                {isAttendanceWarning && <AlertCircle className={`w-6 h-6 ${attText}`} />}
               </div>
-
+              <p className={`${attText} opacity-70 font-bold text-sm mt-2`}>
+                {absences} absence{absences > 1 ? 's' : ''} signalée{absences > 1 ? 's' : ''}
+              </p>
             </div>
 
-            {/* TABS & DETAILS / PC RIGHT COL */}
-            <div className="lg:col-span-8 mt-6 lg:mt-0 flex flex-col">
+            {/* Observations Card */}
+            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+              <h3 className="font-black text-slate-800 mb-5 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-500" /> Points Clés
+              </h3>
               
-              {/* STICKY TABS AREA */}
-              <div className="sticky top-0 z-30 bg-white/90 backdrop-blur-md pt-2 pb-3 mb-4 sm:mb-6 border-b border-slate-200/50">
-                <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                  <button 
-                    onClick={() => setActiveTab('notes')}
-                    className={`shrink-0 px-5 py-2.5 rounded-full text-sm font-bold transition-all ${activeTab === 'notes' ? 'bg-slate-800 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                  >
-                    📊 Notes
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab('observations')}
-                    className={`shrink-0 px-5 py-2.5 rounded-full text-sm font-bold transition-all ${activeTab === 'observations' ? 'bg-slate-800 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                  >
-                    📝 Observations
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab('ia')}
-                    className={`shrink-0 px-5 py-2.5 rounded-full text-sm font-bold transition-all ${activeTab === 'ia' ? 'bg-gradient-to-r from-fuchsia-600 to-indigo-600 text-white shadow-md shadow-fuchsia-500/20' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                  >
-                    🤖 Analyse IA
-                  </button>
+              <div className="mb-5">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5">
+                  <ThumbsUp className="w-3 h-3 text-emerald-500" /> Qualités
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {strengths.map((str: string, i: number) => (
+                    <span key={i} className="bg-emerald-50 text-emerald-700 border border-emerald-100/50 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm">
+                      {str}
+                    </span>
+                  ))}
                 </div>
               </div>
 
-              {/* TAB CONTENT PORTALS */}
-              <div className="relative">
-                <AnimatePresence mode="wait">
-                  
-                  {/* TAB: NOTES */}
-                  {activeTab === 'notes' && (
-                    <motion.div
-                      key="notes"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                      className="space-y-4"
-                    >
-                      {initialStudentData.recentGrades.map((grade, i) => (
-                        <div key={i} className="flex items-center justify-between p-4 sm:p-5 rounded-3xl bg-white border border-slate-100 shadow-sm hover:border-indigo-200 transition-colors group cursor-pointer">
-                          <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner ${
-                              grade.color === 'sky' ? 'bg-sky-100 text-sky-600' :
-                              grade.color === 'pink' ? 'bg-pink-100 text-pink-600' :
-                              'bg-amber-100 text-amber-600'
-                            }`}>
-                              {grade.subject[0]}
-                            </div>
-                            <div>
-                              <p className="font-bold text-slate-800 lg:text-lg group-hover:text-indigo-600 transition-colors">{grade.subject}</p>
-                              <p className="text-xs sm:text-sm font-medium text-slate-400">{grade.date}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-baseline gap-1 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-                            <span className="text-xl sm:text-2xl font-black text-slate-800">{grade.score}</span>
-                            <span className="text-xs sm:text-sm font-bold text-slate-400">/{grade.max}</span>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      {/* Weaknesses / Strengths minified section at bottom of notes */}
-                      <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="bg-emerald-50 rounded-3xl p-4 border border-emerald-100">
-                          <div className="flex items-center gap-2 mb-3 text-emerald-700 font-black">
-                            <Star className="w-4 h-4" /> Qualités
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {initialStudentData.strengths.slice(0,3).map((s,i) => (
-                              <span key={i} className="text-xs font-bold bg-white text-emerald-600 px-2 py-1 rounded-lg shadow-sm border border-emerald-100/50">{s}</span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="bg-rose-50 rounded-3xl p-4 border border-rose-100">
-                          <div className="flex items-center gap-2 mb-3 text-rose-700 font-black">
-                            <AlertCircle className="w-4 h-4" /> Lacunes
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {initialStudentData.weaknesses.map((w,i) => (
-                              <span key={i} className="text-xs font-bold bg-white text-rose-600 px-2 py-1 rounded-lg shadow-sm border border-rose-100/50">{w}</span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
+              <div>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5">
+                  <ThumbsDown className="w-3 h-3 text-rose-500" /> Axes d&apos;amélioration
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {weaknesses.map((wk: string, i: number) => (
+                    <span key={i} className="bg-rose-50 text-rose-700 border border-rose-100/50 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm">
+                      {wk}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
 
-                  {/* TAB: OBSERVATIONS */}
-                  {activeTab === 'observations' && (
-                    <motion.div
+          </div>
+
+          {/* RIGHT COLUMN: BOOK OF COMPETENCIES & TABS */}
+          <div className="lg:col-span-2 flex flex-col min-w-0">
+            
+            {/* Styled Tabs */}
+            <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6 p-1 bg-slate-200/50 rounded-[1.5rem] self-start max-w-full">
+              <button 
+                onClick={() => setActiveTab('competencies')}
+                className={`px-5 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'competencies' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Évaluation
+              </button>
+              <button 
+                onClick={() => setActiveTab('observations')}
+                className={`px-5 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'observations' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Carnet de bord
+              </button>
+            </div>
+
+            <div className="relative">
+              <AnimatePresence mode="wait">
+                {/* COMPETENCIES TAB */}
+                {activeTab === 'competencies' && (
+                  <motion.div
+                    key="competencies"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="space-y-4"
+                  >
+                    <h2 className="text-xl font-black text-slate-800 mb-4 px-2">Carnet de Compétences</h2>
+                    
+                    {competencies.length === 0 ? (
+                      <div className="bg-white p-8 rounded-[2rem] text-center border border-slate-100 shadow-sm">
+                        <p className="text-slate-500 font-medium">Aucune évaluation enregistrée pour cet élève.</p>
+                      </div>
+                    ) : (
+                      competencies.map((comp, i) => {
+                        const format = gradeFormat[comp.grade] || gradeFormat["C"]
+                        
+                        return (
+                          <div key={i} className="bg-white p-5 sm:p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 hover:shadow-md transition-shadow">
+                            
+                            {/* Huge Letter Macaron */}
+                            <div className={`w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-3xl flex items-center justify-center text-3xl sm:text-4xl font-black shadow-inner border-2 ${format.bg} ${format.color} ${format.border}`}>
+                              {comp.grade}
+                            </div>
+                            
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-2">
+                                <h3 className="font-black text-slate-800 text-lg sm:text-xl truncate pr-4">{comp.subject}</h3>
+                                <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg shrink-0">{comp.date}</span>
+                              </div>
+                              
+                              <p className="text-sm font-medium text-slate-500 mb-4 leading-relaxed">
+                                {comp.details}
+                              </p>
+                              
+                              {/* Progress bar visual */}
+                              <div className="flex items-center gap-3">
+                                <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className={`h-full rounded-full transition-all duration-1000 ${format.progress}`} />
+                                </div>
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${format.color}`}>
+                                  {format.label}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                  </motion.div>
+                )}
+
+                {activeTab === 'observations' && (
+                  <motion.div
                       key="observations"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2 }}
                       className="space-y-6"
-                    >
-                       {/* Input Area */}
-                      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm relative">
+                  >
+                      <div className="bg-white rounded-[2rem] p-4 sm:p-6 border border-slate-100 shadow-sm relative focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
                         <textarea
                           value={newRemark}
                           onChange={(e) => setNewRemark(e.target.value)}
-                          placeholder="Une remarque sur l'élève ?"
-                          className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 pr-14 min-h-[120px] resize-none focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/10 transition-all text-slate-700 font-medium placeholder:text-slate-400"
+                          placeholder="Ajouter une note ou une observation..."
+                          className="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] p-4 pr-16 min-h-[120px] resize-none focus:outline-none focus:border-indigo-300 transition-all text-slate-700 font-medium placeholder:text-slate-400"
                         />
                         <button 
                           onClick={handleAddRemark}
                           disabled={!newRemark.trim()}
-                          className="absolute bottom-6 right-6 w-10 h-10 sm:w-12 sm:h-12 bg-slate-800 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-slate-700 active:scale-95 disabled:opacity-50 disabled:active:scale-100 transition-all"
+                          className="absolute bottom-8 right-8 w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg hover:bg-indigo-700 active:scale-95 disabled:opacity-50 transition-all"
                         >
-                          <Send className="w-4 h-4 sm:w-5 sm:h-5 ml-0.5" />
+                          <Send className="w-5 h-5 ml-1" />
                         </button>
                       </div>
 
-                      {/* Remarks Timeline */}
                       <div className="space-y-4">
                         <AnimatePresence>
                           {remarks.map((remark) => (
@@ -345,93 +428,28 @@ export default function StudentProfile() {
                               animate={{ opacity: 1, height: "auto" }}
                               exit={{ opacity: 0, height: 0 }}
                               key={remark.id} 
-                              className="bg-white border border-slate-100 rounded-3xl p-4 sm:p-5 shadow-sm overflow-hidden"
+                              className="bg-white border border-slate-100 rounded-[2rem] p-5 sm:p-6 shadow-sm overflow-hidden"
                             >
-                              <div className="flex items-center gap-2 mb-2">
-                                <Clock className="w-4 h-4 text-slate-300" />
-                                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{remark.date}</span>
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                                  <Clock className="w-4 h-4 text-slate-400" />
+                                </div>
+                                <span className="text-xs font-black text-slate-500 uppercase tracking-widest">{remark.date}</span>
                               </div>
-                              <p className="text-slate-700 font-medium leading-relaxed text-sm sm:text-base">{remark.text}</p>
+                              <p className="text-slate-700 font-medium leading-relaxed sm:text-lg pl-10">{remark.text}</p>
                             </motion.div>
                           ))}
-                        </AnimatePresence>
-                        {remarks.length === 0 && (
-                          <div className="text-center bg-transparent py-8">
-                            <p className="text-slate-400 font-bold text-sm">Aucune observation.</p>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* TAB: IA */}
-                  {activeTab === 'ia' && (
-                    <motion.div
-                      key="ia"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                      className="space-y-6"
-                    >
-                      <div className="bg-gradient-to-br from-indigo-900 via-fuchsia-900 to-rose-900 rounded-[2rem] p-6 sm:p-8 text-white shadow-xl shadow-fuchsia-900/20 relative overflow-hidden">
-                        
-                        {/* Shimmer effect */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_3s_infinite]" />
-                        
-                        <div className="relative z-10 flex flex-col items-center text-center">
-                          <div className="w-16 h-16 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center mb-4 shadow-2xl">
-                            <BrainCircuit className="w-8 h-8 text-fuchsia-300" />
-                          </div>
-                          <h2 className="text-2xl font-black mb-2 select-none tracking-tight">Rapport d&apos;Évolution IA</h2>
-                          <p className="text-fuchsia-200/80 text-sm font-medium mb-8 max-w-sm">
-                            Une synthèse prédictive basée sur les notes, l&apos;assiduité et vos observations.
-                          </p>
                           
-                          <button 
-                            onClick={handleGenerateAI}
-                            disabled={isGeneratingAI}
-                            className="w-full sm:w-auto bg-gradient-to-r from-rose-400 to-pink-500 text-white px-8 py-4 rounded-full text-sm font-black shadow-md transition-all flex items-center justify-center gap-2 hover:shadow-lg hover:scale-105 active:scale-95 disabled:opacity-80 disabled:hover:scale-100"
-                          >
-                            {isGeneratingAI ? (
-                              <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
-                                <Sparkles className="w-5 h-5" />
-                              </motion.div>
-                            ) : (
-                              <Sparkles className="w-5 h-5" />
-                            )}
-                            {isGeneratingAI ? "Génération en cours..." : "Générer un Rapport Premium"}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Display analysis if generated or mock */}
-                      <div className="bg-white rounded-[2rem] p-5 sm:p-6 shadow-sm border border-slate-100">
-                        <div className="flex items-center gap-2 mb-4">
-                          <Target className="w-5 h-5 text-indigo-500" />
-                          <h3 className="font-bold tracking-tight text-slate-800">Synthèse actuelle</h3>
-                        </div>
-                        <p className="text-slate-600 font-medium leading-relaxed text-sm sm:text-base mb-6">
-                          {initialStudentData.aiAnalysis.summary}
-                        </p>
-                        
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Recommandations</h4>
-                        <div className="space-y-2">
-                          {initialStudentData.aiAnalysis.actionPlan.map((action, idx) => (
-                            <div key={idx} className="flex gap-3 bg-slate-50 border border-slate-100 rounded-2xl p-3 items-start">
-                              <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 text-xs font-bold mt-0.5">{idx + 1}</span>
-                              <span className="text-sm font-medium text-slate-700 leading-snug">{action}</span>
+                          {remarks.length === 0 && (
+                            <div className="text-center p-8 text-slate-400 font-medium">
+                              Aucune observation pour l&apos;instant.
                             </div>
-                          ))}
-                        </div>
+                          )}
+                        </AnimatePresence>
                       </div>
-
-                    </motion.div>
-                  )}
-
-                </AnimatePresence>
-              </div>
-
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
@@ -439,3 +457,4 @@ export default function StudentProfile() {
     </div>
   )
 }
+

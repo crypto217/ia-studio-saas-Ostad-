@@ -26,10 +26,11 @@ import { db } from "@/firebase"
 import { collection, query, onSnapshot, deleteDoc, doc, where } from "firebase/firestore"
 import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
 import Link from "next/link"
+import Markdown from "react-markdown"
 import { useAuth } from "@/components/AuthProvider"
 import { useIsMobile } from "@/hooks/use-mobile"
 
-type DocType = "Cours" | "Exercice" | "Examen"
+type DocType = "Cours" | "Exercice" | "Examen" | "IA"
 
 interface GeneratedDoc {
   id: string
@@ -61,10 +62,13 @@ export default function CoursesLibraryPage() {
   const [viewingDoc, setViewingDoc] = useState<GeneratedDoc | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
+  const [resources, setResources] = useState<any[]>([])
+
   useEffect(() => {
     if (!isAuthReady) return;
     if (!user) {
       setDocs([]);
+      setResources([]);
       setIsLoading(false);
       return;
     }
@@ -76,7 +80,6 @@ export default function CoursesLibraryPage() {
         ...doc.data()
       })) as GeneratedDoc[];
       
-      // Sort client-side to avoid needing a composite index
       fetchedDocs.sort((a, b) => {
         const dateA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
         const dateB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
@@ -90,7 +93,21 @@ export default function CoursesLibraryPage() {
       setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    const qRes = query(collection(db, "resources"), where("userId", "==", user.uid));
+    const unsubRes = onSnapshot(qRes, (snapshot) => {
+      const fetchedRes = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setResources(fetchedRes);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "resources");
+    });
+
+    return () => {
+      unsubscribe();
+      unsubRes();
+    };
   }, [user, isAuthReady]);
 
   const filteredDocs = docs.filter(doc => {
@@ -223,9 +240,9 @@ export default function CoursesLibraryPage() {
   }
 
   return (
-    <div className="min-h-screen pb-24 bg-slate-50/50">
+    <div className="min-h-screen pb-24 bg-slate-50/50 print:bg-white print:p-0">
       {/* HEADER HERO */}
-      <div className={`bg-white border-b border-slate-200 ${isMobile ? 'px-4 py-6' : 'px-4 py-8 sm:px-8'} relative overflow-hidden`}>
+      <div className={`bg-white border-b border-slate-200 ${isMobile ? 'px-4 py-6' : 'px-4 py-8 sm:px-8'} relative overflow-hidden print:hidden`}>
         {/* Decorative background blobs */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
@@ -250,7 +267,7 @@ export default function CoursesLibraryPage() {
         </div>
       </div>
 
-      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-0' : 'px-4 sm:px-8'} mt-8`}>
+      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-0' : 'px-4 sm:px-8'} mt-8 print:hidden`}>
         {/* SEARCH & FILTERS */}
         <div className={`bg-white/80 backdrop-blur-xl ${isMobile ? 'p-4 rounded-[1.5rem]' : 'p-6 sm:p-8 rounded-[3rem]'} shadow-xl shadow-slate-200/40 border-4 border-white mb-12 space-y-8 relative overflow-hidden`}>
           {/* Decorative background elements */}
@@ -387,9 +404,35 @@ export default function CoursesLibraryPage() {
                       </span>
                     </div>
                     
-                    <h3 className="text-xl font-black text-slate-800 leading-tight mb-4 line-clamp-2 flex-1">
+                    <h3 className="text-xl font-black text-slate-800 leading-tight mb-4 flex-1">
                       {doc.title}
                     </h3>
+                    
+                    {/* IA Resources */}
+                    {(() => {
+                      const courseResources = resources.filter(r => r.courseId === doc.id);
+                      if (courseResources.length === 0) return null;
+                      return (
+                        <div className="mb-4">
+                          <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <Sparkles className="w-3 h-3" /> Fiches IA
+                          </h4>
+                          <div className="space-y-1.5">
+                            {courseResources.map(res => (
+                              <div key={res.id} className="flex items-center justify-between bg-[#FFFAF3] hover:bg-slate-50 border border-slate-100 rounded-xl p-2 transition-colors">
+                                <div className="flex items-center gap-2 truncate pr-2">
+                                  <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                  <span className="text-xs font-bold text-slate-700 truncate">{res.title}</span>
+                                </div>
+                                <button onClick={() => setViewingDoc({ ...res, type: 'IA' } as GeneratedDoc)} className="p-1.5 bg-white text-slate-400 hover:text-indigo-600 rounded-lg shadow-sm border border-slate-200 transition-colors shrink-0">
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Actions */}
                     <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-auto">
@@ -458,49 +501,55 @@ export default function CoursesLibraryPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => exportToPDF(viewingDoc.content, viewingDoc.type)} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors font-bold text-sm shadow-md">
-                    <Download className="w-4 h-4" /> <span className="hidden sm:inline">Télécharger PDF</span>
-                  </button>
+                  {viewingDoc.type !== 'IA' && (
+                    <button onClick={() => exportToPDF(viewingDoc.content, viewingDoc.type)} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors font-bold text-sm shadow-md">
+                      <Download className="w-4 h-4" /> <span className="hidden sm:inline">Télécharger PDF</span>
+                    </button>
+                  )}
                   <button onClick={() => {
-                    const printWindow = window.open('', '_blank');
-                    if (printWindow) {
-                      printWindow.document.write(`
-                        <html>
-                          <head>
-                            <title>${viewingDoc.title}</title>
-                            <style>
-                              body { margin: 0; padding: 0; background: white; font-family: Arial, sans-serif; }
-                              .a4-page { width: 210mm; min-height: 297mm; padding: 20mm; margin: 0 auto; box-sizing: border-box; page-break-after: always; }
-                              .main-title { text-align: center; color: #2563eb; font-size: 22px; font-weight: normal; margin-bottom: 20px; }
-                              .info-line { margin-bottom: 4px; }
-                              .flex-line { display: flex; flex-direction: row; justify-content: space-between; width: 100%; gap: 0; margin-bottom: 8px; }
-                              .student-header { display: flex; flex-direction: row; justify-content: space-between; gap: 10px; margin-bottom: 20px; font-weight: bold; font-size: 16px; }
-                              .dotted-line { border-bottom: 2px dotted #94a3b8; width: 100%; display: inline-block; min-height: 20px; margin-top: 5px; }
-                              .label { color: #dc2626; font-weight: bold; text-decoration: underline; }
-                              .value { color: black; }
-                              .section-title { text-align: center; color: #16a34a; font-size: 18px; font-weight: bold; text-decoration: underline; margin: 20px 0 10px 0; }
-                              .step-title { color: #dc2626; font-weight: bold; text-decoration: underline; margin-top: 15px; margin-bottom: 5px; }
-                              .sub-title { color: #16a34a; font-weight: bold; text-decoration: underline; margin-top: 10px; margin-bottom: 5px; }
-                              .answer { color: #0d9488; }
-                              .consigne-box { border: 2px solid #7dd3fc; padding: 10px; margin: 15px 10%; text-align: center; font-weight: normal; border-radius: 8px; background-color: #f0f9ff; page-break-inside: avoid; break-inside: avoid; }
-                              .boite-mots { display: flex; gap: 10px; justify-content: center; margin: 10px 0; flex-wrap: wrap; }
-                              .mot { padding: 5px 20px; border: 1px solid #94a3b8; border-radius: 4px; color: black; font-weight: bold; }
-                              .mot:nth-child(1n) { background-color: #dcfce7; }
-                              .mot:nth-child(2n) { background-color: #ffedd5; }
-                              .mot:nth-child(3n) { background-color: #fce7f3; }
-                              .mot:nth-child(4n) { background-color: #f3e8ff; }
-                              .mot:nth-child(5n) { background-color: #ecfccb; }
-                              .application-box { border: 1px dashed #64748b; padding: 15px; margin-top: 10px; border-radius: 8px; background-color: #f8fafc; overflow-x: auto; page-break-inside: avoid; break-inside: avoid; }
-                              table, tr, td, th { page-break-inside: avoid; break-inside: avoid; }
-                            </style>
-                          </head>
-                          <body>
-                            ${viewingDoc.content}
-                            <script>window.print(); window.close();</script>
-                          </body>
-                        </html>
-                      `);
-                      printWindow.document.close();
+                    if (viewingDoc.type === 'IA') {
+                      window.print();
+                    } else {
+                      const printWindow = window.open('', '_blank');
+                      if (printWindow) {
+                        printWindow.document.write(`
+                          <html>
+                            <head>
+                              <title>${viewingDoc.title}</title>
+                              <style>
+                                body { margin: 0; padding: 0; background: white; font-family: Arial, sans-serif; }
+                                .a4-page { width: 210mm; min-height: 297mm; padding: 20mm; margin: 0 auto; box-sizing: border-box; page-break-after: always; }
+                                .main-title { text-align: center; color: #2563eb; font-size: 22px; font-weight: normal; margin-bottom: 20px; }
+                                .info-line { margin-bottom: 4px; }
+                                .flex-line { display: flex; flex-direction: row; justify-content: space-between; width: 100%; gap: 0; margin-bottom: 8px; }
+                                .student-header { display: flex; flex-direction: row; justify-content: space-between; gap: 10px; margin-bottom: 20px; font-weight: bold; font-size: 16px; }
+                                .dotted-line { border-bottom: 2px dotted #94a3b8; width: 100%; display: inline-block; min-height: 20px; margin-top: 5px; }
+                                .label { color: #dc2626; font-weight: bold; text-decoration: underline; }
+                                .value { color: black; }
+                                .section-title { text-align: center; color: #16a34a; font-size: 18px; font-weight: bold; text-decoration: underline; margin: 20px 0 10px 0; }
+                                .step-title { color: #dc2626; font-weight: bold; text-decoration: underline; margin-top: 15px; margin-bottom: 5px; }
+                                .sub-title { color: #16a34a; font-weight: bold; text-decoration: underline; margin-top: 10px; margin-bottom: 5px; }
+                                .answer { color: #0d9488; }
+                                .consigne-box { border: 2px solid #7dd3fc; padding: 10px; margin: 15px 10%; text-align: center; font-weight: normal; border-radius: 8px; background-color: #f0f9ff; page-break-inside: avoid; break-inside: avoid; }
+                                .boite-mots { display: flex; gap: 10px; justify-content: center; margin: 10px 0; flex-wrap: wrap; }
+                                .mot { padding: 5px 20px; border: 1px solid #94a3b8; border-radius: 4px; color: black; font-weight: bold; }
+                                .mot:nth-child(1n) { background-color: #dcfce7; }
+                                .mot:nth-child(2n) { background-color: #ffedd5; }
+                                .mot:nth-child(3n) { background-color: #fce7f3; }
+                                .mot:nth-child(4n) { background-color: #f3e8ff; }
+                                .mot:nth-child(5n) { background-color: #ecfccb; }
+                                .application-box { border: 1px dashed #64748b; padding: 15px; margin-top: 10px; border-radius: 8px; background-color: #f8fafc; overflow-x: auto; page-break-inside: avoid; break-inside: avoid; }
+                                table, tr, td, th { page-break-inside: avoid; break-inside: avoid; }
+                              </style>
+                            </head>
+                            <body>
+                              ${viewingDoc.content}
+                              <script>window.print(); window.close();</script>
+                            </body>
+                          </html>
+                        `);
+                        printWindow.document.close();
+                      }
                     }
                   }} className="flex items-center gap-2 bg-violet-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-xl hover:bg-violet-700 transition-colors font-bold text-sm shadow-md">
                     <Printer className="w-4 h-4" /> <span className="hidden sm:inline">Imprimer</span>
@@ -514,11 +563,41 @@ export default function CoursesLibraryPage() {
               </div>
 
               {/* Viewer Content */}
-              <div className="flex-1 overflow-y-auto p-0 sm:p-8 bg-slate-100/50 w-full overflow-hidden">
-                <div 
-                  className={`bg-white shadow-sm mx-auto w-full sm:max-w-4xl rounded-sm ${isMobile ? 'p-4' : 'p-4 sm:p-8'} overflow-hidden @container [&_*]:!max-w-full [&_*]:!box-border [&_*]:![overflow-wrap:anywhere] [&_*]:![word-break:break-word] [&_img]:!max-w-full [&_img]:!w-full [&_img]:!h-auto [&_video]:!max-w-full [&_video]:!w-full [&_video]:!h-auto [&_iframe]:!max-w-full [&_iframe]:!w-full [&_iframe]:!h-auto [&_table]:!block [&_table]:!max-w-full [&_table]:!overflow-x-auto`} 
-                  dangerouslySetInnerHTML={{ __html: viewingDoc.content }} 
-                />
+              <div className="flex-1 overflow-y-auto p-0 sm:p-8 bg-slate-100/50 w-full overflow-hidden print:bg-white print:p-0 print:overflow-visible">
+                {viewingDoc.type === 'IA' ? (
+                  <div className="bg-[#FFFAF3] shadow-sm mx-auto w-full sm:max-w-4xl rounded-sm p-8 md:p-12 prose print:w-full print:max-w-none print:bg-white print:text-black print:p-0 print:shadow-none print:border-none [&_tr]:break-inside-avoid [&_table]:break-inside-auto [&_h1]:break-after-avoid [&_h2]:break-after-avoid [&_h3]:break-after-avoid">
+                    <Markdown
+                      components={{
+                        strong: ({node, ...props}) => <strong className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100 shadow-sm" {...props} />,
+                        em: ({node, ...props}) => <em className="not-italic font-semibold text-rose-700 underline decoration-rose-400 decoration-wavy decoration-2 underline-offset-4" {...props} />,
+                        h2: ({node, ...props}) => <h2 className="text-lg sm:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-indigo-600 mt-6 mb-3 inline-block border-b-2 border-indigo-100 pb-1" {...props} />,
+                        h3: ({node, ...props}) => <h3 className="text-base sm:text-lg font-bold text-violet-700 mt-4 mb-2" {...props} />,
+                        ul: ({node, ...props}) => <ul className="space-y-2.5 mt-3 mb-5" {...props} />,
+                        ol: ({node, ...props}) => <ol className="space-y-2.5 mt-3 mb-5 list-decimal pl-5 marker:text-indigo-600 marker:font-bold" {...props} />,
+                        li: ({node, className, children, ...props}: any) => (
+                          <li className="flex items-start gap-3 text-slate-700 leading-relaxed" {...props}>
+                            {node?.parent?.tagName === 'ol' ? (
+                              <span className="shrink-0 mt-0.5 text-indigo-600 font-bold">•</span>
+                            ) : (
+                              <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-violet-400 to-indigo-400 mt-2.5 shrink-0 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                            )}
+                            <span className="flex-1">{children}</span>
+                          </li>
+                        ),
+                        p: ({node, ...props}) => <p className="mb-4 last:mb-0 text-slate-700 leading-relaxed" {...props} />,
+                        blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-amber-400 bg-gradient-to-r from-amber-50 to-amber-50/10 pl-4 py-3 text-slate-700 my-4 rounded-r-xl italic shadow-sm" {...props} />,
+                        a: ({node, ...props}) => <a className="text-indigo-600 hover:text-indigo-800 underline decoration-indigo-300 decoration-2 underline-offset-2 transition-colors font-medium" {...props} />
+                      }}
+                    >
+                      {viewingDoc.content}
+                    </Markdown>
+                  </div>
+                ) : (
+                  <div 
+                    className={`bg-white shadow-sm mx-auto w-full sm:max-w-4xl rounded-sm ${isMobile ? 'p-4' : 'p-4 sm:p-8'} overflow-hidden @container [&_*]:!max-w-full [&_*]:!box-border [&_*]:![overflow-wrap:anywhere] [&_*]:![word-break:break-word] [&_img]:!max-w-full [&_img]:!w-full [&_img]:!h-auto [&_video]:!max-w-full [&_video]:!w-full [&_video]:!h-auto [&_iframe]:!max-w-full [&_iframe]:!w-full [&_iframe]:!h-auto [&_table]:!block [&_table]:!max-w-full [&_table]:!overflow-x-auto`} 
+                    dangerouslySetInnerHTML={{ __html: viewingDoc.content }} 
+                  />
+                )}
               </div>
             </motion.div>
           </div>

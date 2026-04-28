@@ -80,7 +80,7 @@ export function StatsPreview() {
       {/* Effectif (Statistiques -> Bleu) */}
       <Card className="bg-blue-600 border-0 shadow-md rounded-2xl sm:rounded-3xl hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden h-full w-full flex flex-col">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <CardContent className="p-3 sm:p-6 flex flex-col justify-between h-full gap-2 sm:gap-3 relative z-10">
+        <CardContent className="p-3 sm:p-4 flex flex-col justify-between h-full gap-2 sm:gap-3 relative z-10">
           <div className="flex justify-between items-start gap-2">
             <div className="flex flex-col">
               <span className="text-xs sm:text-sm font-bold text-blue-100 uppercase tracking-wider">Effectif</span>
@@ -105,7 +105,7 @@ export function StatsPreview() {
       {/* Moyenne (Progression -> Vert) */}
       <Card className="bg-emerald-500 border-0 shadow-md rounded-2xl sm:rounded-3xl hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden h-full w-full flex flex-col">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <CardContent className="p-3 sm:p-6 flex flex-col justify-between h-full gap-2 sm:gap-3 relative z-10">
+        <CardContent className="p-3 sm:p-4 flex flex-col justify-between h-full gap-2 sm:gap-3 relative z-10">
           <div className="flex justify-between items-start gap-2">
             <div className="flex flex-col">
               <span className="text-xs sm:text-sm font-bold text-emerald-100 uppercase tracking-wider">Moyenne</span>
@@ -130,7 +130,7 @@ export function StatsPreview() {
       {/* Difficultés (Erreurs -> Rouge) */}
       <Card className="bg-rose-500 border-0 shadow-md rounded-2xl sm:rounded-3xl hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden h-full w-full flex flex-col">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <CardContent className="p-3 sm:p-6 flex flex-col justify-between h-full gap-2 sm:gap-3 relative z-10">
+        <CardContent className="p-3 sm:p-4 flex flex-col justify-between h-full gap-2 sm:gap-3 relative z-10">
           <div className="flex justify-between items-start gap-2">
             <div className="flex flex-col">
               <span className="text-xs sm:text-sm font-bold text-rose-100 uppercase tracking-wider">Difficulté</span>
@@ -155,7 +155,7 @@ export function StatsPreview() {
       {/* Groupes/Classes (Structure -> Violet) */}
       <Card className="bg-violet-600 border-0 shadow-md rounded-2xl sm:rounded-3xl hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden h-full w-full flex flex-col">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <CardContent className="p-3 sm:p-6 flex flex-col justify-between h-full gap-2 sm:gap-3 relative z-10">
+        <CardContent className="p-3 sm:p-4 flex flex-col justify-between h-full gap-2 sm:gap-3 relative z-10">
           <div className="flex justify-between items-start gap-2">
             <div className="flex flex-col">
               <span className="text-xs sm:text-sm font-bold text-violet-100 uppercase tracking-wider">Classes</span>

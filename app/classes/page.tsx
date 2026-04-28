@@ -111,44 +111,56 @@ const initialMockClasses: ClassData[] = [
 
 const themeStyles = {
   amber: {
-    gradient: "from-amber-400 to-orange-500",
-    bg: "bg-amber-50",
+    gradient: "from-amber-400 to-amber-500",
+    bg: "bg-white",
     text: "text-amber-600",
-    border: "border-amber-200",
-    shadow: "shadow-amber-500/20",
-    icon: Star
+    border: "border-slate-200",
+    borderBottom: "border-b-amber-500 border-b-[4px]", // keeping a subtle touch if needed, or remove completely as per instruction. Wait, instruction says: "Supprime les classes d'effet 3D... Remets les couleurs de fond en blanc".
+    // Let's just rely on the main standard Card classes for border
+    shadow: "shadow-amber-500/10",
+    icon: Star,
+    badgeBg: "bg-amber-100",
+    badgeText: "text-amber-800"
   },
   emerald: {
-    gradient: "from-emerald-400 to-teal-500",
-    bg: "bg-emerald-50",
+    gradient: "from-emerald-400 to-emerald-500",
+    bg: "bg-white",
     text: "text-emerald-600",
-    border: "border-emerald-200",
-    shadow: "shadow-emerald-500/20",
-    icon: Award
+    border: "border-slate-200",
+    shadow: "shadow-emerald-500/10",
+    icon: Award,
+    badgeBg: "bg-emerald-100",
+    badgeText: "text-emerald-800"
   },
   violet: {
-    gradient: "from-violet-400 to-fuchsia-500",
-    bg: "bg-violet-50",
+    gradient: "from-violet-400 to-violet-500",
+    bg: "bg-white",
     text: "text-violet-600",
-    border: "border-violet-200",
-    shadow: "shadow-violet-500/20",
-    icon: Sparkles
+    border: "border-slate-200",
+    shadow: "shadow-violet-500/10",
+    icon: Sparkles,
+    badgeBg: "bg-violet-100",
+    badgeText: "text-violet-800"
   },
   sky: {
-    gradient: "from-sky-400 to-blue-500",
-    bg: "bg-sky-50",
+    gradient: "from-sky-400 to-sky-500",
+    bg: "bg-white",
     text: "text-sky-600",
-    border: "border-sky-200",
-    shadow: "shadow-sky-500/20",
-    icon: BookOpen
+    border: "border-slate-200",
+    shadow: "shadow-sky-500/10",
+    icon: BookOpen,
+    badgeBg: "bg-sky-100",
+    badgeText: "text-sky-800"
   },
   rose: {
-    gradient: "from-rose-400 to-pink-500",
-    bg: "bg-rose-50",
+    gradient: "from-rose-400 to-rose-500",
+    bg: "bg-white",
     text: "text-rose-600",
-    border: "border-rose-200",
-    shadow: "shadow-rose-500/20",
-    icon: Users
+    border: "border-slate-200",
+    shadow: "shadow-rose-500/10",
+    icon: Users,
+    badgeBg: "bg-rose-100",
+    badgeText: "text-rose-800"
   }
 }
 
@@ -171,7 +183,6 @@ export default function StudentsPage() {
     return initialMockClasses
   })
   
-  const [selectedClass, setSelectedClass] = useState<ClassData | null>(null)
   const [filterCycle, setFilterCycle] = useState<string>("Toutes")
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   
@@ -218,125 +229,22 @@ export default function StudentsPage() {
     ? classes 
     : classes.filter(c => c.cycle === filterCycle)
 
-  // --- RENDER STUDENTS LIST FOR A SELECTED CLASS ---
-  if (selectedClass) {
-    const theme = themeStyles[selectedClass.theme]
-    return (
-      <div className="bg-slate-50 min-h-full">
-        {/* Class Header */}
-        <div className={`bg-gradient-to-br ${theme.gradient} px-4 py-6 sm:px-8 sm:py-10 text-white relative shadow-sm rounded-[2rem] sm:rounded-3xl`}>
-          <div className="max-w-6xl mx-auto">
-            <button 
-              onClick={() => setSelectedClass(null)}
-              className="flex items-center gap-2 text-white/90 hover:text-white font-bold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl transition-colors mb-4 backdrop-blur-sm"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Retour aux classes
-            </button>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white font-bold text-xs shadow-inner">
-                    {selectedClass.cycle}
-                  </div>
-                </div>
-                <h1 className="text-3xl sm:text-5xl font-black tracking-tight">{selectedClass.name}</h1>
-                <div className="flex flex-wrap items-center gap-3 text-white/90 font-medium mt-4">
-                  <div className="flex items-center gap-1.5 bg-black/20 px-3 py-1.5 rounded-xl backdrop-blur-sm text-sm">
-                    <Clock className="w-4 h-4" />
-                    {selectedClass.schedule}
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-black/20 px-3 py-1.5 rounded-xl backdrop-blur-sm text-sm">
-                    <MapPin className="w-4 h-4" />
-                    {selectedClass.room}
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white text-slate-800 rounded-3xl p-4 sm:p-6 shadow-xl flex items-center gap-4 min-w-[200px]">
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center text-white shadow-inner`}>
-                  <TrendingUp className="w-7 h-7" />
-                </div>
-                <div>
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Moyenne</p>
-                  <p className="text-3xl font-black">{selectedClass.average}<span className="text-lg text-slate-400">/20</span></p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Students List Content */}
-        <div className="max-w-6xl mx-auto py-6 sm:py-8 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl sm:text-2xl font-black text-slate-800 flex items-center gap-2">
-              <Users className="w-6 h-6 text-indigo-500" />
-              {selectedClass.studentsCount} élèves inscrits
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {selectedClass.students.map((student) => (
-              <motion.div 
-                whileTap={{ scale: 0.98 }}
-                key={student.id} 
-                className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md hover:-translate-y-1 hover:border-indigo-200 transition-all cursor-pointer group"
-              >
-                <div className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center text-xl font-black text-white shadow-inner group-hover:scale-105 transition-transform ${
-                  student.status === 'excellent' ? 'bg-gradient-to-br from-emerald-400 to-teal-500' :
-                  student.status === 'good' ? 'bg-gradient-to-br from-sky-400 to-blue-500' :
-                  'bg-gradient-to-br from-amber-400 to-orange-500'
-                }`}>
-                  {getInitials(student.name)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-black text-slate-800 truncate group-hover:text-indigo-600 transition-colors text-lg">{student.name}</p>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
-                      student.gender === 'M' ? 'bg-sky-100 text-sky-600' : 'bg-pink-100 text-pink-600'
-                    }`}>
-                      {student.gender === 'M' ? 'Garçon' : 'Fille'}
-                    </span>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
-                      student.status === 'excellent' ? 'bg-emerald-100 text-emerald-700' :
-                      student.status === 'good' ? 'bg-sky-100 text-sky-700' :
-                      'bg-amber-100 text-amber-700'
-                    }`}>
-                      {student.status === 'excellent' ? 'Niveau Excellent' : student.status === 'good' ? 'Bon Niveau' : 'Aide requise'}
-                    </span>
-                  </div>
-                </div>
-                {student.status === 'needs_help' && (
-                  <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
-                )}
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   // --- RENDER CLASSES LIST (INITIAL STATE) ---
   return (
-    <div className="min-h-full bg-slate-50 flex flex-col gap-4 sm:gap-6 max-w-7xl mx-auto">
-      {/* Welcome Banner Style Header */}
-      <div className="relative overflow-hidden rounded-[2rem] sm:rounded-3xl bg-indigo-500 px-4 py-5 sm:py-10 md:px-12 md:py-16 text-white shadow-sm border border-indigo-600 flex items-center justify-between">
-        <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl opacity-50 md:opacity-100" />
-        <div className="absolute right-0 bottom-0 h-64 w-64 rounded-full bg-indigo-700/30 blur-3xl opacity-50 md:opacity-100" />
-        
-        <div className="relative z-10 max-w-xl w-full">
-          <div className="flex items-center gap-3 mb-2 sm:mb-4">
-            <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight flex items-center gap-2 md:gap-3">
-              <Sparkles className="w-6 h-6 sm:w-10 sm:h-10 text-amber-300 fill-amber-300" />
-              Mes Élèves
-            </h1>
-          </div>
-          <p className="text-indigo-100 font-medium text-sm md:text-lg mb-0 max-w-md">
-            Consultez vos classes, suivez les progrès et gardez un œil sur tous vos élèves.
-          </p>
-        </div>
+    <div className="min-h-full bg-slate-50 flex flex-col gap-4 sm:gap-6 max-w-7xl mx-auto pb-24">
+      {/* Dashboard App Bar */}
+      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-4 -mx-4 sm:mx-0 sm:px-0 flex justify-between items-center">
+        <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 text-slate-800">
+          <BookOpen className="w-6 h-6 text-indigo-500" />
+          Mes Classes
+        </h1>
+        <button 
+          onClick={() => setIsAddModalOpen(true)}
+          className="hidden sm:flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-xl shadow-sm transition-all hover:-translate-y-0.5 active:scale-95"
+        >
+          <Plus className="w-5 h-5" />
+          Nouvelle
+        </button>
       </div>
 
       {/* Filter Tabs */}
@@ -373,46 +281,48 @@ export default function StudentsPage() {
               const Icon = theme.icon
               
               return (
-                <motion.div
-                  key={cls.id}
-                  layoutId={`class-card-${cls.id}`}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  onClick={() => setSelectedClass(cls)}
-                  className={`cursor-pointer bg-white border-2 border-slate-200 border-b-[6px] rounded-[2rem] p-6 transition-all hover:-translate-y-1 hover:border-b-[3px] active:translate-y-1 active:border-b-2 relative overflow-hidden group flex flex-col justify-between min-h-[160px]`}
-                >
-                  <button 
-                    onClick={(e) => deleteClass(e, cls.id)}
-                    className="absolute top-4 right-4 p-2 rounded-xl bg-slate-50 text-slate-400 hover:bg-rose-500 hover:text-white transition-all z-20 shadow-sm"
-                    title="Supprimer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-
-                  <div>
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center text-white shadow-inner`}>
-                        <Icon className="w-6 h-6" />
+                <Link key={cls.id} href={`/classes/${cls.id}`} className="contents">
+                    <motion.div
+                      layoutId={`class-card-${cls.id}`}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className={`cursor-pointer bg-white rounded-3xl border border-slate-200 shadow-sm transition-transform hover:-translate-y-1 hover:shadow-md p-5 active:scale-[0.98] select-none [-webkit-tap-highlight-color:transparent] min-h-[160px] flex flex-col justify-between group`}
+                    >
+                    <button 
+                      onClick={(e) => deleteClass(e, cls.id)}
+                      className="absolute top-4 right-4 p-2 rounded-xl bg-slate-50 text-slate-400 hover:bg-rose-500 hover:text-white transition-all z-20 shadow-sm"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+  
+                    <div className="flex flex-col gap-4 w-full">
+                      <div className="flex items-center justify-between">
+                        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center text-white shadow-inner shrink-0`}>
+                          <Icon className="w-7 h-7" strokeWidth={2.5} />
+                        </div>
                       </div>
-                      <div className={`font-black text-xs px-2.5 py-1 rounded-lg ${theme.bg} ${theme.text}`}>
-                        {cls.cycle}
+                      <div className="mt-2">
+                        <div className={`inline-block font-black text-xs px-2.5 py-1 rounded-lg mb-2 ${theme.badgeBg} ${theme.badgeText}`}>
+                          {cls.cycle}
+                        </div>
+                        <h2 className="text-xl font-black tracking-tight line-clamp-2 text-slate-800">{cls.name}</h2>
                       </div>
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-800 truncate pr-10">{cls.name}</h2>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-6 pt-2 border-t border-slate-100">
-                    <div className="flex items-center gap-2 text-sm font-bold text-slate-500">
-                      <Users className="w-5 h-5 text-slate-400" />
-                      {cls.studentsCount} élèves
+  
+                    <div className="flex items-center justify-between w-full mt-4 pt-4 border-t border-slate-100">
+                      <div className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500">
+                        <Users className="w-4 h-4 text-slate-400" />
+                        {cls.studentsCount} élèves
+                      </div>
+                      <div className="flex items-center gap-1.5 text-sm font-black text-slate-400 group-hover:text-indigo-500 transition-colors">
+                        Ouvrir
+                        <ChevronRight className="w-4 h-4" />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-sm font-black text-slate-300 group-hover:text-indigo-500 transition-colors">
-                      Ouvrir
-                      <ChevronRight className="w-4 h-4" />
-                    </div>
-                  </div>
-                </motion.div>
+                  </motion.div>
+                </Link>
               )
             })}
           </AnimatePresence>
@@ -422,7 +332,7 @@ export default function StudentsPage() {
       {/* FAB: Floating Action Button */}
       <button 
         onClick={() => setIsAddModalOpen(true)}
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] right-4 md:bottom-8 md:right-8 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white shadow-indigo-500/30 shadow-xl z-30 hover:scale-105 active:scale-95 transition-all border-2 border-white"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] right-4 z-50 flex sm:hidden h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg hover:shadow-xl active:scale-95 transition-all duration-150 [-webkit-tap-highlight-color:transparent]"
       >
         <Plus className="w-7 h-7" strokeWidth={3} />
       </button>

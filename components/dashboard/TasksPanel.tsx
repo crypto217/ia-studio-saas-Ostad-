@@ -102,7 +102,7 @@ export function TasksPanel() {
 
   return (
     <Card className="border border-slate-200 bg-white flex flex-col h-full rounded-[2rem] sm:rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-      <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-100 px-4 sm:px-8 pt-5 sm:pt-8">
+      <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-slate-100 px-4 sm:px-5 pt-4 sm:pt-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
             <ListTodo className="h-5 w-5 sm:h-7 sm:w-7" />
@@ -116,8 +116,8 @@ export function TasksPanel() {
           {pendingCount}
         </div>
       </CardHeader>
-      <CardContent className="flex-1 pt-4 sm:pt-8 flex flex-col px-4 sm:px-8 pb-4 sm:pb-8 overflow-hidden">
-        <div className="space-y-3 sm:space-y-6 flex-1 overflow-y-auto pr-2">
+      <CardContent className="flex-1 pt-3 sm:pt-4 flex flex-col px-4 sm:px-5 pb-4 sm:pb-5 overflow-hidden">
+        <div className="space-y-2 sm:space-y-3 flex-1 overflow-y-auto pr-2">
           {tasks.length === 0 && !isAdding && (
             <div className="text-center py-8 text-slate-500 font-medium">
               Aucune tâche pour le moment.
@@ -134,7 +134,7 @@ export function TasksPanel() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   whileHover={{ y: -4 }}
-                  className={`group relative p-5 rounded-[1.5rem] border-2 transition-all ${
+                  className={`group relative p-4 rounded-[1.25rem] border-2 transition-all ${
                     task.completed 
                       ? 'bg-slate-50 border-slate-200 opacity-75' 
                       : task.urgent
@@ -209,7 +209,7 @@ export function TasksPanel() {
         {!isAdding && (
           <Button 
             onClick={() => setIsAdding(true)}
-            className="mt-4 sm:mt-8 w-full h-12 sm:h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black border-b-[4px] border-indigo-800 shadow-lg hover:-translate-y-1 active:translate-y-[2px] active:border-b-0 transition-all shrink-0 text-base sm:text-lg"
+            className="mt-4 sm:mt-6 w-full h-12 sm:h-14 rounded-xl sm:rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black border-b-[4px] border-indigo-800 shadow-lg hover:-translate-y-1 active:translate-y-[2px] active:border-b-0 transition-all shrink-0 text-base sm:text-lg"
           >
             <Plus className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
             Nouvelle Tâche

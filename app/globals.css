@@ -34,7 +34,7 @@
 @media print {
   @page {
     size: A4;
-    margin: 1.5cm;
+    margin: 15mm;
   }
   body {
     background-color: white;

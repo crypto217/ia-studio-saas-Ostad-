@@ -3,10 +3,12 @@
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "motion/react"
-import { Bot, Send, ArrowLeft, Paperclip, Sparkles, MoreHorizontal } from "lucide-react"
+import { Bot, Send, ArrowLeft, Paperclip, Sparkles, MoreHorizontal, Printer, Bookmark } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { GoogleGenAI } from "@google/genai"
 import Markdown from "react-markdown"
+import { db, auth } from "@/firebase"
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore"
 
 const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY })
 
@@ -57,6 +59,53 @@ export default function ChatPage() {
   useEffect(() => {
     scrollToBottom()
   }, [messages, isTyping])
+
+  const [saveModalOpen, setSaveModalOpen] = useState(false)
+  const [resourceContentToSave, setResourceContentToSave] = useState("")
+  const [courses, setCourses] = useState<any[]>([])
+  const [selectedCourseId, setSelectedCourseId] = useState("")
+
+  const openSaveModal = async (content: string) => {
+    if (!auth.currentUser) {
+      alert("Veuillez vous connecter pour sauvegarder.")
+      return
+    }
+    setResourceContentToSave(content)
+    try {
+      const q = query(collection(db, "courses"), where("teacherId", "==", auth.currentUser.uid))
+      const snapshot = await getDocs(q)
+      const fetchedCourses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setCourses(fetchedCourses)
+      if (fetchedCourses.length > 0) setSelectedCourseId(fetchedCourses[0].id)
+      setSaveModalOpen(true)
+    } catch (err) {
+      console.error(err)
+      alert("Erreur lors du chargement des cours.")
+    }
+  }
+
+  const confirmSaveToCourse = async () => {
+    if (!selectedCourseId || !auth.currentUser) return
+
+    try {
+      const firstLine = resourceContentToSave.split('\n').map(l => l.replace(/#/g, '').trim()).filter(l => l.length > 0)[0] || "Nouvelle ressource"
+      const title = firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine
+      
+      await addDoc(collection(db, "resources"), {
+        userId: auth.currentUser.uid,
+        courseId: selectedCourseId,
+        title,
+        content: resourceContentToSave,
+        type: "lesson_plan",
+        createdAt: serverTimestamp()
+      })
+      setSaveModalOpen(false)
+      alert("Ressource sauvegardée dans le cours avec succès !")
+    } catch (error) {
+      console.error("Erreur lors de la sauvegarde :", error)
+      alert("Erreur lors de la sauvegarde.")
+    }
+  }
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -122,7 +171,7 @@ export default function ChatPage() {
   }
 
   const renderHeader = () => (
-    <header className="flex items-center p-4 bg-white shadow-sm shrink-0 w-full z-10 sticky top-0 relative">
+    <header className="flex items-center p-4 bg-white shadow-sm shrink-0 w-full z-10 sticky top-0 relative print:hidden">
       <Link 
         href="/ai-generator" 
         className="p-2 sm:p-3 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-xl transition-all mr-2 flex items-center justify-center gap-2"
@@ -148,10 +197,10 @@ export default function ChatPage() {
               initial={{ opacity: 0, scale: 0.95, y: 15, originX: isUser ? 1 : 0 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
-              className={`flex gap-3 w-full ${isUser ? 'justify-end' : 'justify-start'}`}
+              className={`flex gap-3 w-full ${isUser ? 'justify-end print:hidden' : 'justify-start'}`}
             >
               {!isUser && (
-                <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 bg-purple-100 rounded-full flex items-center justify-center mt-1">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 bg-purple-100 rounded-full flex items-center justify-center mt-1 print:hidden">
                   <Sparkles className="w-5 h-5 text-indigo-600" />
                 </div>
               )}
@@ -160,10 +209,11 @@ export default function ChatPage() {
                 className={`max-w-[90%] sm:max-w-[75%] overflow-hidden ${
                   isUser 
                     ? 'bg-indigo-600 text-white rounded-2xl rounded-tr-none p-4 md:p-5 shadow-md leading-relaxed text-[15px]' 
-                    : 'bg-white border border-slate-100 rounded-2xl rounded-tl-none p-4 md:p-5 shadow-sm leading-relaxed text-[15px]'
+                    : 'bg-white border border-slate-100 rounded-2xl rounded-tl-none p-4 md:p-5 shadow-sm leading-relaxed text-[15px] prose print:block print:w-full print:max-w-none print:bg-white print:text-black print:p-0 print:shadow-none print:border-none [&_tr]:break-inside-avoid [&_table]:break-inside-auto [&_h1]:break-after-avoid [&_h2]:break-after-avoid [&_h3]:break-after-avoid'
                 }`}
               >
                 {isUser ? msg.content : (
+                  <>
                   <Markdown
                     components={{
                       strong: ({node, ...props}) => <strong className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100 shadow-sm" {...props} />,
@@ -193,6 +243,19 @@ export default function ChatPage() {
                   >
                     {msg.content}
                   </Markdown>
+                  {msg.id !== "1" && (
+                    <div className="mt-6 flex justify-end gap-3 print:hidden">
+                      <button onClick={() => openSaveModal(msg.content)} className="bg-slate-50 text-slate-500 px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-indigo-50 hover:text-indigo-600 transition border border-slate-200">
+                        <Bookmark size={18} />
+                        Sauvegarder
+                      </button>
+                      <button onClick={() => window.print()} className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-indigo-700 transition shadow-sm font-medium">
+                        <Printer size={18} />
+                        Exporter la fiche
+                      </button>
+                    </div>
+                  )}
+                  </>
                 )}
               </div>
             </motion.div>
@@ -217,6 +280,36 @@ export default function ChatPage() {
         )}
       </AnimatePresence>
       <div ref={messagesEndRef} className="h-1" />
+
+      {saveModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 print:hidden">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl border border-slate-100">
+            <h3 className="text-xl font-bold text-slate-800 mb-4">Sauvegarder la fiche</h3>
+            <p className="text-slate-500 mb-4 text-sm">Sélectionnez le cours auquel attacher cette ressource générée par l&apos;IA.</p>
+            {courses.length > 0 ? (
+              <select 
+                value={selectedCourseId}
+                onChange={e => setSelectedCourseId(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 font-medium"
+              >
+                {courses.map(c => <option key={c.id} value={c.id}>{c.title} • {c.className}</option>)}
+              </select>
+            ) : (
+              <p className="text-rose-500 font-medium mb-6 bg-rose-50 p-4 rounded-xl text-sm">Vous n&apos;avez aucun cours. Créez-en un dans la section Cours avant de sauvegarder.</p>
+            )}
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setSaveModalOpen(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">Annuler</button>
+              <button 
+                onClick={confirmSaveToCourse} 
+                disabled={!selectedCourseId || courses.length === 0} 
+                className="px-5 py-2.5 rounded-xl font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              >
+                Sauvegarder
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </>
   )
 
@@ -255,12 +348,12 @@ export default function ChatPage() {
 
   if (isMobile) {
     return (
-      <div className="fixed inset-0 z-[100] flex flex-col h-[100dvh] w-full bg-[#FFFAF3] overflow-hidden">
+      <div className="fixed inset-0 z-[100] flex flex-col h-[100dvh] w-full bg-[#FFFAF3] overflow-hidden print:bg-white print:h-auto print:overflow-visible print:static">
         {renderHeader()}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 print:p-0 print:overflow-visible">
           {renderMessages()}
         </div>
-        <div className="w-full p-4 pb-6 bg-[#FFFAF3] border-t border-slate-100 shrink-0">
+        <div className="w-full p-4 pb-6 bg-[#FFFAF3] border-t border-slate-100 shrink-0 print:hidden">
           {renderInputArea()}
         </div>
       </div>
@@ -268,12 +361,12 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-11rem)] md:h-[calc(100dvh-6rem)] max-w-5xl mx-auto bg-[#FFFAF3] rounded-2xl shadow-sm overflow-hidden border border-slate-100 mt-4">
+    <div className="flex flex-col h-[calc(100dvh-11rem)] md:h-[calc(100dvh-6rem)] max-w-5xl mx-auto bg-[#FFFAF3] rounded-2xl shadow-sm overflow-hidden border border-slate-100 mt-4 print:h-auto print:overflow-visible print:border-none print:shadow-none print:mt-0 print:block print:bg-white">
       {renderHeader()}
-      <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 print:overflow-visible text-black print:p-0">
         {renderMessages()}
       </div>
-      <div className="w-full p-4 pb-6 md:pb-8 shrink-0 bg-[#FFFAF3]">
+      <div className="w-full p-4 pb-6 md:pb-8 shrink-0 bg-[#FFFAF3] print:hidden">
         {renderInputArea()}
       </div>
     </div>

@@ -28,7 +28,7 @@ const navItemsGroup1 = [
 ]
 
 const navItemsGroup2 = [
-  { name: "Bibliothèque", href: "/courses", icon: BookOpen, color: "text-amber-500", bgActive: "bg-amber-100" },
+  { name: "Cours", href: "/courses", icon: BookOpen, color: "text-amber-500", bgActive: "bg-amber-100" },
   { name: "Générateur IA", href: "/ai-generator", icon: Sparkles, color: "text-rose-500", bgActive: "bg-rose-100" },
   { name: "Statistiques", href: "/statistics", icon: BarChart3, color: "text-cyan-500", bgActive: "bg-cyan-100" },
   { name: "Paramètres", href: "/settings", icon: Settings, color: "text-slate-500", bgActive: "bg-slate-100" },
@@ -67,7 +67,7 @@ export function Sidebar() {
   )
 
   return (
-    <div className="hidden md:flex h-screen w-64 flex-col border-r-2 border-slate-200 bg-white">
+    <div className="hidden md:flex h-screen w-64 flex-col border-r-2 border-slate-200 bg-white sticky top-0 print:hidden">
       <div className="flex h-20 items-center px-8">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400 text-white shadow-sm">

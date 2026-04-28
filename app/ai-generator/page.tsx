@@ -17,6 +17,43 @@ const magicTools = [
   { id: "lesson", name: "📋 Fiches Pédagogiques Express", icon: LayoutTemplate, color: "text-purple-600", bg: "bg-purple-50", ring: "ring-purple-500", description: "Structurez vos séances (déroulement, objectifs, matériel) en quelques secondes." },
 ]
 
+const compressImage = async (base64Str: string): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 800; // Small size for cards
+      const MAX_HEIGHT = 450; // 16:9
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width *= MAX_HEIGHT / height;
+          height = MAX_HEIGHT;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        // compress with JPEG at 0.6 quality
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
+      } else {
+        resolve(base64Str);
+      }
+    };
+    img.onerror = () => resolve(base64Str);
+  });
+};
+
 export default function AIGeneratorPage() {
   const [selectedType, setSelectedType] = useState('lesson')
   const [isGenerating, setIsGenerating] = useState(false)
@@ -100,7 +137,6 @@ export default function AIGeneratorPage() {
         className: saveClass,
         term: saveTerm,
         content: generatedContent,
-        imageUrl: generatedImage,
         createdAt: serverTimestamp(),
         color,
         iconColor,
@@ -316,7 +352,8 @@ REQUIREMENTS:
         for (const part of parts) {
           if (part.inlineData) {
              const base64 = part.inlineData.data;
-             setGeneratedImage(`data:image/jpeg;base64,${base64}`);
+             const compressed = await compressImage(`data:image/jpeg;base64,${base64}`);
+             setGeneratedImage(compressed);
              break;
           }
         }

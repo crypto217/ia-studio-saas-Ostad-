@@ -8,6 +8,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/AuthProvider"
+import { NotificationMenu } from "./NotificationMenu"
 
 const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, color: "text-sky-500", bgActive: "bg-sky-100" },
@@ -54,7 +55,7 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex shrink-0 w-full h-20 items-center justify-between border-b border-indigo-50 bg-white/80 px-4 md:px-8 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 flex shrink-0 w-full h-20 items-center justify-between border-b border-indigo-50 bg-white/80 px-4 md:px-8 backdrop-blur-xl print:hidden">
         <div className="flex items-center gap-4">
           <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -99,63 +100,7 @@ export function Header() {
               </>
             )}
 
-            <div className="relative">
-            <button 
-              onClick={() => setShowNotification(!showNotification)}
-              className="relative rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-            >
-              <Bell className="h-5 w-5" />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-            </button>
-
-            <AnimatePresence>
-              {showNotification && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 15, scale: 0.95, rotate: -2 }}
-                  animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
-                  exit={{ opacity: 0, y: 15, scale: 0.95, rotate: 2 }}
-                  transition={{ type: "spring", bounce: 0.5, duration: 0.5 }}
-                  className="absolute -right-2 sm:-right-4 md:right-0 top-full mt-4 w-[300px] sm:w-[340px] rounded-3xl bg-white p-2 shadow-2xl z-50 origin-top-right border border-slate-100"
-                >
-                  <div className="flex items-center justify-between px-4 pb-3 pt-2 border-b border-slate-100 mb-2">
-                    <h4 className="font-black text-slate-800 text-lg tracking-tight flex items-center gap-2">
-                      <Bell className="w-5 h-5 text-slate-400" />
-                      Notifications
-                    </h4>
-                    <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                      2 nvx
-                    </span>
-                  </div>
-                  
-                  <div className="flex flex-col gap-1 max-h-[320px] overflow-y-auto px-1 pb-1">
-                    {dummyNotifications.map((n) => (
-                      <div key={n.id} className="flex items-start gap-3 p-2.5 rounded-2xl hover:bg-slate-50 transition-colors cursor-pointer group">
-                        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", n.bg, n.color)}>
-                          <n.icon className="h-5 w-5" strokeWidth={2.5} />
-                        </div>
-                        <div className="flex-1 min-w-0 pt-0.5">
-                          <p className="text-sm font-bold text-slate-700 leading-tight group-hover:text-slate-900 transition-colors">
-                            {n.text}
-                          </p>
-                          <p className="text-xs font-semibold text-slate-400 mt-0.5">
-                            {n.time}
-                          </p>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity self-center shrink-0" />
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="p-2 border-t border-slate-100 mt-1">
-                    <button className="w-full py-2 flex items-center justify-center gap-2 text-sm font-bold text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors">
-                      <CheckCircle2 className="w-4 h-4" />
-                      Tout marquer comme lu
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+            <NotificationMenu />
           </div>
           
           <div className="relative flex items-center gap-3 md:border-l md:border-slate-200 md:pl-6">
