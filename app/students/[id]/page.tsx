@@ -79,7 +79,7 @@ export default function StudentProfile() {
              setClassData(classDoc.data())
            }
         }
-        setStudentData(prev => ({ ...prev, className }))
+        setStudentData((prev: any) => ({ ...prev, className }))
 
         // 3. Fetch Grades (Competencies)
         const gradesQ = query(
