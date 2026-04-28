@@ -75,7 +75,7 @@ export function Header() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400 text-white shadow-sm">
               <Sparkles className="h-5 w-5" />
             </div>
-            <span className="text-xl font-black tracking-tight text-slate-800">OSTAD</span>
+            <span className="text-xl font-black tracking-tight text-slate-800">LUDICLASS</span>
           </div>
         </div>
 
@@ -306,7 +306,7 @@ export function Header() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400 text-white shadow-sm">
                   <Sparkles className="h-5 w-5" />
                 </div>
-                <span className="text-xl font-black tracking-tight text-slate-800">OSTAD</span>
+                <span className="text-xl font-black tracking-tight text-slate-800">LUDICLASS</span>
               </div>
               <button 
                 onClick={() => setShowMobileMenu(false)}

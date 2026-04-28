@@ -38,7 +38,7 @@ export default function LoginPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400 text-white shadow-sm">
               <Sparkles className="h-5 w-5" />
             </div>
-            <span className="text-2xl font-black tracking-tight">OSTAD</span>
+            <span className="text-2xl font-black tracking-tight">LUDICLASS</span>
           </div>
         </div>
 
@@ -71,7 +71,7 @@ export default function LoginPage() {
         </div>
 
         <div className="relative z-10">
-          <p className="text-sm text-slate-400 font-medium">© 2026 OSTAD. Conçu pour l&apos;éducation.</p>
+          <p className="text-sm text-slate-400 font-medium">© 2026 LUDICLASS. Conçu pour l&apos;éducation.</p>
         </div>
       </div>
 
@@ -83,7 +83,7 @@ export default function LoginPage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-400 text-white shadow-sm">
               <Sparkles className="h-6 w-6" />
             </div>
-            <span className="text-3xl font-black tracking-tight text-slate-900">OSTAD</span>
+            <span className="text-3xl font-black tracking-tight text-slate-900">LUDICLASS</span>
           </div>
 
           <div className="text-center lg:text-left space-y-3">

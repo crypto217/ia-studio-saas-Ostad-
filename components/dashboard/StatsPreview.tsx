@@ -66,19 +66,19 @@ export function StatsPreview() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-3 sm:gap-6 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4 h-full">
         {[1, 2, 3, 4].map(i => (
-          <Card key={i} className="bg-slate-100 border-0 h-[100px] sm:h-[130px] animate-pulse rounded-2xl sm:rounded-3xl"></Card>
+          <Card key={i} className="bg-slate-100 border-0 h-full min-h-[120px] animate-pulse rounded-2xl w-full flex-1"></Card>
         ))}
       </div>
     )
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 pb-2 sm:pb-0">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 h-full">
       
       {/* Effectif (Statistiques -> Bleu) */}
-      <Card className="bg-blue-600 border-0 shadow-md rounded-2xl sm:rounded-3xl hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+      <Card className="bg-blue-600 border-0 shadow-md rounded-2xl sm:rounded-3xl hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden h-full w-full flex flex-col">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
         <CardContent className="p-3 sm:p-6 flex flex-col justify-between h-full gap-2 sm:gap-3 relative z-10">
           <div className="flex justify-between items-start gap-2">
@@ -97,13 +97,13 @@ export function StatsPreview() {
           </div>
           <div className="mt-auto flex items-center gap-1 sm:gap-2">
             <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-lg bg-white/20 text-white shadow-sm backdrop-blur-md">Total</span>
-            <span className="text-[10px] sm:text-xs font-medium text-blue-100">Élèves inscrits</span>
+            <span className="text-[10px] sm:text-xs font-medium text-blue-100 truncate">Élèves inscrits</span>
           </div>
         </CardContent>
       </Card>
 
       {/* Moyenne (Progression -> Vert) */}
-      <Card className="bg-emerald-500 border-0 shadow-md rounded-2xl sm:rounded-3xl hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+      <Card className="bg-emerald-500 border-0 shadow-md rounded-2xl sm:rounded-3xl hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden h-full w-full flex flex-col">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
         <CardContent className="p-3 sm:p-6 flex flex-col justify-between h-full gap-2 sm:gap-3 relative z-10">
           <div className="flex justify-between items-start gap-2">
@@ -122,13 +122,13 @@ export function StatsPreview() {
           </div>
           <div className="mt-auto flex items-center gap-1 sm:gap-2">
             <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-lg bg-white/20 text-white shadow-sm backdrop-blur-md">Global</span>
-            <span className="text-[10px] sm:text-xs font-medium text-emerald-100">Toutes classes</span>
+            <span className="text-[10px] sm:text-xs font-medium text-emerald-100 truncate">Toutes classes</span>
           </div>
         </CardContent>
       </Card>
 
       {/* Difficultés (Erreurs -> Rouge) */}
-      <Card className="bg-rose-500 border-0 shadow-md rounded-2xl sm:rounded-3xl hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+      <Card className="bg-rose-500 border-0 shadow-md rounded-2xl sm:rounded-3xl hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden h-full w-full flex flex-col">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
         <CardContent className="p-3 sm:p-6 flex flex-col justify-between h-full gap-2 sm:gap-3 relative z-10">
           <div className="flex justify-between items-start gap-2">
@@ -147,13 +147,13 @@ export function StatsPreview() {
           </div>
           <div className="mt-auto flex items-center gap-1 sm:gap-2">
             <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-lg bg-white/20 text-white shadow-sm backdrop-blur-md">&lt; 10/20</span>
-            <span className="text-[10px] sm:text-xs font-medium text-rose-100 hidden sm:inline-block">À surveiller</span>
+            <span className="text-[10px] sm:text-xs font-medium text-rose-100 truncate">À surveiller</span>
           </div>
         </CardContent>
       </Card>
 
       {/* Groupes/Classes (Structure -> Violet) */}
-      <Card className="bg-violet-600 border-0 shadow-md rounded-2xl sm:rounded-3xl hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+      <Card className="bg-violet-600 border-0 shadow-md rounded-2xl sm:rounded-3xl hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden h-full w-full flex flex-col">
         <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
         <CardContent className="p-3 sm:p-6 flex flex-col justify-between h-full gap-2 sm:gap-3 relative z-10">
           <div className="flex justify-between items-start gap-2">
@@ -172,7 +172,7 @@ export function StatsPreview() {
           </div>
           <div className="mt-auto flex items-center gap-1 sm:gap-2">
             <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-lg bg-white/20 text-white shadow-sm backdrop-blur-md">Total</span>
-            <span className="text-[10px] sm:text-xs font-medium text-violet-100 hidden sm:inline-block">Groupes gérés</span>
+            <span className="text-[10px] sm:text-xs font-medium text-violet-100 truncate">Groupes gérés</span>
           </div>
         </CardContent>
       </Card>

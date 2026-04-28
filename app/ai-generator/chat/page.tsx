@@ -10,7 +10,7 @@ import Markdown from "react-markdown"
 
 const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY })
 
-const SYSTEM_INSTRUCTION = `Tu es l'Assistant Ostad, une intelligence artificielle spécialisée pour les enseignants d'école primaire. Ton objectif est de fasciner et d'encourager les enseignants !
+const SYSTEM_INSTRUCTION = `Tu es l'Assistant Ludiclass, une intelligence artificielle spécialisée pour les enseignants d'école primaire. Ton objectif est de fasciner et d'encourager les enseignants !
 
 CRITÈRES DE RÉPONSE OBLIGATOIRES (TRÈS IMPORTANT) :
 - Sois TRÈS DYNAMIQUE, CHALEUREUX et POSITIF. Donne du courage et de l'énergie à l'enseignant !
@@ -39,7 +39,7 @@ const QUICK_PROMPTS = [
 const INITIAL_MESSAGE: Message = {
   id: "1",
   role: "model",
-  content: "Bonjour ! 👋 Je suis l'Assistant Ostad. Prêt(e) à préparer une leçon extraordinaire aujourd'hui ? Je suis là pour vous donner des idées créatives, corriger vos textes ou simplifier les notions complexes. Comment puis-je vous aider ?"
+  content: "Bonjour ! 👋 Je suis l'Assistant Ludiclass. Prêt(e) à préparer une leçon extraordinaire aujourd'hui ? Je suis là pour vous donner des idées créatives, corriger vos textes ou simplifier les notions complexes. Comment puis-je vous aider ?"
 }
 
 export default function ChatPage() {
@@ -131,7 +131,7 @@ export default function ChatPage() {
         <span className="font-medium hidden sm:inline">Retour</span>
       </Link>
       <h1 className="text-lg md:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center gap-2">
-        Assistant Libre Ostad ✨
+        Assistant Libre Ludiclass ✨
       </h1>
     </header>
   )

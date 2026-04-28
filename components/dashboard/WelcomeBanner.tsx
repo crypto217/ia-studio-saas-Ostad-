@@ -47,14 +47,14 @@ export function WelcomeBanner() {
   }, [user, isAuthReady])
 
   return (
-    <div className="relative overflow-hidden rounded-[2rem] sm:rounded-3xl bg-indigo-500 px-4 py-5 sm:py-10 md:px-12 md:py-16 text-white shadow-sm border border-indigo-600 flex items-center justify-between hover:shadow-xl transition-all duration-300">
+    <div className="relative overflow-hidden rounded-[2rem] sm:rounded-3xl bg-indigo-500 px-4 py-4 sm:py-6 md:py-8 md:px-12 text-white shadow-sm border border-indigo-600 flex items-center justify-between hover:shadow-xl transition-all duration-300">
       {/* Background decorative blobs */}
       <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl opacity-50 md:opacity-100" />
       <div className="absolute right-0 bottom-0 h-64 w-64 rounded-full bg-indigo-700/30 blur-3xl opacity-50 md:opacity-100" />
 
       {/* Left Content */}
       <div className="relative z-10 max-w-xl w-full">
-        <h1 className="text-2xl sm:text-4xl md:text-5xl font-black mb-2 md:mb-4 tracking-tight flex items-center gap-2 md:gap-3">
+        <h1 className="text-2xl sm:text-3xl md:text-3xl font-black mb-2 md:mb-4 tracking-tight flex items-center gap-2 md:gap-3">
           Bonjour, Professeur ! 
           <motion.span 
             className="inline-block origin-bottom-right"
@@ -75,7 +75,7 @@ export function WelcomeBanner() {
             <span className="relative z-10">{classesCount} classe{classesCount > 1 ? 's' : ''}</span>
           </span> aujourd&apos;hui.
         </motion.p>
-        <Button asChild variant="white" className="text-indigo-600 hover:bg-indigo-50 border-b-4 border-indigo-200 font-bold text-sm md:text-base px-4 md:px-8 h-10 md:h-12 rounded-xl md:rounded-2xl w-full sm:w-auto shadow-md">
+        <Button asChild variant="white" className="text-indigo-600 hover:bg-indigo-50 border-b-4 active:border-b-0 active:translate-y-1 transition-all border-indigo-200 font-bold text-sm md:text-base px-4 md:px-8 h-10 md:h-12 rounded-xl md:rounded-2xl w-full sm:w-auto shadow-md">
           <Link href="/planning">
             Voir l&apos;emploi du temps
           </Link>
@@ -93,22 +93,6 @@ export function WelcomeBanner() {
             className="absolute right-12 top-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-yellow-400 shadow-lg"
           >
             <Star className="h-8 w-8 fill-white text-white" />
-          </motion.div>
-
-          <motion.div 
-            animate={{ y: [0, 20, 0], rotate: [10, -5, 10] }} 
-            transition={{ repeat: Infinity, duration: 6, ease: "easeInOut", delay: 1 }}
-            className="absolute left-10 bottom-12 flex h-14 w-14 items-center justify-center rounded-full bg-rose-400 shadow-lg"
-          >
-            <Heart className="h-7 w-7 fill-white text-white" />
-          </motion.div>
-
-          <motion.div 
-            animate={{ y: [0, -10, 0], rotate: [0, 15, 0] }} 
-            transition={{ repeat: Infinity, duration: 4, ease: "easeInOut", delay: 2 }}
-            className="absolute right-32 bottom-8 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-400 shadow-lg"
-          >
-            <Pencil className="h-6 w-6 text-white" />
           </motion.div>
 
           {/* Centerpiece */}

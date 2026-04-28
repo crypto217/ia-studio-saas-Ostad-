@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
+import { motion, Variants } from "motion/react";
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, AreaChart, Area } from "recharts";
 import { Trophy, CheckCircle, Feather, Sparkles, TrendingUp, FileBarChart } from "lucide-react";
 
@@ -50,12 +50,12 @@ const pariteData = [
 ];
 
 // --- VARIANTS FRAMER MOTION ---
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.15 } }
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 30 },
   show: { opacity: 1, y: 0, transition: { type: "spring", bounce: 0.5 } }
 };
@@ -156,7 +156,7 @@ const itemVariants = {
 
         {/* Pied de page */}
         <div className="mt-16 pt-8 border-t-2 border-slate-800 flex justify-between text-sm font-bold text-slate-500">
-           <p>Généré par Ostad © {new Date().getFullYear()}</p>
+           <p>Généré par Ludiclass © {new Date().getFullYear()}</p>
            <p>Cachet et Signature de l&apos;Inspecteur</p>
         </div>
       </div>

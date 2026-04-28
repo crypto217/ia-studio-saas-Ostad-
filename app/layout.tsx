@@ -5,7 +5,7 @@ import './globals.css';
 const font = Nunito({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800', '900'] });
 
 export const metadata: Metadata = {
-  title: 'OSTAD - Teacher Operating System',
+  title: 'LUDICLASS - Teacher Operating System',
   description: 'A modern SaaS platform for teachers',
 };
 

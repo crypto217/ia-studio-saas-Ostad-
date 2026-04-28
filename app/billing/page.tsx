@@ -115,7 +115,7 @@ export default function BillingPage() {
             
             <p className="mx-auto max-w-2xl text-lg sm:text-xl text-slate-600 font-medium leading-relaxed">
               Fini les nuits blanches à préparer les fiches et les compositions ! 
-              Choisissez le plan qui correspond à votre volume horaire et laissez l&apos;IA d&apos;OSTAD vous assister.
+              Choisissez le plan qui correspond à votre volume horaire et laissez l&apos;IA de Ludiclass vous assister.
             </p>
           </motion.div>
         </div>

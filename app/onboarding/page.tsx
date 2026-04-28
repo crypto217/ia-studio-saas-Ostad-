@@ -279,7 +279,7 @@ export default function Onboarding() {
                      </div>
                      <div className="flex-1">
                        <h3 className="font-black text-pink-800 text-lg">Français</h3>
-                       <p className="text-pink-600 font-medium text-sm">Spécialité du SaaS Ostad</p>
+                       <p className="text-pink-600 font-medium text-sm">Spécialité du SaaS Ludiclass</p>
                      </div>
                    </div>
                 </div>

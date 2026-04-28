@@ -159,7 +159,7 @@ const getInitials = (name: string) => {
 export default function StudentsPage() {
   const [classes, setClasses] = useState<ClassData[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ostad_mock_classes')
+      const saved = localStorage.getItem('ludiclass_mock_classes')
       if (saved) {
         try {
           return JSON.parse(saved)
@@ -181,7 +181,7 @@ export default function StudentsPage() {
   const [newTheme, setNewTheme] = useState<ClassData['theme']>("emerald")
 
   useEffect(() => {
-    localStorage.setItem('ostad_mock_classes', JSON.stringify(classes))
+    localStorage.setItem('ludiclass_mock_classes', JSON.stringify(classes))
   }, [classes])
 
   const deleteClass = (e: React.MouseEvent, id: string) => {

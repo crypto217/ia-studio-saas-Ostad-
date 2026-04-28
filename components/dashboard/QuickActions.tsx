@@ -10,7 +10,7 @@ const actions = [
     color: "text-amber-600",
     bgColor: "bg-white",
     cardBg: "bg-amber-50",
-    borderColor: "border-amber-100",
+    borderColor: "border-amber-200 border-b-amber-300",
     textColor: "text-amber-900",
     hoverColor: "group-hover:text-amber-700",
     shadow: "shadow-sm",
@@ -23,7 +23,7 @@ const actions = [
     color: "text-emerald-600",
     bgColor: "bg-white",
     cardBg: "bg-emerald-50",
-    borderColor: "border-emerald-100",
+    borderColor: "border-emerald-200 border-b-emerald-300",
     textColor: "text-emerald-900",
     hoverColor: "group-hover:text-emerald-700",
     shadow: "shadow-sm",
@@ -35,7 +35,7 @@ const actions = [
     color: "text-orange-600",
     bgColor: "bg-white",
     cardBg: "bg-orange-50",
-    borderColor: "border-orange-100",
+    borderColor: "border-orange-200 border-b-orange-300",
     textColor: "text-orange-900",
     hoverColor: "group-hover:text-orange-700",
     shadow: "shadow-sm",
@@ -47,7 +47,7 @@ const actions = [
     color: "text-violet-600",
     bgColor: "bg-white",
     cardBg: "bg-violet-50",
-    borderColor: "border-violet-100",
+    borderColor: "border-violet-200 border-b-violet-300",
     textColor: "text-violet-900",
     hoverColor: "group-hover:text-violet-700",
     shadow: "shadow-sm",
@@ -59,7 +59,7 @@ const actions = [
     color: "text-blue-600",
     bgColor: "bg-white",
     cardBg: "bg-blue-50",
-    borderColor: "border-blue-100",
+    borderColor: "border-blue-200 border-b-blue-300",
     textColor: "text-blue-900",
     hoverColor: "group-hover:text-blue-700",
     shadow: "shadow-sm",
@@ -78,7 +78,7 @@ export function QuickActions() {
           <Link 
             key={action.name} 
             href={action.href} 
-            className={`${action.cardBg} ${action.borderColor} border rounded-2xl min-h-24 p-3 sm:p-6 shadow-sm hover:shadow-md hover:-translate-y-1 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center text-center gap-2 group ${action.hideOnMobile ? 'hidden lg:flex' : 'flex'}`}
+            className={`${action.cardBg} ${action.borderColor} border-2 border-b-[6px] active:border-b-2 active:translate-y-[4px] transition-all duration-150 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center text-center gap-3 group ${action.hideOnMobile ? 'hidden lg:flex' : 'flex'}`}
           >
             <div className={`w-10 h-10 sm:w-14 sm:h-14 shrink-0 rounded-2xl flex items-center justify-center ${action.bgColor} ${action.color} shadow-sm group-hover:scale-110 transition-transform duration-300`}>
               <action.icon className="w-5 h-5 sm:w-7 sm:h-7" strokeWidth={2.5} />
