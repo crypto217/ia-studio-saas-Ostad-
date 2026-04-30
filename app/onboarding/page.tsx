@@ -3,83 +3,83 @@
 import { useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { useRouter } from "next/navigation"
-import { Sparkles, ArrowRight, ArrowLeft, Check, GraduationCap, BookOpen, Layers } from "lucide-react"
-
 import { useAuth } from "@/components/AuthProvider"
 import { db } from "@/firebase"
 import { doc, writeBatch, collection } from "firebase/firestore"
 import { OperationType, handleFirestoreError } from "@/lib/firebase-error"
+import { Check, Lock, Plus, Trash2, ChevronDown, LogOut } from "lucide-react"
 
-interface FormData {
-  civility: "Monsieur" | "Madame" | ""
-  firstName: string
-  lastName: string
-  cycle: string
-  subject: string
-  levels: string[]
-  schoolName: string
-}
+type Gender = "M." | "Mme." | null
+type ClassItem = { name: string; level: string; theme: string }
 
-const CYCLES = [
-  { id: "Primaire", label: "Primaire", icon: <BookOpen className="w-6 h-6" />, locked: false },
-  { id: "Moyen", label: "Moyen", icon: <Layers className="w-6 h-6" />, locked: true },
-  { id: "Secondaire", label: "Secondaire", icon: <GraduationCap className="w-6 h-6" />, locked: true },
+const THEMES = [
+  { id: "rose", bg: "bg-rose-500" },
+  { id: "blue", bg: "bg-blue-500" },
+  { id: "emerald", bg: "bg-emerald-500" },
+  { id: "amber", bg: "bg-amber-500" },
+  { id: "purple", bg: "bg-purple-500" },
+  { id: "cyan", bg: "bg-cyan-500" }
 ]
 
-const LEVELS = ["3AP", "4AP", "5AP"]
+const WILAYAS = [
+  "1 - Adrar", "2 - Chlef", "3 - Laghouat", "4 - Oum El Bouaghi", "5 - Batna", "6 - Béjaïa", "7 - Biskra", "8 - Béchar", "9 - Blida", "10 - Bouira",
+  "11 - Tamanrasset", "12 - Tébessa", "13 - Tlemcen", "14 - Tiaret", "15 - Tizi Ouzou", "16 - Alger", "17 - Djelfa", "18 - Jijel", "19 - Sétif", "20 - Saïda",
+  "21 - Skikda", "22 - Sidi Bel Abbès", "23 - Annaba", "24 - Guelma", "25 - Constantine", "26 - Médéa", "27 - Mostaganem", "28 - M'Sila", "29 - Mascara", "30 - Ouargla",
+  "31 - Oran", "32 - El Bayadh", "33 - Illizi", "34 - Bordj Bou Arreridj", "35 - Boumerdès", "36 - El Tarf", "37 - Tindouf", "38 - Tissemsilt", "39 - El Oued", "40 - Khenchela",
+  "41 - Souk Ahras", "42 - Tipaza", "43 - Mila", "44 - Aïn Defla", "45 - Naâma", "46 - Aïn Témouchent", "47 - Ghardaïa", "48 - Relizane", "49 - El M'Ghair", "50 - El Meniaa",
+  "51 - Ouled Djellal", "52 - Bordj Baji Mokhtar", "53 - Béni Abbès", "54 - Timimoun", "55 - Touggourt", "56 - Djanet", "57 - In Salah", "58 - In Guezzam"
+]
 
 export default function Onboarding() {
   const router = useRouter()
-  const { user, setOnboardingCompleted } = useAuth()
+  const { user, setOnboardingCompleted, logOut } = useAuth()
   const [step, setStep] = useState(1)
-  const [formData, setFormData] = useState<FormData>({
-    civility: "",
-    firstName: "",
-    lastName: "",
-    cycle: "Primaire",
-    subject: "Français",
-    levels: [],
-    schoolName: "",
-  })
-  const [errorMsg, setErrorMsg] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
-  const handleNext = () => {
-    setErrorMsg("")
-    // Validation
-    if (step === 1) {
-      if (!formData.civility) return setErrorMsg("Veuillez choisir une civilité.")
-      if (!formData.firstName.trim()) return setErrorMsg("Veuillez saisir votre prénom.")
-      if (!formData.lastName.trim()) return setErrorMsg("Veuillez saisir votre nom.")
-    } else if (step === 2) {
-      if (!formData.cycle) return setErrorMsg("Veuillez sélectionner un cycle.")
-      if (!formData.subject) return setErrorMsg("Veuillez sélectionner une matière.")
-    } else if (step === 3) {
-      if (formData.levels.length === 0) return setErrorMsg("Veuillez sélectionner au moins un niveau.")
+  // Step 1
+  const [gender, setGender] = useState<Gender>(null)
+  const [lastName, setLastName] = useState("")
+  const [schoolName, setSchoolName] = useState("")
+  const [selectedWilaya, setSelectedWilaya] = useState("")
+  const [isWilayaOpen, setIsWilayaOpen] = useState(false)
+
+  // Step 2 & 3: Locked choices so hardcode selection
+  // step 2 cycle defaults to Primaire
+  const [cycle, setCycle] = useState("Primaire")
+  const [subject, setSubject] = useState<string | null>(null)
+
+  // Step 4
+  const [classes, setClasses] = useState<ClassItem[]>([])
+  const [selectedLevel, setSelectedLevel] = useState<string>("5ème AP")
+  const [groupInput, setGroupInput] = useState("")
+  const [selectedTheme, setSelectedTheme] = useState<string>("")
+
+  const handleNext = () => setStep(s => Math.min(s + 1, 4))
+  const handlePrev = () => setStep(s => Math.max(s - 1, 1))
+
+  const handleAddClass = () => {
+    const trimmedGroup = groupInput.trim()
+    if (!trimmedGroup || !selectedTheme || !selectedLevel) return
+
+    const fullClassName = `${selectedLevel} - ${trimmedGroup}`
+
+    // Validation names checking case insensitive within the full class name
+    const nameExists = classes.some(c => c.name.toLowerCase() === fullClassName.toLowerCase())
+    if (nameExists) {
+      alert(`La classe "${fullClassName}" existe déjà.`)
+      return
     }
-    setStep(s => Math.min(s + 1, 4))
+
+    setClasses([...classes, { name: fullClassName, level: selectedLevel, theme: selectedTheme }])
+    setGroupInput("")
+    setSelectedTheme("")
   }
 
-  const handlePrev = () => {
-    setStep(s => Math.max(s - 1, 1))
-  }
-
-  const toggleLevel = (level: string) => {
-    setFormData(prev => {
-      const isSelected = prev.levels.includes(level)
-      if (isSelected) {
-        return { ...prev, levels: prev.levels.filter(l => l !== level) }
-      }
-      return { ...prev, levels: [...prev.levels, level] }
-    })
+  const handleRemoveClass = (index: number) => {
+    setClasses(classes.filter((_, i) => i !== index))
   }
 
   const handleFinish = async () => {
-    setErrorMsg("")
-    if (!formData.schoolName.trim()) {
-      return setErrorMsg("Veuillez saisir le nom de votre école.")
-    }
-
     if (!user) {
       router.push("/login")
       return
@@ -89,29 +89,33 @@ export default function Onboarding() {
     try {
       const batch = writeBatch(db)
 
-      // Update User profile
+      const displayName = gender ? `${gender} ${lastName.trim()}` : lastName.trim()
+
+      // Update User
       const userRef = doc(db, "users", user.uid)
       batch.update(userRef, {
-        cycle: formData.cycle,
-        subject: formData.subject,
-        civility: formData.civility,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        schoolName: formData.schoolName,
+        displayName,
+        firstName: lastName.trim(), // keeping signature if used elsewhere
+        schoolName: schoolName.trim(),
+        wilaya: selectedWilaya,
+        cycle,
+        subject,
         onboardingCompleted: true,
         updatedAt: new Date().toISOString()
       })
 
-      // Create a class document for each selected level
-      const colors = ["sky", "rose", "emerald", "amber", "indigo"]
-      formData.levels.forEach((lvl, index) => {
+      // Add classes
+      classes.forEach((cls) => {
         const classRef = doc(collection(db, "classes"))
-        const theme = colors[index % colors.length]
         batch.set(classRef, {
           id: classRef.id,
           teacherId: user.uid,
-          name: `Classe ${lvl}`,
-          theme: theme,
+          name: cls.name,
+          level: cls.level,
+          cycle: cycle,
+          subject: subject,
+          theme: cls.theme,
+          schoolYear: "2025-2026",
           createdAt: new Date().toISOString()
         })
       })
@@ -119,109 +123,149 @@ export default function Onboarding() {
       await batch.commit()
       setOnboardingCompleted(true)
       router.push("/")
-    } catch (error: any) {
+    } catch (error: boolean | Error | unknown) {
+      console.error(error)
       handleFirestoreError(error, OperationType.WRITE, "onboarding")
-      setErrorMsg("Une erreur est survenue lors de la sauvegarde.")
     } finally {
       setIsSaving(false)
     }
   }
 
-  const progress = (step / 4) * 100
+  const handleLogout = async () => {
+    try {
+      await logOut()
+      router.push("/login")
+    } catch(err) {
+      console.error(err)
+    }
+  }
+
+  const slideVariants = {
+    enter: { x: 20, opacity: 0 },
+    center: { x: 0, opacity: 1 },
+    exit: { x: -20, opacity: 0 }
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans relative overflow-hidden">
-      {/* Playful Background Blobs */}
-      <div className="absolute -top-20 -left-20 w-[400px] h-[400px] bg-sky-300/30 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute -bottom-20 -right-20 w-[400px] h-[400px] bg-pink-300/30 rounded-full blur-[100px] pointer-events-none" />
-
-      <div className="w-full max-w-3xl bg-white rounded-[2.5rem] shadow-2xl p-6 md:p-12 relative z-10 border border-slate-100">
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 sm:p-8 font-sans text-slate-800">
+      <div className="bg-white rounded-[2rem] shadow-xl w-full max-w-2xl p-6 sm:p-10 relative overflow-hidden border border-slate-100">
         
-        {/* Progress Bar Container */}
-        <div className="mb-10">
-          <div className="h-4 rounded-full bg-slate-100 w-full overflow-hidden shadow-inner">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.6, type: "spring", bounce: 0.2 }}
-              className="h-full bg-gradient-to-r from-sky-400 via-indigo-500 to-pink-400 rounded-full"
-            />
-          </div>
-          <div className="flex flex-row justify-between mt-2 mx-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
-             <span className={step >= 1 ? "text-indigo-500" : ""}>Identité</span>
-             <span className={step >= 2 ? "text-indigo-500" : ""}>Profil</span>
-             <span className={step >= 3 ? "text-indigo-500" : ""}>Niveaux</span>
-             <span className={step >= 4 ? "text-indigo-500" : ""}>École</span>
-          </div>
+        {/* Progress Bar */}
+        <div className="mb-8 w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+          <motion.div 
+            className="bg-indigo-600 h-full rounded-full"
+            initial={{ width: `${((step - 1) / 4) * 100}%` }}
+            animate={{ width: `${(step / 4) * 100}%` }}
+            transition={{ duration: 0.4, ease: "easeInOut" }}
+          />
         </div>
 
-        {/* Form Body with Smooth Slide Transitions */}
-        <div className="min-h-[350px]">
+        <div className="min-h-[440px] relative">
           <AnimatePresence mode="wait">
             
             {step === 1 && (
               <motion.div
                 key="step1"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
                 transition={{ duration: 0.3 }}
-                className="space-y-6"
+                className="space-y-6 flex flex-col h-full"
               >
-                <div className="text-center mb-8">
-                  <h2 className="text-3xl font-black text-slate-800 mb-2">Faisons connaissance 👋</h2>
-                  <p className="text-slate-500 font-medium text-lg">Comment doit-on te nommer ?</p>
-                </div>
-
-                {errorMsg && <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold text-center">{errorMsg}</div>}
-
-                <div className="flex justify-center gap-4 mb-6">
-                  <button
-                    onClick={() => setFormData({ ...formData, civility: "Monsieur" })}
-                    className={`w-32 h-32 rounded-3xl border-2 border-b-[6px] flex flex-col items-center justify-center gap-2 transition-all hover:-translate-y-1 active:translate-y-[4px] active:border-b-2 ${
-                      formData.civility === "Monsieur"
-                        ? "bg-sky-100 border-sky-400 text-sky-800"
-                        : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
-                    }`}
-                  >
-                    <span className="text-4xl">👨🏻‍🏫</span>
-                    <span className="font-black">Monsieur</span>
-                  </button>
-
-                  <button
-                    onClick={() => setFormData({ ...formData, civility: "Madame" })}
-                    className={`w-32 h-32 rounded-3xl border-2 border-b-[6px] flex flex-col items-center justify-center gap-2 transition-all hover:-translate-y-1 active:translate-y-[4px] active:border-b-2 ${
-                      formData.civility === "Madame"
-                        ? "bg-pink-100 border-pink-400 text-pink-800"
-                        : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
-                    }`}
-                  >
-                    <span className="text-4xl">👩🏼‍🏫</span>
-                    <span className="font-black">Madame</span>
-                  </button>
+                <div>
+                  <h2 className="text-3xl font-black text-slate-800 mb-2">Bienvenue ! Qui êtes-vous ? 👋</h2>
+                  <p className="text-slate-500 font-medium">Commençons par faire connaissance.</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
+                  {(["M.", "Mme."] as const).map(g => (
+                    <motion.button
+                      key={g}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setGender(g)}
+                      className={`py-4 rounded-2xl font-bold border-2 transition-all flex items-center justify-center gap-2 ${
+                        gender === g 
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
+                          : 'border-slate-200 hover:border-indigo-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="text-xl">{g === "M." ? "👨‍🏫" : "👩‍🏫"}</span> {g === "M." ? "Monsieur (M.)" : "Madame (Mme)"}
+                    </motion.button>
+                  ))}
+                </div>
+
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-3 pl-2">Prénom</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Lyes"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      className="w-full px-5 py-4 md:py-5 text-lg bg-slate-50 border-2 border-b-4 border-slate-200 rounded-2xl focus:border-b-indigo-500 focus:bg-white focus:ring-0 transition-all font-black text-slate-800 placeholder:text-slate-300 outline-none hover:border-slate-300"
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Votre nom de famille <span className="text-rose-500">*</span></label>
+                    <input 
+                      type="text" 
+                      placeholder="ex: Dupont"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium text-slate-800"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-3 pl-2">Nom</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Djouadi"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      className="w-full px-5 py-4 md:py-5 text-lg bg-slate-50 border-2 border-b-4 border-slate-200 rounded-2xl focus:border-b-indigo-500 focus:bg-white focus:ring-0 transition-all font-black text-slate-800 placeholder:text-slate-300 outline-none hover:border-slate-300"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Établissement (Optionnel)</label>
+                      <input 
+                        type="text" 
+                        placeholder="École Les Iris"
+                        value={schoolName}
+                        onChange={(e) => setSchoolName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Wilaya (Optionnel)</label>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setIsWilayaOpen(!isWilayaOpen)}
+                          className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 px-5 flex justify-between items-center text-slate-700 hover:border-indigo-300 transition-colors font-medium text-left"
+                        >
+                          {selectedWilaya || <span className="text-slate-400">Sélectionnez une wilaya</span>}
+                          <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isWilayaOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        <AnimatePresence>
+                          {isWilayaOpen && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              className="absolute z-50 w-full mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto p-2 custom-scrollbar"
+                            >
+                              {WILAYAS.map(w => (
+                                <div
+                                  key={w}
+                                  onClick={() => {
+                                    setSelectedWilaya(w)
+                                    setIsWilayaOpen(false)
+                                  }}
+                                  className="hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer p-3 rounded-xl transition-colors font-medium text-slate-700"
+                                >
+                                  {w}
+                                </div>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
                   </div>
+                </div>
+
+                <div className="mt-auto pt-6">
+                  <button 
+                    onClick={handleNext}
+                    disabled={!gender || !lastName.trim()}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold rounded-2xl py-4 transition-colors active:scale-[0.98]"
+                  >
+                    Continuer
+                  </button>
                 </div>
               </motion.div>
             )}
@@ -229,59 +273,73 @@ export default function Onboarding() {
             {step === 2 && (
               <motion.div
                 key="step2"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
                 transition={{ duration: 0.3 }}
-                className="space-y-6"
+                className="space-y-6 flex flex-col h-full"
               >
-                <div className="text-center mb-8">
-                  <h2 className="text-3xl font-black text-slate-800 mb-2">Ton profil pédagogique 🎒</h2>
-                  <p className="text-slate-500 font-medium text-lg">Sélectionne ton environnement.</p>
+                <div>
+                  <h2 className="text-3xl font-black text-slate-800 mb-2">Quel cycle enseignez-vous ? 📚</h2>
+                  <p className="text-slate-500 font-medium">Sélectionnez le cycle dans lequel vous exercez.</p>
                 </div>
 
-                {errorMsg && <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold text-center">{errorMsg}</div>}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Primaire */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setCycle("Primaire")}
+                    className={`relative py-6 px-4 rounded-2xl font-bold border-2 transition-all flex flex-col items-center justify-center gap-3 ${
+                      cycle === "Primaire"
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-200 hover:border-indigo-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-3xl mb-1">🎒</span>
+                    Primaire
+                  </motion.button>
 
-                <div>
-                   <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-3 pl-2">Cycle d&apos;enseignement</label>
-                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                     {CYCLES.map((cycle) => (
-                       <button
-                         key={cycle.id}
-                         disabled={cycle.locked}
-                         onClick={() => setFormData({ ...formData, cycle: cycle.id })}
-                         className={`relative flex flex-col items-center justify-center p-5 border-2 border-b-[6px] rounded-3xl transition-all hover:-translate-y-1 active:translate-y-[4px] active:border-b-2 ${
-                            formData.cycle === cycle.id 
-                            ? "bg-indigo-50 border-indigo-500 text-indigo-700"
-                            : cycle.locked ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed opacity-80 border-b-4 hover:translate-y-0"
-                            : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
-                         }`}
-                       >
-                         {cycle.locked && (
-                           <div className="absolute -top-3 text-[10px] uppercase font-black tracking-widest bg-slate-800 text-white px-3 py-1 rounded-full shadow-lg">
-                             Bientôt
-                           </div>
-                         )}
-                         <div className={`p-3 rounded-2xl mb-2 ${formData.cycle === cycle.id ? "bg-indigo-100" : "bg-slate-100"}`}>
-                           {cycle.icon}
-                         </div>
-                         <span className="font-black text-[15px]">{cycle.label}</span>
-                       </button>
-                     ))}
-                   </div>
+                  {/* Moyen */}
+                  <motion.div
+                    className="relative py-6 px-4 rounded-2xl font-bold border-2 border-slate-100 bg-slate-50 text-slate-400 opacity-80 cursor-not-allowed flex flex-col items-center justify-center gap-3"
+                  >
+                    <div className="absolute top-2 right-2 flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-slate-500 bg-slate-200 px-2 py-1 rounded-md">
+                      <Lock className="w-3 h-3" />
+                      Bientôt
+                    </div>
+                    <span className="text-3xl mb-1">📐</span>
+                    Moyen
+                  </motion.div>
+
+                  {/* Lycée */}
+                  <motion.div
+                    className="relative py-6 px-4 rounded-2xl font-bold border-2 border-slate-100 bg-slate-50 text-slate-400 opacity-80 cursor-not-allowed flex flex-col items-center justify-center gap-3"
+                  >
+                    <div className="absolute top-2 right-2 flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-slate-500 bg-slate-200 px-2 py-1 rounded-md">
+                      <Lock className="w-3 h-3" />
+                      Bientôt
+                    </div>
+                    <span className="text-3xl mb-1">🎓</span>
+                    Lycée
+                  </motion.div>
                 </div>
 
-                <div>
-                   <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-3 pl-2">Matière enseignée</label>
-                   <div className="flex items-center gap-4 bg-pink-50 border-2 border-b-[6px] border-pink-400 rounded-3xl p-5 md:p-6 shadow-sm">
-                     <div className="bg-pink-100 p-3 rounded-2xl text-pink-600">
-                       <Check className="w-6 h-6 stroke-[3]" />
-                     </div>
-                     <div className="flex-1">
-                       <h3 className="font-black text-pink-800 text-lg">Français</h3>
-                       <p className="text-pink-600 font-medium text-sm">Spécialité du SaaS Ludiclass</p>
-                     </div>
-                   </div>
+                <div className="flex gap-4 mt-auto pt-6">
+                  <button 
+                    onClick={handlePrev}
+                    className="px-6 py-4 text-slate-500 font-bold hover:text-slate-700 hover:bg-slate-100 rounded-2xl transition-colors"
+                  >
+                    Retour
+                  </button>
+                  <button 
+                    onClick={handleNext}
+                    disabled={cycle !== "Primaire"}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold rounded-2xl py-4 transition-colors active:scale-[0.98]"
+                  >
+                    Continuer
+                  </button>
                 </div>
               </motion.div>
             )}
@@ -289,48 +347,101 @@ export default function Onboarding() {
             {step === 3 && (
               <motion.div
                 key="step3"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
                 transition={{ duration: 0.3 }}
-                className="space-y-6 flex flex-col h-full justify-center"
+                className="space-y-6 flex flex-col h-full"
               >
-                <div className="text-center mb-6">
-                  <h2 className="text-3xl font-black text-slate-800 mb-2">Tes niveaux 📚</h2>
-                  <p className="text-slate-500 font-medium text-lg">Quels niveaux enseignes-tu ? <br/><span className="text-sm">(Cumulables)</span></p>
+                <div>
+                  <h2 className="text-3xl font-black text-slate-800 mb-2">Quelle est votre matière ? ✏️</h2>
+                  <p className="text-slate-500 font-medium">D&apos;autres matières seront bientôt débloquées.</p>
                 </div>
-                
-                {errorMsg && <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold text-center">{errorMsg}</div>}
 
-                <div className="flex flex-wrap justify-center gap-6 py-4">
-                  {LEVELS.map((lvl) => {
-                    const isSelected = formData.levels.includes(lvl)
-                    return (
-                      <button
-                        key={lvl}
-                        onClick={() => toggleLevel(lvl)}
-                        className={`relative w-28 h-28 sm:w-32 sm:h-32 rounded-[2rem] border-2 border-b-[6px] flex flex-col items-center justify-center transition-all hover:-translate-y-1 active:translate-y-[4px] active:border-b-2 overflow-hidden ${
-                          isSelected 
-                            ? "bg-amber-100 border-amber-500 text-amber-800"
-                            : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
-                        }`}
-                      >
-                         <span className="font-black text-4xl">{lvl}</span>
-                         <AnimatePresence>
-                           {isSelected && (
-                             <motion.div
-                               initial={{ scale: 0 }}
-                               animate={{ scale: 1 }}
-                               exit={{ scale: 0 }}
-                               className="absolute top-3 right-3 bg-amber-500 text-white p-1 rounded-full"
-                             >
-                               <Check className="w-4 h-4 stroke-[4]" />
-                             </motion.div>
-                           )}
-                         </AnimatePresence>
-                      </button>
-                    )
-                  })}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Français */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setSubject("Français")}
+                    className={`relative p-5 rounded-2xl font-bold border-2 transition-all flex items-center gap-4 ${
+                      subject === "Français"
+                        ? 'bg-indigo-50 border-indigo-600 text-indigo-800 ring-4 ring-indigo-100'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-200'
+                    }`}
+                  >
+                    <span className="text-3xl">🇫🇷</span>
+                    <span className="text-lg">Français</span>
+                  </motion.button>
+
+                  {/* Arabe */}
+                  <motion.div
+                    className="relative p-5 rounded-2xl font-bold border-2 border-slate-100 bg-slate-50 text-slate-400 opacity-80 cursor-not-allowed flex items-center gap-4"
+                  >
+                    <div className="absolute top-2 right-2 flex items-center gap-1 text-[10px] uppercase font-black tracking-wider bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md">
+                      <Lock className="w-3 h-3" />
+                      Bientôt
+                    </div>
+                    <span className="text-3xl">🇩🇿</span>
+                    <span className="text-sm sm:text-base">Arabe (Généraliste)</span>
+                  </motion.div>
+
+                  {/* Anglais */}
+                  <motion.div
+                    className="relative p-5 rounded-2xl font-bold border-2 border-slate-100 bg-slate-50 text-slate-400 opacity-80 cursor-not-allowed flex items-center gap-4"
+                  >
+                    <div className="absolute top-2 right-2 flex items-center gap-1 text-[10px] uppercase font-black tracking-wider bg-rose-100 text-rose-700 px-2 py-1 rounded-md">
+                      <Lock className="w-3 h-3" />
+                      Bientôt
+                    </div>
+                    <span className="text-3xl">🇬🇧</span>
+                    <span className="text-sm sm:text-base">Anglais</span>
+                  </motion.div>
+
+                  {/* Tamazight */}
+                  <motion.div
+                    className="relative p-5 rounded-2xl font-bold border-2 border-slate-100 bg-slate-50 text-slate-400 opacity-80 cursor-not-allowed flex items-center gap-4"
+                  >
+                    <div className="absolute top-2 right-2 flex items-center gap-1 text-[10px] uppercase font-black tracking-wider bg-gradient-to-r from-blue-100 via-emerald-100 to-yellow-100 text-yellow-700 border border-yellow-200 px-2 py-1 rounded-md">
+                      <Lock className="w-3 h-3" />
+                      Bientôt
+                    </div>
+                    <span className="text-3xl">ⵣ</span>
+                    <span className="text-sm sm:text-base">Tamazight</span>
+                  </motion.div>
+
+                  {/* Sport */}
+                  <motion.div
+                    className="relative p-5 rounded-2xl font-bold border-2 border-slate-100 bg-slate-50 text-slate-400 opacity-80 cursor-not-allowed flex items-center gap-4 sm:col-span-2 md:col-span-1"
+                  >
+                    <div className="absolute top-2 right-2 flex items-center gap-1 text-[10px] uppercase font-black tracking-wider bg-orange-100 text-orange-700 px-2 py-1 rounded-md">
+                      <Lock className="w-3 h-3" />
+                      Bientôt
+                    </div>
+                    <span className="text-3xl">⚽</span>
+                    <span className="text-sm sm:text-base">Éducation Physique</span>
+                  </motion.div>
+                </div>
+
+                <div className="flex gap-4 mt-auto pt-6">
+                  <button 
+                    onClick={handlePrev}
+                    className="px-6 py-4 text-slate-500 font-bold hover:text-slate-700 hover:bg-slate-100 rounded-2xl transition-colors"
+                  >
+                    Retour
+                  </button>
+                  <button 
+                    onClick={handleNext}
+                    disabled={!subject}
+                    className={`flex-1 font-bold rounded-2xl py-4 transition-colors ${
+                      subject
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98]'
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
+                  >
+                    Continuer
+                  </button>
                 </div>
               </motion.div>
             )}
@@ -338,68 +449,150 @@ export default function Onboarding() {
             {step === 4 && (
               <motion.div
                 key="step4"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
                 transition={{ duration: 0.3 }}
-                className="space-y-8 py-4 flex flex-col h-full justify-center"
+                className="space-y-6 flex flex-col h-full"
               >
-                <div className="text-center">
-                  <h2 className="text-3xl font-black text-slate-800 mb-2">Ton établissement 🏫</h2>
-                  <p className="text-slate-500 font-medium text-lg">Presque terminé !</p>
-                </div>
-                
-                {errorMsg && <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold text-center">{errorMsg}</div>}
-
                 <div>
-                   <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-3 text-center">Nom de l&apos;école</label>
-                   <input
-                     type="text"
-                     placeholder="Ex: École Primaire El Amal"
-                     value={formData.schoolName}
-                     onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
-                     className="w-full px-6 py-5 md:py-6 text-center text-xl bg-slate-50 border-2 border-b-4 border-slate-200 rounded-[2rem] focus:border-b-indigo-500 focus:bg-white focus:ring-0 transition-all font-black text-slate-800 placeholder:text-slate-300 outline-none hover:border-slate-300"
-                   />
+                  <h2 className="text-3xl font-black text-slate-800 mb-2">Créez vos classes de Français 📋</h2>
+                  <p className="text-slate-500 font-medium">Ajoutez au moins une classe pour commencer.</p>
+                </div>
+
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                  {/* Niveau selector */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Niveau</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["3ème AP", "4ème AP", "5ème AP"]).map((level) => (
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.95 }}
+                          key={level}
+                          onClick={() => setSelectedLevel(level)}
+                          className={`py-3 px-2 rounded-xl text-sm font-bold transition-all border-2 ${
+                            selectedLevel === level
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                              : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'
+                          }`}
+                        >
+                          {level}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Nom du groupe</label>
+                      <input 
+                        type="text" 
+                        placeholder="ex: A, Excellence..."
+                        value={groupInput}
+                        onChange={(e) => setGroupInput(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium text-slate-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Couleur thématique</label>
+                      <div className="flex flex-wrap gap-2 sm:gap-3 py-1">
+                        {THEMES.map((theme) => {
+                          const isUsed = classes.some(c => c.theme === theme.id)
+                          const isSelected = selectedTheme === theme.id
+                          
+                          return (
+                            <button
+                              key={theme.id}
+                              onClick={() => !isUsed && setSelectedTheme(theme.id)}
+                              disabled={isUsed}
+                              className={`w-10 h-10 rounded-full transition-all flex items-center justify-center ${theme.bg} ${
+                                isUsed 
+                                  ? 'opacity-20 cursor-not-allowed scale-90' 
+                                  : isSelected
+                                  ? 'ring-4 ring-indigo-200 scale-110 shadow-md'
+                                  : 'hover:scale-110 hover:shadow-md cursor-pointer'
+                              }`}
+                              title={isUsed ? 'Déjà utilisée' : ''}
+                            >
+                              {isSelected && <Check className="w-5 h-5 text-white" />}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleAddClass}
+                    disabled={!groupInput.trim() || !selectedTheme || !selectedLevel}
+                    className="w-full py-3 mt-2 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold flex-1 rounded-xl transition-colors active:scale-[0.98]"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Ajouter la classe {selectedLevel && groupInput ? `"${selectedLevel} - ${groupInput}"` : ""}
+                  </button>
+                </div>
+
+                {classes.length > 0 && (
+                  <div className="space-y-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+                    <h3 className="text-sm font-bold text-slate-700 mb-3">Vos classes :</h3>
+                    <div className="grid gap-2">
+                      {classes.map((cls, idx) => {
+                        const themeColor = THEMES.find(t => t.id === cls.theme)?.bg || "bg-slate-500"
+                        return (
+                          <div key={idx} className="flex items-center justify-between bg-white border border-slate-200 p-3 rounded-xl shadow-sm">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-4 h-4 rounded-full ${themeColor}`} />
+                              <span className="font-bold text-slate-800">{cls.name}</span>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveClass(idx)}
+                              className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-4 mt-auto pt-4">
+                  <button 
+                    onClick={handlePrev}
+                    className="px-6 py-4 text-slate-500 font-bold hover:text-slate-700 hover:bg-slate-100 rounded-2xl transition-colors"
+                  >
+                    Retour
+                  </button>
+                  <button 
+                    onClick={handleFinish}
+                    disabled={isSaving || classes.length === 0}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold rounded-2xl py-4 transition-colors active:scale-[0.98] flex items-center justify-center shadow-lg shadow-indigo-200 disabled:shadow-none"
+                  >
+                    {isSaving ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    ) : (
+                      "🚀 Terminer et accéder à mon espace"
+                    )}
+                  </button>
                 </div>
               </motion.div>
             )}
 
           </AnimatePresence>
         </div>
-
-        {/* Global Navigation Controls */}
-        <div className="mt-8 flex gap-4">
-          {step > 1 && (
-            <button
-              onClick={handlePrev}
-              className="flex items-center justify-center p-4 sm:px-6 bg-white hover:bg-slate-50 text-slate-600 rounded-[1.5rem] border-2 border-b-[6px] border-slate-200 active:border-b-2 active:translate-y-[4px] transition-all font-black"
-            >
-              <ArrowLeft className="w-5 h-5 sm:hidden" strokeWidth={3} />
-              <span className="hidden sm:inline">Retour</span>
-            </button>
-          )}
-
-          {step < 4 ? (
-            <button
-              onClick={handleNext}
-              className="flex-1 flex items-center justify-center gap-2 p-4 bg-indigo-500 text-white rounded-[1.5rem] border-2 border-b-[6px] border-indigo-700 active:border-b-2 active:translate-y-[4px] font-black text-xl hover:bg-indigo-400 transition-all"
-            >
-              Continuer
-              <ArrowRight className="w-6 h-6" strokeWidth={3} />
-            </button>
-          ) : (
-            <button
-              onClick={handleFinish}
-              disabled={isSaving}
-              className="flex-1 flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-fuchsia-500 to-indigo-500 text-white rounded-[1.5rem] border-2 border-b-[6px] border-indigo-800 active:border-b-2 active:translate-y-[4px] font-black text-xl hover:brightness-110 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              <Sparkles className="w-6 h-6" />
-              {isSaving ? "Sauvegarde..." : "Ouvrir mon carnet de bord ✨"}
-            </button>
-          )}
-        </div>
-
       </div>
+
+      <button
+        onClick={handleLogout}
+        className="mt-8 flex items-center gap-2 text-slate-500 hover:text-slate-700 font-medium transition-colors"
+      >
+        <LogOut className="w-4 h-4" />
+        Me déconnecter et retourner à l&apos;accueil
+      </button>
     </div>
   )
 }

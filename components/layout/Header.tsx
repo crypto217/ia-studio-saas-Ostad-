@@ -82,24 +82,6 @@ export function Header() {
 
         <div className="flex items-center gap-2 sm:gap-4 md:gap-6">
           <div className="flex items-center gap-3 md:gap-6">
-            {user && (
-              <>
-                <button 
-                  onClick={() => setShowOnboarding(true)}
-                  className="hidden md:flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5"
-                >
-                  <Rocket className="w-4 h-4" /> Tester l&apos;Onboarding
-                </button>
-                
-                <button 
-                  onClick={() => setShowOnboarding(true)}
-                  className="flex md:hidden items-center justify-center h-10 w-10 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl shadow-md"
-                >
-                  <Rocket className="w-4 h-4" />
-                </button>
-              </>
-            )}
-
             <NotificationMenu />
           </div>
           

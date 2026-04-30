@@ -415,7 +415,7 @@ export default function PlanningPage() {
                                   {taskInfo.label}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1 mt-auto pt-1">
+                              <div className="flex items-center gap-1 mt-auto pt-1 min-w-0">
                                 <MapPin size={12} className="shrink-0" />
                                 <span className="font-bold text-[9px] sm:text-[11px] opacity-95 truncate">{lesson.room || "Salle --"}</span>
                               </div>
@@ -555,7 +555,7 @@ export default function PlanningPage() {
                                   {taskInfo.label}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-1 mt-auto pt-1">
+                              <div className="flex items-center gap-1 mt-auto pt-1 min-w-0">
                                 <MapPin size={12} className="shrink-0" />
                                 <span className="font-bold text-[9px] sm:text-[11px] opacity-95 truncate">{lesson.room || "Salle --"}</span>
                               </div>

@@ -95,7 +95,7 @@ export function StatsPreview() {
               </motion.div>
             </div>
           </div>
-          <div className="mt-auto flex items-center gap-1 sm:gap-2">
+          <div className="mt-auto flex items-center gap-1 sm:gap-2 min-w-0">
             <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-lg bg-white/20 text-white shadow-sm backdrop-blur-md">Total</span>
             <span className="text-[10px] sm:text-xs font-medium text-blue-100 truncate">Élèves inscrits</span>
           </div>
@@ -120,7 +120,7 @@ export function StatsPreview() {
               </motion.div>
             </div>
           </div>
-          <div className="mt-auto flex items-center gap-1 sm:gap-2">
+          <div className="mt-auto flex items-center gap-1 sm:gap-2 min-w-0">
             <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-lg bg-white/20 text-white shadow-sm backdrop-blur-md">Global</span>
             <span className="text-[10px] sm:text-xs font-medium text-emerald-100 truncate">Toutes classes</span>
           </div>
@@ -145,7 +145,7 @@ export function StatsPreview() {
               </motion.div>
             </div>
           </div>
-          <div className="mt-auto flex items-center gap-1 sm:gap-2">
+          <div className="mt-auto flex items-center gap-1 sm:gap-2 min-w-0">
             <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-lg bg-white/20 text-white shadow-sm backdrop-blur-md">&lt; 10/20</span>
             <span className="text-[10px] sm:text-xs font-medium text-rose-100 truncate">À surveiller</span>
           </div>
@@ -170,7 +170,7 @@ export function StatsPreview() {
               </motion.div>
             </div>
           </div>
-          <div className="mt-auto flex items-center gap-1 sm:gap-2">
+          <div className="mt-auto flex items-center gap-1 sm:gap-2 min-w-0">
             <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-lg bg-white/20 text-white shadow-sm backdrop-blur-md">Total</span>
             <span className="text-[10px] sm:text-xs font-medium text-violet-100 truncate">Groupes gérés</span>
           </div>

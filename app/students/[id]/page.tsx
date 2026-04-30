@@ -5,6 +5,10 @@ import { motion, AnimatePresence } from "motion/react"
 import Link from "next/link"
 import { useSearchParams, useParams } from "next/navigation"
 import { GenerateAIReportBtn } from "@/components/ui/GenerateAIReportBtn"
+import { OfficialPrintHeader } from "@/components/ui/OfficialPrintHeader"
+import { jsPDF } from "jspdf"
+import html2canvas from "html2canvas"
+import Markdown from "react-markdown"
 import { 
   ArrowLeft, 
   Clock,
@@ -17,7 +21,8 @@ import {
   ThumbsDown,
   Sparkles,
   Loader2,
-  UserX
+  UserX,
+  Download
 } from "lucide-react"
 
 import { db, auth } from "@/firebase"
@@ -50,6 +55,30 @@ export default function StudentProfile() {
 
   const [newRemark, setNewRemark] = useState("")
   const [activeTab, setActiveTab] = useState<"competencies" | "observations" | "ia">("competencies")
+  const [aiReport, setAiReport] = useState<string | null>(null)
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('pdf-report-content');
+    if (!element) return;
+    
+    setIsGeneratingPDF(true);
+    // Petit délai pour laisser le DOM se mettre à jour
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    try {
+      const canvas = await html2canvas(element, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Bilan_${studentData?.name}.pdf`);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -257,7 +286,14 @@ export default function StudentProfile() {
           </div>
 
           <div className="pb-2">
-            <GenerateAIReportBtn studentId={studentId} classId={initialClassId || studentData.classId || ''} />
+            <GenerateAIReportBtn 
+              studentId={studentId} 
+              classId={initialClassId || studentData.classId || ''} 
+              onReportReady={(report) => {
+                setAiReport(report);
+                setActiveTab('ia');
+              }}
+            />
           </div>
         </div>
 
@@ -336,6 +372,15 @@ export default function StudentProfile() {
               >
                 Carnet de bord
               </button>
+              {aiReport && (
+                <button 
+                  onClick={() => setActiveTab('ia')}
+                  className={`px-5 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'ia' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <Sparkles className="w-4 h-4 inline-block mr-1" />
+                  Bilan IA
+                </button>
+              )}
             </div>
 
             <div className="relative">
@@ -447,6 +492,60 @@ export default function StudentProfile() {
                           )}
                         </AnimatePresence>
                       </div>
+                  </motion.div>
+                )}
+
+                {activeTab === 'ia' && aiReport && (
+                  <motion.div
+                    key="ia"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <div className="flex sm:flex-row flex-col justify-between sm:items-center gap-4 mb-6 px-2">
+                      <h2 className="text-xl font-black text-slate-800">Bilan Pédagogique</h2>
+                      <button 
+                        onClick={handleDownloadPDF} 
+                        disabled={isGeneratingPDF}
+                        className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm transition-all focus:ring-4 focus:ring-slate-900/10 active:scale-95 disabled:opacity-50"
+                      >
+                        {isGeneratingPDF ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Download className="w-4 h-4" />
+                        )}
+                        Télécharger en PDF
+                      </button>
+                    </div>
+
+                    <div className="bg-white rounded-[2rem] p-6 sm:p-10 border border-slate-100 shadow-sm overflow-hidden relative">
+                      <div id="pdf-report-content" className={`bg-white text-slate-800 ${isGeneratingPDF ? 'px-12 py-10' : ''}`}>
+                        {isGeneratingPDF && (
+                           <div className="mb-10">
+                              <OfficialPrintHeader 
+                                studentName={studentData.name} 
+                                className={studentData.className} 
+                                schoolYear="2025/2026" 
+                              />
+                           </div>
+                        )}
+                        <div className="prose prose-indigo max-w-none text-slate-700">
+                          <Markdown
+                            components={{
+                              h2: ({node, ...props}) => <h2 className="text-xl font-black text-indigo-900 mt-8 mb-4 border-b border-indigo-100 pb-2" {...props} />,
+                              h3: ({node, ...props}) => <h3 className="text-lg font-bold text-indigo-800 mt-6 mb-3" {...props} />,
+                              p: ({node, ...props}) => <p className="mb-4 leading-relaxed font-medium" {...props} />,
+                              ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-2 marker:text-indigo-400" {...props} />,
+                              ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-2 marker:text-indigo-400 font-bold" {...props} />,
+                              strong: ({node, ...props}) => <strong className="font-bold text-indigo-900" {...props} />,
+                            }}
+                          >
+                            {aiReport}
+                          </Markdown>
+                        </div>
+                      </div>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, use } from "react"
-import { motion } from "motion/react"
+import { motion, AnimatePresence } from "motion/react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { 
@@ -14,8 +14,19 @@ import {
   Award,
   Sparkles,
   BookOpen,
-  ArrowLeft
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  UserPlus,
+  X,
+  Check,
+  Plus
 } from "lucide-react"
+
+import { db } from "@/firebase"
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore"
+import { useAuth } from "@/components/AuthProvider"
+import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
 
 // --- TYPES ---
 type StudentStatus = "excellent" | "good" | "needs_help"
@@ -26,6 +37,8 @@ interface Student {
   status: StudentStatus
   grade: number
   gender: "M" | "F"
+  birthDate?: string
+  photoUrl?: string
 }
 
 interface ClassData {
@@ -90,24 +103,93 @@ const getInitials = (name: string) => {
 export default function ClassDetailsPage({ params }: { params: Promise<{ classId: string }> }) {
   const router = useRouter()
   const { classId } = use(params)
+  const { user, isAuthReady } = useAuth()
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null)
+  const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchClass = () => {
-      const saved = localStorage.getItem('ludiclass_mock_classes')
-      if (saved) {
-        try {
-          const classes: ClassData[] = JSON.parse(saved)
-          setSelectedClass(classes.find(c => c.id === classId) || null)
-        } catch (e) {
-          console.error("Error parsing", e)
-        }
+  // Add Student Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isAddingStudent, setIsAddingStudent] = useState(false)
+  const [newStudentName, setNewStudentName] = useState("")
+  const [gender, setGender] = useState<'boy' | 'girl' | null>(null)
+  const [newStudentBirthDate, setNewStudentBirthDate] = useState("")
+  const [newStudentPhoto, setNewStudentPhoto] = useState<File | null>(null)
+
+  const handleAddStudent = async (closeAfter: boolean) => {
+    if (!newStudentName.trim() || !newStudentBirthDate || !gender || !user?.uid || !classId) return
+    
+    setIsAddingStudent(true)
+    try {
+      // TODO: Upload newStudentPhoto to Firebase Storage here and get URL
+      const photoUrl = ""
+      const studentGenderArg = gender === 'boy' ? "M" : "F"
+
+      const docRef = await addDoc(collection(db, "students"), {
+        teacherId: user.uid,
+        classId: classId,
+        name: newStudentName,
+        gender: studentGenderArg,
+        birthDate: newStudentBirthDate,
+        photoUrl: photoUrl,
+        status: "good",
+        grade: 0,
+        createdAt: serverTimestamp()
+      })
+      
+      const newStudent: Student = {
+        id: docRef.id,
+        name: newStudentName,
+        gender: studentGenderArg,
+        status: "good",
+        grade: 0,
+        birthDate: newStudentBirthDate,
+        photoUrl: photoUrl
       }
-      setIsLoading(false)
+      
+      setStudents(prev => [...prev, newStudent])
+      if (closeAfter) {
+        setIsAddModalOpen(false)
+      }
+      setNewStudentName("")
+      setGender(null)
+      setNewStudentBirthDate("")
+      setNewStudentPhoto(null)
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, "students")
+    } finally {
+      setIsAddingStudent(false)
     }
-    fetchClass()
-  }, [classId])
+  }
+
+  useEffect(() => {
+    const fetchClassAndStudents = async () => {
+      if (!isAuthReady || !user?.uid) return
+      
+      try {
+        const classDoc = await getDoc(doc(db, "classes", classId))
+        if (classDoc.exists() && classDoc.data().teacherId === user.uid) {
+          const classData = { id: classDoc.id, ...classDoc.data() } as ClassData
+          setSelectedClass(classData)
+          
+          const studentsQ = query(collection(db, "students"), where("classId", "==", classId), where("teacherId", "==", user.uid))
+          const studentsSnap = await getDocs(studentsQ)
+          const studentsData = studentsSnap.docs.map(doc => ({
+             id: doc.id,
+             ...doc.data()
+          })) as Student[]
+          setStudents(studentsData)
+        } else {
+          setSelectedClass(null)
+        }
+      } catch (error) {
+        handleFirestoreError(error, OperationType.GET, `classes/${classId}`)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchClassAndStudents()
+  }, [classId, user, isAuthReady])
 
   if (isLoading) {
     return (
@@ -139,99 +221,184 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ classId
   const theme = themeStyles[selectedClass.theme]
   
   return (
-    <div className="bg-slate-50 min-h-full">
-      {/* Class Header */}
-      <div className={`bg-gradient-to-br ${theme.gradient} px-4 py-6 sm:px-8 sm:py-10 text-white relative shadow-sm rounded-[2rem] sm:rounded-3xl`}>
-        <div className="max-w-6xl mx-auto">
-          <button 
-            onClick={() => router.push('/classes')}
-            className="flex items-center gap-2 text-white/90 hover:text-white font-bold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl transition-colors mb-4 backdrop-blur-sm"
+    <div className="bg-slate-50 min-h-screen w-full max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-8 pb-24">
+      {/* Native Header */}
+      <div className="flex items-center justify-between mb-6">
+        <button 
+          onClick={() => router.push('/classes')}
+          className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100 text-slate-600 hover:bg-slate-50 transition-colors shrink-0"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <div className="flex flex-col items-center min-w-0 px-2">
+           <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight truncate w-full text-center">{selectedClass.name}</h1>
+           <div className="bg-indigo-50 text-indigo-600 font-bold px-3 py-1 rounded-full text-sm flex items-center justify-center gap-2 mt-1">
+             <Users className="w-4 h-4" />
+             <span className="truncate">{students.length} {students.length > 1 ? 'élèves' : 'élève'}</span>
+           </div>
+        </div>
+        <div className="w-10 h-10 shrink-0"></div> {/* Spacer for centering */}
+      </div>
+
+      {/* Main Action */}
+      <button 
+        onClick={() => setIsAddModalOpen(true)}
+        className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-lg py-4 rounded-2xl shadow-lg shadow-indigo-200 flex items-center justify-center gap-3 hover:-translate-y-1 transition-all mb-8"
+      >
+        <UserPlus className="w-5 h-5" />
+        Ajouter un élève
+      </button>
+
+      {/* Contact List View */}
+      <div className="flex flex-col gap-3">
+        {students.map((student) => (
+          <motion.div 
+            whileTap={{ scale: 0.98 }}
+            onClick={() => router.push(`/students/${student.id}?classId=${selectedClass.id}`)}
+            key={student.id} 
+            className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 hover:border-indigo-200 transition-colors cursor-pointer group select-none [-webkit-tap-highlight-color:transparent]"
           >
-            <ArrowLeft className="w-5 h-5" />
-            Retour aux classes
-          </button>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white font-bold text-xs shadow-inner">
-                  {selectedClass.cycle}
-                </div>
-              </div>
-              <h1 className="text-3xl sm:text-5xl font-black tracking-tight">{selectedClass.name}</h1>
-              <div className="flex flex-wrap items-center gap-3 text-white/90 font-medium mt-4">
-                <div className="flex items-center gap-1.5 bg-black/20 px-3 py-1.5 rounded-xl backdrop-blur-sm text-sm">
-                  <Clock className="w-4 h-4" />
-                  {selectedClass.schedule}
-                </div>
-                <div className="flex items-center gap-1.5 bg-black/20 px-3 py-1.5 rounded-xl backdrop-blur-sm text-sm">
-                  <MapPin className="w-4 h-4" />
-                  {selectedClass.room}
-                </div>
-              </div>
+            <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-lg shrink-0">
+              {getInitials(student.name)}
             </div>
-            <div className="bg-white text-slate-800 rounded-3xl p-4 sm:p-6 shadow-xl flex items-center gap-4 min-w-[200px]">
-              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center text-white shadow-inner`}>
-                <TrendingUp className="w-7 h-7" />
-              </div>
-              <div>
-                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Moyenne</p>
-                <p className="text-3xl font-black">{selectedClass.average}<span className="text-lg text-slate-400">/20</span></p>
-              </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-bold text-slate-800 truncate">{student.name}</p>
+              <p className="text-sm text-slate-400 truncate mt-0.5">
+                {student.status === 'excellent' ? 'Niveau Excellent' : student.status === 'good' ? 'Bilan à jour' : 'Aide requise'}
+              </p>
             </div>
+            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 transition-colors shrink-0" />
+          </motion.div>
+        ))}
+        {students.length === 0 && (
+          <div className="text-center py-10">
+             <p className="text-slate-500 font-medium">Aucun élève dans cette classe.</p>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Students List Content */}
-      <div className="max-w-6xl mx-auto py-6 sm:py-8 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl sm:text-2xl font-black text-slate-800 flex items-center gap-2">
-            <Users className="w-6 h-6 text-indigo-500" />
-            {selectedClass.studentsCount} élèves inscrits
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {selectedClass.students.map((student) => (
-            <motion.div 
-              whileTap={{ scale: 0.98 }}
-              onClick={() => router.push(`/students/${student.id}?classId=${selectedClass.id}`)}
-              key={student.id} 
-              className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md hover:-translate-y-1 hover:border-indigo-200 transition-all cursor-pointer group"
+      {/* ADD STUDENT MODAL */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsAddModalOpen(false)}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden pointer-events-auto border border-slate-100"
             >
-              <div className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center text-xl font-black text-white shadow-inner group-hover:scale-105 transition-transform ${
-                student.status === 'excellent' ? 'bg-gradient-to-br from-emerald-400 to-teal-500' :
-                student.status === 'good' ? 'bg-gradient-to-br from-sky-400 to-blue-500' :
-                'bg-gradient-to-br from-amber-400 to-orange-500'
-              }`}>
-                {getInitials(student.name)}
+              <div className="bg-slate-50 border-b border-slate-100 p-6 flex items-center justify-between">
+                <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-indigo-500" />
+                  Nouvel Élève
+                </h3>
+                <button onClick={() => setIsAddModalOpen(false)} className="p-2 bg-white rounded-xl text-slate-400 hover:text-slate-600 shadow-sm border border-slate-200 hover:border-slate-300 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-black text-slate-800 truncate group-hover:text-indigo-600 transition-colors text-lg">{student.name}</p>
+              
+              <form onSubmit={(e) => { e.preventDefault(); handleAddStudent(true); }} className="p-6 space-y-6">
+                
+                {/* Dynamic Avatar */}
+                <div className={`w-20 h-20 rounded-full mx-auto mb-2 flex items-center justify-center text-3xl font-black transition-colors duration-300 shadow-inner ${
+                  gender === 'boy' ? 'bg-blue-100 text-blue-600' : 
+                  gender === 'girl' ? 'bg-pink-100 text-pink-600' : 
+                  'bg-slate-100 text-slate-400'
+                }`}>
+                  {newStudentName.trim() ? newStudentName.trim()[0].toUpperCase() : '?'}
                 </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
-                    student.gender === 'M' ? 'bg-sky-100 text-sky-600' : 'bg-pink-100 text-pink-600'
-                  }`}>
-                    {student.gender === 'M' ? 'Garçon' : 'Fille'}
-                  </span>
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
-                    student.status === 'excellent' ? 'bg-emerald-100 text-emerald-700' :
-                    student.status === 'good' ? 'bg-sky-100 text-sky-700' :
-                    'bg-amber-100 text-amber-700'
-                  }`}>
-                    {student.status === 'excellent' ? 'Niveau Excellent' : student.status === 'good' ? 'Bon Niveau' : 'Aide requise'}
-                  </span>
+
+                <div>
+                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Nom de l&apos;élève *</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="Ex: Lucas D."
+                    value={newStudentName}
+                    onChange={(e) => setNewStudentName(e.target.value)}
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  />
                 </div>
-              </div>
-              {student.status === 'needs_help' && (
-                <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
-              )}
+
+                <div>
+                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Genre *</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      type="button" 
+                      onClick={() => setGender('boy')} 
+                      className={`py-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${gender === 'boy' ? 'bg-blue-50 border-blue-500 text-blue-700 ring-4 ring-blue-100' : 'bg-white border-slate-200 text-slate-500 hover:border-blue-200'}`}
+                    >
+                      <span className="text-3xl">👦</span>
+                      <span className="font-bold text-sm">Garçon</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setGender('girl')} 
+                      className={`py-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${gender === 'girl' ? 'bg-pink-50 border-pink-500 text-pink-700 ring-4 ring-pink-100' : 'bg-white border-slate-200 text-slate-500 hover:border-pink-200'}`}
+                    >
+                      <span className="text-3xl">👧</span>
+                      <span className="font-bold text-sm">Fille</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Date de naissance *</label>
+                  <input 
+                    type="date" 
+                    required
+                    value={newStudentBirthDate}
+                    onChange={(e) => setNewStudentBirthDate(e.target.value)}
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 transition-all cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Photo (Optionnelle)</label>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => setNewStudentPhoto(e.target.files?.[0] || null)}
+                    className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                  />
+                </div>
+
+                <div className="pt-2 flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleAddStudent(false)}
+                    disabled={isAddingStudent || !newStudentName.trim() || !newStudentBirthDate || !gender}
+                    className="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold py-4 rounded-2xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Enregistrer & Ajouter un autre
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={isAddingStudent || !newStudentName.trim() || !newStudentBirthDate || !gender}
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-4 rounded-2xl shadow-lg transition-transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center gap-2 border-b-[4px] border-slate-950 active:border-b-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                  >
+                    {isAddingStudent ? (
+                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    ) : (
+                      <>
+                        <Check className="w-5 h-5" />
+                        Terminer
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </motion.div>
-          ))}
-        </div>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

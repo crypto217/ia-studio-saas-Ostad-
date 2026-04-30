@@ -8,6 +8,7 @@ import { getComprehensiveStudentProfile } from "@/lib/services/studentData";
 interface GenerateAIReportBtnProps {
   studentId: string;
   classId: string;
+  onReportReady?: (report: string) => void;
 }
 
 const loadingStates = [
@@ -17,7 +18,7 @@ const loadingStates = [
   "Rédaction du bilan expert..."
 ];
 
-export function GenerateAIReportBtn({ studentId, classId }: GenerateAIReportBtnProps) {
+export function GenerateAIReportBtn({ studentId, classId, onReportReady }: GenerateAIReportBtnProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingTextIndex, setLoadingTextIndex] = useState(0);
   const [report, setReport] = useState<string | null>(null);
@@ -49,6 +50,7 @@ export function GenerateAIReportBtn({ studentId, classId }: GenerateAIReportBtnP
       const data = await res.json();
       if (res.ok && data.report) {
          setReport(data.report);
+         if (onReportReady) onReportReady(data.report);
       } else {
          console.error('Erreur API:', data.error);
          alert("Erreur lors de la génération du bilan.");
@@ -80,30 +82,6 @@ export function GenerateAIReportBtn({ studentId, classId }: GenerateAIReportBtnP
         <span className="text-sm text-indigo-600 font-medium animate-pulse text-center">
           {loadingStates[loadingTextIndex]}
         </span>
-      )}
-
-      {report && (
-        <div className="mt-8 p-6 bg-white rounded-3xl border border-indigo-100 shadow-sm w-[90vw] md:w-[60vw] max-w-4xl absolute top-full right-0 z-50 text-left overflow-y-auto max-h-[70vh]">
-          <div className="flex justify-end mb-4">
-             <button onClick={() => setReport(null)} className="text-slate-400 hover:text-slate-700 font-bold bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-lg transition-colors">
-               ✕ Fermer
-             </button>
-          </div>
-          <div className="prose prose-indigo max-w-none text-slate-700">
-            <Markdown
-              components={{
-                h2: ({node, ...props}) => <h2 className="text-xl font-black text-indigo-800 mt-8 mb-4 flex items-center gap-2 border-b border-indigo-100 pb-2" {...props} />,
-                h3: ({node, ...props}) => <h3 className="text-lg font-bold text-indigo-700 mt-6 mb-3" {...props} />,
-                p: ({node, ...props}) => <p className="mb-4 leading-relaxed" {...props} />,
-                ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-2 marker:text-indigo-400" {...props} />,
-                ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-2 marker:text-indigo-400 font-medium" {...props} />,
-                strong: ({node, ...props}) => <strong className="font-bold text-indigo-900" {...props} />,
-              }}
-            >
-              {report}
-            </Markdown>
-          </div>
-        </div>
       )}
     </div>
   );

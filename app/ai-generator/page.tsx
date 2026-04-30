@@ -602,7 +602,7 @@ REQUIREMENTS:
                   <span className="hidden sm:inline">Retour aux outils</span>
                   <span className="sm:hidden">Retour</span>
                 </button>
-                <div className="sm:hidden flex items-center gap-2">
+                <div className="sm:hidden flex items-center gap-2 min-w-0">
                     <span className="font-bold text-slate-800 text-sm truncate max-w-[150px]">{magicTools.find(t => t.id === selectedType)?.name.replace(/📝 |📖 |✍️ |📋 /g, '')}</span>
                 </div>
               </div>

@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { CheckCircle2, ChevronLeft, ChevronRight, ChevronDown, Check, Calendar, Users, Sparkles, UserCheck } from "lucide-react"
+import { CheckCircle2, ChevronLeft, ChevronRight, ChevronDown, Check, Calendar, Users, Sparkles, UserCheck, School } from "lucide-react"
 import { db } from "@/firebase"
 import { collection, query, where, getDocs, setDoc, doc } from "firebase/firestore"
 import { useAuth } from "@/components/AuthProvider"
 import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import Link from 'next/link'
 
 interface ClassData {
   id: string
@@ -66,7 +67,7 @@ export default function AttendancePage() {
         const snapshot = await getDocs(q)
         const classList = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }))
         setClasses(classList)
-        if (classList.length > 0) {
+        if (classList.length > 0 && !selectedClass) {
           setSelectedClass(classList[0].id)
         }
       } catch (error) {
@@ -76,7 +77,7 @@ export default function AttendancePage() {
       }
     }
     fetchClasses()
-  }, [user, isAuthReady])
+  }, [user, isAuthReady, selectedClass])
 
   // Fetch students and existing attendance when class or date changes
   useEffect(() => {
@@ -165,8 +166,8 @@ export default function AttendancePage() {
   const progressPercent = totalCount === 0 ? 0 : Math.round((markedCount / totalCount) * 100)
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-32">
-      <div className="max-w-4xl mx-auto px-4 mt-8">
+    <div className="min-h-screen bg-slate-50 font-sans pb-32 sm:pb-8">
+      <div className="max-w-4xl mx-auto px-4 mt-8 pb-8">
         {/* NEW HEADER */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-6 mb-8 mt-4">
           <div className="flex flex-col gap-4 w-full sm:w-auto">
@@ -192,9 +193,9 @@ export default function AttendancePage() {
                <button onClick={() => changeDate(-1)} className="p-3 text-slate-500 hover:text-slate-700 hover:bg-white active:scale-95 transition-all rounded-xl shadow-sm border border-transparent hover:border-slate-200">
                  <ChevronLeft className="w-5 h-5" />
                </button>
-               <div className="flex flex-col items-center justify-center px-4 min-w-[140px]">
+               <div className="flex flex-col items-center justify-center px-2 flex-1 min-w-0">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 flex items-center"><Calendar className="w-3 h-3 inline mr-1" /> Date</span>
-                  <span className="font-bold text-sm text-slate-700 capitalize">{formatDate(date)}</span>
+                  <span className="font-bold text-sm text-slate-700 capitalize truncate w-full text-center">{formatDate(date)}</span>
                </div>
                <button onClick={() => changeDate(1)} className="p-3 text-slate-500 hover:text-slate-700 hover:bg-white active:scale-95 transition-all rounded-xl shadow-sm border border-transparent hover:border-slate-200">
                  <ChevronRight className="w-5 h-5" />
@@ -251,10 +252,17 @@ export default function AttendancePage() {
             <p className="mt-4 text-slate-500 font-medium animate-pulse">Chargement de la classe...</p>
           </div>
         ) : students.length === 0 ? (
-          <div className="py-20 text-center bg-white rounded-3xl border border-dashed border-slate-300 flex flex-col items-center justify-center gap-4">
-            <Users className="w-12 h-12 text-slate-300" />
-            <p className="text-slate-500 font-bold text-lg">Aucun élève trouvé dans cette classe.</p>
-            <p className="text-slate-400 text-sm">Ajoutez des élèves depuis la section Élèves.</p>
+          <div className="py-20 flex flex-col items-center justify-center text-center">
+             <div className="bg-indigo-100 text-indigo-500 p-6 rounded-full mb-4">
+               <School className="w-12 h-12" />
+             </div>
+             <h2 className="text-2xl font-black text-slate-800 mb-2">Aucun élève dans cette classe</h2>
+             <p className="text-slate-500 text-center max-w-md mb-6">
+               Votre liste d&apos;appel est vide. Ajoutez des élèves à cette classe pour commencer à faire l&apos;appel.
+             </p>
+             <Link href={`/classes/${selectedClass}`} className="bg-indigo-600 text-white rounded-2xl py-3 px-6 font-bold hover:scale-105 transition-transform inline-block">
+               Ajouter des élèves
+             </Link>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -277,30 +285,30 @@ export default function AttendancePage() {
                       <div className="shrink-0 w-12 h-12 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-black text-lg border border-slate-200">
                         {student.name.split(' ').map(n => n.charAt(0)).join('').substring(0, 2).toUpperCase()}
                       </div>
-                      <div className="truncate">
+                      <div className="min-w-0 flex-1">
                         <h3 className="font-extrabold text-slate-800 text-lg truncate pr-4">{student.name}</h3>
                       </div>
                     </div>
                     
                     {/* Segmented Controls - Playful Notionesque */}
-                    <div className="flex bg-slate-50 rounded-[1.25rem] p-1.5 gap-1.5 shrink-0 ml-auto w-full sm:w-auto border border-slate-200">
+                    <div className="flex bg-slate-50 rounded-[1.25rem] p-1.5 gap-1.5 shrink-0 ml-auto w-full sm:w-auto border border-slate-200 mt-2 sm:mt-0">
                       <button 
                         onClick={() => handleStatusChange(student.id, 'present')}
-                        className={`flex-1 sm:w-24 py-2.5 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 ${status === 'present' ? 'bg-emerald-500 text-white shadow-inner font-extrabold shadow-emerald-700/50' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 font-bold border border-slate-200/50'}`}
+                        className={`flex-1 sm:w-24 py-3 sm:py-2.5 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 ${status === 'present' ? 'bg-emerald-500 text-white shadow-inner font-extrabold shadow-emerald-700/50' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 font-bold border border-slate-200/50'}`}
                       >
-                        <span className="text-sm">Présent</span>
+                        <span className="text-sm font-bold">Présent</span>
                       </button>
                       <button 
                         onClick={() => handleStatusChange(student.id, 'late')}
-                        className={`flex-1 sm:w-24 py-2.5 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 ${status === 'late' ? 'bg-amber-500 text-white shadow-inner font-extrabold shadow-amber-700/50' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 font-bold border border-slate-200/50'}`}
+                        className={`flex-1 sm:w-24 py-3 sm:py-2.5 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 ${status === 'late' ? 'bg-amber-500 text-white shadow-inner font-extrabold shadow-amber-700/50' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 font-bold border border-slate-200/50'}`}
                       >
-                        <span className="text-sm">Retard</span>
+                        <span className="text-sm font-bold">Retard</span>
                       </button>
                       <button 
                         onClick={() => handleStatusChange(student.id, 'absent')}
-                        className={`flex-1 sm:w-24 py-2.5 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 ${status === 'absent' ? 'bg-rose-500 text-white shadow-inner font-extrabold shadow-rose-700/50' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 font-bold border border-slate-200/50'}`}
+                        className={`flex-1 sm:w-24 py-3 sm:py-2.5 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 ${status === 'absent' ? 'bg-rose-500 text-white shadow-inner font-extrabold shadow-rose-700/50' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 font-bold border border-slate-200/50'}`}
                       >
-                        <span className="text-sm">Absent</span>
+                        <span className="text-sm font-bold">Absent</span>
                       </button>
                     </div>
                   </motion.div>
@@ -312,40 +320,42 @@ export default function AttendancePage() {
       </div>
 
       {/* FLOAT SAVE BAR - Sticky Bottom */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 pt-12 bg-gradient-to-t from-slate-50 via-slate-50/95 to-transparent pb-6 z-40 pointer-events-none">
-        <div className="max-w-4xl mx-auto relative pointer-events-auto flex justify-center">
-          <AnimatePresence>
-             {saveMessage.text && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  className="absolute -top-16 flex justify-center pointer-events-none"
-                >
-                  <div className={`px-6 py-3 rounded-full font-black text-sm shadow-xl flex items-center gap-3 ${saveMessage.type === 'success' ? 'bg-indigo-600 text-white shadow-indigo-600/30 ring-4 ring-indigo-50' : 'bg-rose-500 text-white shadow-rose-500/30'}`}>
-                    {saveMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-indigo-200" /> : null}
-                    {saveMessage.text}
-                  </div>
-                </motion.div>
-             )}
-          </AnimatePresence>
-
-          <button
-            onClick={handleSave}
-            disabled={isSaving || students.length === 0}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg px-8 py-4 rounded-2xl shadow-lg hover:-translate-y-1 transition-all flex items-center gap-3 disabled:opacity-50 disabled:border-transparent disabled:bg-slate-400 disabled:hover:translate-y-0 disabled:shadow-none"
-          >
-            {isSaving ? (
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-            ) : (
-              <>
-                 <span className="text-xl">💾</span>
-                 Enregistrer l&apos;appel
-              </>
-            )}
-          </button>
+      {students.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-slate-200 sm:relative sm:bg-transparent sm:border-none sm:p-0 z-40">
+          <div className="max-w-4xl mx-auto relative flex justify-center sm:justify-end">
+            <AnimatePresence>
+               {saveMessage.text && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="absolute -top-16 flex justify-center pointer-events-none"
+                  >
+                    <div className={`px-6 py-3 rounded-full font-black text-sm shadow-xl flex items-center gap-3 ${saveMessage.type === 'success' ? 'bg-indigo-600 text-white shadow-indigo-600/30 ring-4 ring-indigo-50' : 'bg-rose-500 text-white shadow-rose-500/30'}`}>
+                      {saveMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-indigo-200" /> : null}
+                      {saveMessage.text}
+                    </div>
+                  </motion.div>
+               )}
+            </AnimatePresence>
+  
+            <button
+              onClick={handleSave}
+              disabled={isSaving || students.length === 0}
+              className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg px-8 py-4 rounded-xl sm:rounded-2xl shadow-lg hover:-translate-y-1 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:border-transparent disabled:bg-slate-400 disabled:hover:translate-y-0 disabled:shadow-none"
+            >
+              {isSaving ? (
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+              ) : (
+                <>
+                   <span className="text-xl">💾</span>
+                   Enregistrer l&apos;appel
+                </>
+              )}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

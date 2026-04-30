@@ -110,7 +110,7 @@ export default function ContinuousEvaluation({ classId }: { classId: string }) {
               return (
                 <tr key={student.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-3 py-3 border-r border-slate-200 sticky left-0 bg-white group-hover:bg-slate-50/50 transition-colors z-10 shadow-[1px_0_0_0_#e2e8f0]">
-                    <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                       <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${student.avatarColor}`}>
                         {student.name.charAt(0)}
                       </div>

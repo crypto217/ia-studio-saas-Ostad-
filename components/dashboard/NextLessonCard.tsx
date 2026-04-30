@@ -210,7 +210,7 @@ export function NextLessonCard() {
             </span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-black tracking-tight drop-shadow-lg leading-none">{nextLesson.taskType}</h2>
-          <p className="text-sky-100 font-medium text-sm sm:text-base flex items-center gap-2 leading-relaxed">
+          <p className="text-sky-100 font-medium text-sm sm:text-base flex items-center gap-2 leading-relaxed min-w-0">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-300 shadow-[0_0_8px_rgba(125,211,252,0.8)] shrink-0" /> 
             <span className="truncate">{nextLesson.title}</span>
           </p>

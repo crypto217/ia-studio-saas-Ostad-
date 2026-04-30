@@ -40,14 +40,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setOnboardingCompleted(userDoc.data().onboardingCompleted || false)
           } else {
             // Create user profile
-            await setDoc(doc(db, "users", currentUser.uid), {
+            const userData: any = {
               uid: currentUser.uid,
-              email: currentUser.email,
-              displayName: currentUser.displayName,
+              email: currentUser.email || "",
               onboardingCompleted: false,
               createdAt: new Date().toISOString()
-            })
-            setOnboardingCompleted(false)
+            }
+            if (currentUser.displayName) {
+              userData.displayName = currentUser.displayName
+            }
+            try {
+              await setDoc(doc(db, "users", currentUser.uid), userData)
+              setOnboardingCompleted(false)
+            } catch (err) {
+              handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}`)
+            }
           }
         } catch (error) {
           handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`)

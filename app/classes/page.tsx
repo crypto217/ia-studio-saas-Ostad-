@@ -21,7 +21,12 @@ import {
   ArrowLeft
 } from "lucide-react"
 
-// --- MOCK DATA ---
+import { db } from "@/firebase"
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc } from "firebase/firestore"
+import { useAuth } from "@/components/AuthProvider"
+import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+
+// --- TYPES ---
 type StudentStatus = "excellent" | "good" | "needs_help"
 
 interface Student {
@@ -37,77 +42,12 @@ interface ClassData {
   name: string
   cycle: string
   theme: "amber" | "emerald" | "violet" | "sky" | "rose"
-  studentsCount: number
-  average: number
+  studentsCount?: number
+  average?: number
   schedule: string
   room: string
-  students: Student[]
+  students?: Student[]
 }
-
-const initialMockClasses: ClassData[] = [
-  {
-    id: "3ap-a",
-    name: "3ème AP - Groupe A",
-    cycle: "Primaire",
-    theme: "amber",
-    studentsCount: 24,
-    average: 14.5,
-    schedule: "Dim. 08:00 - 10:00",
-    room: "Salle 12",
-    students: [
-      { id: "s1", name: "Amine Benali", status: "excellent", grade: 18.5, gender: "M" },
-      { id: "s2", name: "Lina Merzoug", status: "good", grade: 14, gender: "F" },
-      { id: "s3", name: "Yanis Kadi", status: "needs_help", grade: 9.5, gender: "M" },
-      { id: "s4", name: "Ines Saidi", status: "excellent", grade: 17, gender: "F" },
-      { id: "s5", name: "Rayane Toumi", status: "good", grade: 13.5, gender: "M" },
-      { id: "s6", name: "Sarah Djouadi", status: "excellent", grade: 19, gender: "F" },
-    ]
-  },
-  {
-    id: "4ap-b",
-    name: "4ème AP - Groupe B",
-    cycle: "Primaire",
-    theme: "emerald",
-    studentsCount: 28,
-    average: 15.2,
-    schedule: "Lun. 10:00 - 12:00",
-    room: "Salle 14",
-    students: [
-      { id: "s7", name: "Mehdi L.", status: "good", grade: 15, gender: "M" },
-      { id: "s8", name: "Aya B.", status: "excellent", grade: 18, gender: "F" },
-      { id: "s9", name: "Wassim C.", status: "needs_help", grade: 8.5, gender: "M" },
-    ]
-  },
-  {
-    id: "1am-a",
-    name: "1ère AM - Groupe A",
-    cycle: "Moyen",
-    theme: "violet",
-    studentsCount: 32,
-    average: 12.8,
-    schedule: "Mar. 08:00 - 10:00",
-    room: "Labo 2",
-    students: [
-      { id: "s10", name: "Karim D.", status: "needs_help", grade: 10, gender: "M" },
-      { id: "s11", name: "Nour E.", status: "good", grade: 13, gender: "F" },
-      { id: "s12", name: "Sami F.", status: "excellent", grade: 16.5, gender: "M" },
-    ]
-  },
-  {
-    id: "2am-c",
-    name: "2ème AM - Groupe C",
-    cycle: "Moyen",
-    theme: "sky",
-    studentsCount: 30,
-    average: 13.5,
-    schedule: "Mer. 14:00 - 16:00",
-    room: "Salle 22",
-    students: [
-      { id: "s13", name: "Rania G.", status: "good", grade: 14.5, gender: "F" },
-      { id: "s14", name: "Walid H.", status: "needs_help", grade: 9, gender: "M" },
-    ]
-  }
-]
 
 const themeStyles = {
   amber: {
@@ -169,19 +109,9 @@ const getInitials = (name: string) => {
 }
 
 export default function StudentsPage() {
-  const [classes, setClasses] = useState<ClassData[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ludiclass_mock_classes')
-      if (saved) {
-        try {
-          return JSON.parse(saved)
-        } catch (e) {
-          console.error("Error parsing", e)
-        }
-      }
-    }
-    return initialMockClasses
-  })
+  const { user, isAuthReady } = useAuth()
+  const [classes, setClasses] = useState<ClassData[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   
   const [filterCycle, setFilterCycle] = useState<string>("Toutes")
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -192,37 +122,59 @@ export default function StudentsPage() {
   const [newTheme, setNewTheme] = useState<ClassData['theme']>("emerald")
 
   useEffect(() => {
-    localStorage.setItem('ludiclass_mock_classes', JSON.stringify(classes))
-  }, [classes])
+    if (!isAuthReady || !user?.uid) return
 
-  const deleteClass = (e: React.MouseEvent, id: string) => {
+    const q = query(collection(db, "classes"), where("teacherId", "==", user.uid))
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const clsData = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      })) as ClassData[]
+      setClasses(clsData)
+      setIsLoading(false)
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "classes")
+      setIsLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [user, isAuthReady])
+
+  const deleteClass = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation() // Prevent opening the details modal
     if (window.confirm("Êtes-vous sûr de vouloir supprimer cette classe ?")) {
-      setClasses(prev => prev.filter(c => c.id !== id))
+      try {
+        await deleteDoc(doc(db, "classes", id))
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `classes/${id}`)
+      }
     }
   }
 
-  const addClass = (e: React.FormEvent) => {
+  const addClass = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newName.trim()) return
+    if (!newName.trim() || !user?.uid) return
 
-    const newClassData: ClassData = {
-      id: Date.now().toString(),
-      name: newName,
-      cycle: newCycle,
-      theme: newTheme,
-      studentsCount: 0,
-      average: 0,
-      schedule: "À définir",
-      room: "À définir",
-      students: []
+    try {
+      await addDoc(collection(db, "classes"), {
+        teacherId: user.uid,
+        name: newName,
+        cycle: newCycle,
+        theme: newTheme,
+        studentsCount: 0,
+        average: 0,
+        schedule: "À définir",
+        room: "À définir",
+        createdAt: serverTimestamp()
+      })
+
+      setIsAddModalOpen(false)
+      setNewName("")
+      setNewCycle("Primaire")
+      setNewTheme("emerald")
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, "classes")
     }
-
-    setClasses(prev => [...prev, newClassData])
-    setIsAddModalOpen(false)
-    setNewName("")
-    setNewCycle("Primaire")
-    setNewTheme("emerald")
   }
 
   const filteredClasses = filterCycle === "Toutes" 
@@ -231,9 +183,9 @@ export default function StudentsPage() {
 
   // --- RENDER CLASSES LIST (INITIAL STATE) ---
   return (
-    <div className="min-h-full bg-slate-50 flex flex-col gap-4 sm:gap-6 max-w-7xl mx-auto pb-24">
+    <div className="min-h-full bg-slate-50 flex flex-col gap-4 sm:gap-6 w-full max-w-7xl mx-auto px-4 sm:px-8 pb-24">
       {/* Dashboard App Bar */}
-      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-4 -mx-4 sm:mx-0 sm:px-0 flex justify-between items-center">
+      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 py-4 -mx-4 px-4 sm:-mx-8 sm:px-8 flex justify-between items-center">
         <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 text-slate-800">
           <BookOpen className="w-6 h-6 text-indigo-500" />
           Mes Classes
@@ -265,7 +217,12 @@ export default function StudentsPage() {
       </div>
 
       {/* Classes Bento Grid */}
-      {filteredClasses.length === 0 ? (
+      {isLoading ? (
+        <div className="py-20 flex flex-col items-center justify-center text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-indigo-600 shadow-xl mb-4"></div>
+          <p className="text-slate-500 font-medium animate-pulse">Chargement de vos classes...</p>
+        </div>
+      ) : filteredClasses.length === 0 ? (
         <div className="py-20 flex flex-col items-center justify-center text-center bg-white rounded-[2rem] border-2 border-dashed border-slate-200">
           <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
             <BookOpen className="w-10 h-10 text-slate-300" />
@@ -274,7 +231,7 @@ export default function StudentsPage() {
           <p className="text-slate-500 font-medium max-w-sm">Créer une classe pour y ajouter des élèves.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <AnimatePresence>
             {filteredClasses.map((cls) => {
               const theme = themeStyles[cls.theme]
@@ -287,38 +244,31 @@ export default function StudentsPage() {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9 }}
-                      className={`cursor-pointer bg-white rounded-3xl border border-slate-200 shadow-sm transition-transform hover:-translate-y-1 hover:shadow-md p-5 active:scale-[0.98] select-none [-webkit-tap-highlight-color:transparent] min-h-[160px] flex flex-col justify-between group`}
+                      className={`w-full bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 hover:bg-slate-50 transition-colors active:scale-95 cursor-pointer select-none [-webkit-tap-highlight-color:transparent] group relative overflow-hidden`}
                     >
-                    <button 
-                      onClick={(e) => deleteClass(e, cls.id)}
-                      className="absolute top-4 right-4 p-2 rounded-xl bg-slate-50 text-slate-400 hover:bg-rose-500 hover:text-white transition-all z-20 shadow-sm"
-                      title="Supprimer"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-  
-                    <div className="flex flex-col gap-4 w-full">
-                      <div className="flex items-center justify-between">
-                        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center text-white shadow-inner shrink-0`}>
-                          <Icon className="w-7 h-7" strokeWidth={2.5} />
-                        </div>
-                      </div>
-                      <div className="mt-2">
-                        <div className={`inline-block font-black text-xs px-2.5 py-1 rounded-lg mb-2 ${theme.badgeBg} ${theme.badgeText}`}>
-                          {cls.cycle}
-                        </div>
-                        <h2 className="text-xl font-black tracking-tight line-clamp-2 text-slate-800">{cls.name}</h2>
-                      </div>
+                    <div className={`w-12 h-12 shrink-0 rounded-xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center text-white shadow-inner`}>
+                      <Icon className="w-6 h-6" strokeWidth={2.5} />
                     </div>
   
-                    <div className="flex items-center justify-between w-full mt-4 pt-4 border-t border-slate-100">
-                      <div className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500">
-                        <Users className="w-4 h-4 text-slate-400" />
-                        {cls.studentsCount} élèves
-                      </div>
-                      <div className="flex items-center gap-1.5 text-sm font-black text-slate-400 group-hover:text-indigo-500 transition-colors">
-                        Ouvrir
-                        <ChevronRight className="w-4 h-4" />
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-lg font-bold text-slate-800 truncate leading-tight flex items-center gap-2">
+                        {cls.name}
+                      </h2>
+                      <p className="text-sm text-slate-500 truncate mt-0.5">
+                        {cls.cycle} • {cls.studentsCount || 0} élèves
+                      </p>
+                    </div>
+  
+                    <div className="shrink-0 flex items-center gap-2">
+                      <button 
+                        onClick={(e) => deleteClass(e, cls.id)}
+                        className="p-2 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all focus:opacity-100"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <div className="text-slate-300">
+                        <ChevronRight className="w-5 h-5" />
                       </div>
                     </div>
                   </motion.div>

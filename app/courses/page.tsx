@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "motion/react"
+import Image from "next/image"
 import { 
   BookOpen, 
   PenTool, 
@@ -379,7 +380,7 @@ export default function CoursesLibraryPage() {
                     )}
                     {doc.imageUrl && (
                       <>
-                        <img src={doc.imageUrl} alt={doc.title} className="absolute inset-0 w-full h-full object-cover" />
+                        <Image src={doc.imageUrl} alt={doc.title} fill className="object-cover" referrerPolicy="no-referrer" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent mix-blend-multiply" />
                       </>
                     )}
@@ -420,7 +421,7 @@ export default function CoursesLibraryPage() {
                           <div className="space-y-1.5">
                             {courseResources.map(res => (
                               <div key={res.id} className="flex items-center justify-between bg-[#FFFAF3] hover:bg-slate-50 border border-slate-100 rounded-xl p-2 transition-colors">
-                                <div className="flex items-center gap-2 truncate pr-2">
+                                <div className="flex items-center gap-2 truncate pr-2 min-w-0">
                                   <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                                   <span className="text-xs font-bold text-slate-700 truncate">{res.title}</span>
                                 </div>
@@ -491,11 +492,11 @@ export default function CoursesLibraryPage() {
             >
               {/* Viewer Toolbar */}
               <div className="flex flex-wrap items-center justify-between gap-4 p-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
-                <div className="flex items-center gap-3 md:gap-4 max-w-[50%] md:max-w-none">
+                <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
                   <button onClick={() => setViewingDoc(null)} className="p-2 text-slate-400 hover:text-slate-600 bg-white rounded-xl shadow-sm border border-slate-200 transition-colors shrink-0">
                     <X className="w-5 h-5" />
                   </button>
-                  <div className="truncate">
+                  <div className="truncate min-w-0">
                     <h3 className="font-black text-slate-800 truncate text-sm md:text-base">{viewingDoc.title}</h3>
                     <p className="text-[10px] md:text-xs font-medium text-slate-500 truncate">{viewingDoc.className} • {viewingDoc.type}</p>
                   </div>
