@@ -683,7 +683,7 @@ REQUIREMENTS:
                         {selectedType === 'lesson' && (
                           <>
                             <div className="space-y-1.5 sm:space-y-2.5 col-span-2 sm:col-span-1">
-                              <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Domaine / Matière</label>
+                              <label className="text-xs sm:text-sm font-bold text-slate-700 sm:ml-1">Activité</label>
                               <select value={courseType} onChange={(e) => setCourseType(e.target.value)} className="w-full rounded-xl sm:rounded-2xl border sm:border-2 border-slate-200 bg-slate-50 sm:bg-white px-4 py-3 sm:px-5 sm:py-3.5 text-sm font-semibold sm:font-medium focus:border-violet-500 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-violet-500/10 cursor-pointer text-slate-800 transition-all">
                                 <option>Grammaire</option>
                                 <option>Conjugaison</option>

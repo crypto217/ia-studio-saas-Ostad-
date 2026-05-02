@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import Image from "next/image"
 import { 
@@ -21,10 +21,15 @@ import {
   X,
   Printer,
   Maximize,
-  Minimize
+  Minimize,
+  Folder,
+  ChevronRight,
+  MoreVertical,
+  Upload
 } from "lucide-react"
-import { db } from "@/firebase"
-import { collection, query, onSnapshot, deleteDoc, doc, where } from "firebase/firestore"
+import { db, storage } from "@/firebase"
+import { collection, query, onSnapshot, deleteDoc, doc, where, addDoc, serverTimestamp } from "firebase/firestore"
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
 import Link from "next/link"
 import Markdown from "react-markdown"
@@ -47,6 +52,18 @@ interface GeneratedDoc {
   bgColor: string
 }
 
+interface TeacherFile {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  size: string;
+  type: string;
+  folder: string;
+  fileType?: string;
+  teacherId: string;
+  createdAt: any;
+}
+
 const CLASSES = ["Toutes", "3ème AP", "4ème AP", "5ème AP", "1ère AM"]
 const TYPES = ["Tous", "Cours", "Exercice", "Examen"]
 
@@ -63,14 +80,36 @@ export default function CoursesLibraryPage() {
   const [viewingDoc, setViewingDoc] = useState<GeneratedDoc | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
-  const [resources, setResources] = useState<any[]>([])
+  const [teacherFiles, setTeacherFiles] = useState<TeacherFile[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // New States for Classification Modal & Toast
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [selectedFolder, setSelectedFolder] = useState<string>("3ème AP")
+  const [selectedFileType, setSelectedFileType] = useState<string>("Fiche de préparation")
+  const [toastMessage, setToastMessage] = useState<{message: string, type: 'success' | 'error'} | null>(null)
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToastMessage({ message, type });
+    setTimeout(() => setToastMessage(null), 3000);
+  }
+
+  const [currentPath, setCurrentPath] = useState(["Mon Classeur"]);
+  const folders = [
+    { id: '1', name: '3ème AP', date: 'Hier', color: 'text-blue-500', bgColor: 'bg-blue-100' },
+    { id: '2', name: '4ème AP', date: 'Il y a 2 jours', color: 'text-emerald-500', bgColor: 'bg-emerald-100' },
+    { id: '3', name: '5ème AP', date: "Aujourd'hui", color: 'text-orange-500', bgColor: 'bg-orange-100' },
+  ];
 
   useEffect(() => {
     if (!isAuthReady) return;
     if (!user) {
-      setDocs([]);
-      setResources([]);
-      setIsLoading(false);
+      setTimeout(() => {
+        setDocs([]);
+        setTeacherFiles([]);
+        setIsLoading(false);
+      }, 0);
       return;
     }
 
@@ -88,35 +127,123 @@ export default function CoursesLibraryPage() {
       });
       
       setDocs(fetchedDocs);
-      setIsLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, "courses");
-      setIsLoading(false);
     });
 
-    const qRes = query(collection(db, "resources"), where("userId", "==", user.uid));
-    const unsubRes = onSnapshot(qRes, (snapshot) => {
-      const fetchedRes = snapshot.docs.map(doc => ({
+    const qFiles = query(collection(db, "teacher_files"), where("teacherId", "==", user.uid));
+    const unsubFiles = onSnapshot(qFiles, (snapshot) => {
+      const fetchedFiles = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
-      setResources(fetchedRes);
+      })) as TeacherFile[];
+      
+      fetchedFiles.sort((a, b) => {
+        const dateA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const dateB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return dateB - dateA;
+      });
+      
+      setTeacherFiles(fetchedFiles);
+      setIsLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, "resources");
+      handleFirestoreError(error, OperationType.LIST, "teacher_files");
+      setIsLoading(false);
     });
 
     return () => {
       unsubscribe();
-      unsubRes();
+      unsubFiles();
     };
   }, [user, isAuthReady]);
 
-  const filteredDocs = docs.filter(doc => {
-    const matchesSearch = doc.title?.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesClass = selectedClass === "Toutes" || doc.className === selectedClass
-    const matchesType = selectedType === "Tous" || doc.type === selectedType
-    return matchesSearch && matchesClass && matchesType
+  const filteredFiles = teacherFiles.filter(file => {
+    return file.fileName.toLowerCase().includes(searchQuery.toLowerCase())
   })
+
+  const formatSize = (bytes: number) => {
+    if (bytes === 0) return '0 Octets';
+    const k = 1024;
+    const sizes = ['Octets', 'Ko', 'Mo', 'Go'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!user) return;
+    setPendingFile(file);
+  };
+
+  const confirmUpload = async () => {
+    if (!user || !pendingFile) return;
+    setIsUploading(true);
+    try {
+      const fileRef = ref(storage, `uploads/teachers/${user.uid}/${Date.now()}_${pendingFile.name}`);
+      
+      // Setup a timeout for the upload in case Firebase Storage is not enabled
+      const uploadPromise = uploadBytes(fileRef, pendingFile);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("STORAGE_TIMEOUT")), 20000); // 20s timeout
+      });
+
+      await Promise.race([uploadPromise, timeoutPromise]);
+      const fileUrl = await getDownloadURL(fileRef);
+      const ext = pendingFile.name.split('.').pop()?.toUpperCase() || 'FICHIER';
+      
+      await addDoc(collection(db, 'teacher_files'), {
+        fileName: pendingFile.name,
+        fileUrl,
+        size: formatSize(pendingFile.size),
+        type: ext,
+        folder: selectedFolder,
+        fileType: selectedFileType,
+        teacherId: user.uid,
+        createdAt: serverTimestamp()
+      });
+      setPendingFile(null);
+      showToast("Document classé avec succès !", "success");
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      if (error?.message === "STORAGE_TIMEOUT") {
+        showToast("Erreur: Le stockage (Storage) n'est pas activé sur votre projet Firebase.", "error");
+      } else {
+        showToast("Erreur lors de l'envoi. Vérifiez que Firebase Storage est bien activé.", "error");
+      }
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFileUpload(e.target.files[0]);
+    }
+  };
+
+  const handleDeleteFile = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce fichier ?")) {
+      try {
+        await deleteDoc(doc(db, "teacher_files", id));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `teacher_files/${id}`);
+      }
+    }
+  }
 
   const handleDelete = async (id: string) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer ce document ?")) {
@@ -242,243 +369,262 @@ export default function CoursesLibraryPage() {
 
   return (
     <div className="min-h-screen pb-24 bg-slate-50/50 print:bg-white print:p-0">
-      {/* HEADER HERO */}
-      <div className={`bg-white border-b border-slate-200 ${isMobile ? 'px-4 py-6' : 'px-4 py-8 sm:px-8'} relative overflow-hidden print:hidden`}>
-        {/* Decorative background blobs */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-4' : 'px-8'} py-8 print:hidden`}>
         
-        <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-4 mb-3">
-              <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white shadow-lg shadow-fuchsia-500/30 transform -rotate-6">
-                <FileText className="w-6 h-6 md:w-7 md:h-7" />
+        {/* TOP BAR: BREADCRUMB & ACTIONS */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-2 text-lg md:text-xl font-bold text-slate-800">
+            {currentPath.map((segment, index) => (
+              <div key={segment} className="flex items-center gap-2">
+                <span className={index === currentPath.length - 1 ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700 cursor-pointer transition-colors'}>
+                  {segment}
+                </span>
+                {index < currentPath.length - 1 && <ChevronRight className="w-5 h-5 text-slate-400" />}
               </div>
-              <h1 className="text-2xl md:text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Ma Bibliothèque</h1>
-            </div>
-            <p className="text-slate-500 font-medium text-sm md:text-lg max-w-2xl">
-              Retrouvez toutes vos fiches de cours, exercices et examens générés par l&apos;IA.
-            </p>
+            ))}
           </div>
-          
-          <Link href="/ai-generator" className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 md:px-6 md:py-3.5 rounded-2xl font-bold shadow-xl shadow-slate-900/20 transition-all hover:-translate-y-1 text-sm md:text-base w-full md:w-auto">
-            <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-amber-400" />
-            Générer un document
-          </Link>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+             <div className="relative w-full sm:w-64">
+               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                 <Search className="h-4 w-4 text-slate-400" />
+               </div>
+               <input
+                 type="text"
+                 placeholder="Rechercher..."
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+                 className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-violet-300 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-medium text-slate-700 placeholder:text-slate-400 shadow-sm"
+               />
+             </div>
+             
+             <input type="file" className="hidden" ref={fileInputRef} onChange={onFileSelect} />
+             <button onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-xl font-bold transition-all hover:-translate-y-0.5 text-sm shadow-sm hover:shadow-md">
+               <Plus className="w-4 h-4" />
+               Ajouter
+             </button>
+          </div>
         </div>
+
+        {/* DRAG & DROP AREA */}
+        <div 
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className="mb-10 bg-white border-2 border-dashed border-slate-200 rounded-3xl p-8 text-center flex flex-col items-center justify-center hover:bg-slate-50 hover:border-violet-300 transition-colors cursor-pointer group shadow-sm"
+        >
+          {isUploading ? (
+            <>
+              <div className="w-16 h-16 bg-slate-100 text-slate-500 rounded-2xl flex items-center justify-center mb-4">
+                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-1">Téléchargement en cours...</h3>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 bg-slate-100 text-slate-500 group-hover:bg-violet-100 group-hover:text-violet-600 rounded-2xl flex items-center justify-center mb-4 transition-all group-hover:scale-110">
+                <Upload className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-1">Glissez-déposez vos fichiers ici</h3>
+              <p className="text-sm text-slate-500">(PDF, Word, Images supportés)</p>
+            </>
+          )}
+        </div>
+
+        {/* FOLDERS SECTION */}
+        <div className="mb-10">
+          <h2 className="text-lg font-bold text-slate-800 mb-4">Dossiers</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {folders.map(folder => (
+              <div key={folder.id} className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-4 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer group">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${folder.bgColor} ${folder.color} group-hover:scale-110 transition-transform`}>
+                  <Folder className="w-6 h-6 fill-current" />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-bold text-slate-800 truncate">{folder.name}</h4>
+                  <p className="text-xs text-slate-500 truncate">Modifié · {folder.date}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* RECENT FILES SECTION */}
+        <div>
+          <h2 className="text-lg font-bold text-slate-800 mb-4">Fichiers récents</h2>
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            {isLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+              </div>
+            ) : filteredFiles.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/50">
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Nom</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Type</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider hidden md:table-cell">Taille</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Date</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredFiles.map((file) => (
+                      <tr 
+                        key={file.id} 
+                        className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                        onClick={() => window.open(file.fileUrl, '_blank')}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+                               <FileText className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-slate-800 truncate">{file.fileName}</p>
+                              <p className="text-xs text-slate-500 truncate sm:hidden">{file.type} • {formatDate(file.createdAt)}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 hidden sm:table-cell">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md bg-slate-100 text-slate-600`}>
+                            {file.type}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-500 hidden md:table-cell">
+                           {file.size}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-500 hidden lg:table-cell">
+                          {formatDate(file.createdAt)}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                           <div className="flex items-center justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                             <button onClick={(e) => { e.stopPropagation(); window.open(file.fileUrl, '_blank'); }} className="p-2 text-slate-400 hover:text-emerald-600 bg-white hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-100" title="Télécharger">
+                               <Download className="w-4 h-4" />
+                             </button>
+                             <button onClick={(e) => handleDeleteFile(file.id, e)} className="p-2 text-slate-400 hover:text-rose-600 bg-white hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100" title="Supprimer">
+                               <Trash2 className="w-4 h-4" />
+                             </button>
+                           </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-12 text-center flex flex-col items-center justify-center">
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                  <FileText className="w-8 h-8 text-slate-300" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-1">Aucun fichier</h3>
+                <p className="text-sm text-slate-500">
+                  {searchQuery ? "Aucun fichier ne correspond à votre recherche." : "Générez ou déposez des fichiers pour commencer."}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
 
-      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-0' : 'px-4 sm:px-8'} mt-8 print:hidden`}>
-        {/* SEARCH & FILTERS */}
-        <div className={`bg-white/80 backdrop-blur-xl ${isMobile ? 'p-4 rounded-[1.5rem]' : 'p-6 sm:p-8 rounded-[3rem]'} shadow-xl shadow-slate-200/40 border-4 border-white mb-12 space-y-8 relative overflow-hidden`}>
-          {/* Decorative background elements */}
-          <div className="absolute -top-24 -right-24 w-64 h-64 bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-          
-          {/* Search Bar */}
-          <div className="relative z-10 group">
-            <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none transition-transform group-focus-within:scale-110">
-              <Search className="h-6 w-6 text-slate-400 transition-colors group-focus-within:text-violet-500" />
-            </div>
-            <input
-              type="text"
-              placeholder="Rechercher un cours..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full ${isMobile ? 'pl-12 pr-12 py-4 text-base' : 'pl-16 pr-16 py-5 text-lg'} bg-white border-4 border-slate-100 rounded-[2rem] focus:outline-none focus:border-violet-300 focus:ring-4 focus:ring-violet-500/10 transition-all duration-300 font-bold text-slate-700 placeholder:text-slate-300 shadow-sm hover:shadow-md hover:border-slate-200`}
-            />
-            {/* Sparkle icon that appears when typing */}
-            <AnimatePresence>
-              {searchQuery && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0, rotate: -45 }}
-                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                  exit={{ opacity: 0, scale: 0, rotate: 45 }}
-                  className="absolute inset-y-0 right-6 flex items-center pointer-events-none"
-                >
-                  <Sparkles className="h-6 w-6 text-amber-400" />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          <div className="flex flex-col lg:flex-row gap-8 justify-between relative z-10">
-            {/* Type Filters */}
-            <div className="space-y-3">
-              <label className="text-sm font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
-                <Filter className="w-4 h-4 text-violet-400" /> Type de document
-              </label>
-              <div className={`flex flex-wrap ${isMobile ? 'gap-2' : 'gap-3'}`}>
-                {TYPES.map(type => (
-                  <button
-                    key={type}
-                    onClick={() => setSelectedType(type)}
-                    className={`px-4 py-2 md:px-6 md:py-3 rounded-[1rem] md:rounded-2xl font-bold text-xs md:text-sm transition-all duration-300 transform hover:-translate-y-1 ${
-                      selectedType === type 
-                        ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/30 border-b-4 border-violet-700' 
-                        : 'bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 border-2 border-slate-100 shadow-sm hover:shadow-md'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Class Filters */}
-            <div className="space-y-3">
-              <label className="text-sm font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
-                 <GraduationCap className="w-4 h-4 text-amber-400" /> Classe
-              </label>
-              <div className={`flex flex-wrap ${isMobile ? 'gap-2' : 'gap-3'}`}>
-                {CLASSES.map(cls => (
-                  <button
-                    key={cls}
-                    onClick={() => setSelectedClass(cls)}
-                    className={`px-4 py-2 md:px-6 md:py-3 rounded-[1rem] md:rounded-2xl font-bold text-xs md:text-sm transition-all duration-300 transform hover:-translate-y-1 ${
-                      selectedClass === cls 
-                        ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg shadow-orange-500/30 border-b-4 border-orange-600' 
-                        : 'bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 border-2 border-slate-100 shadow-sm hover:shadow-md'
-                    }`}
-                  >
-                    {cls}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* DOCUMENTS GRID */}
-        {isLoading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600"></div>
-          </div>
-        ) : filteredDocs.length > 0 ? (
-          <motion.div 
-            layout
-            className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 ${isMobile ? 'gap-4 px-4' : 'gap-6'}`}
-          >
-            <AnimatePresence>
-              {filteredDocs.map((doc) => (
-                <motion.div
-                  key={doc.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  whileHover={{ y: -5 }}
-                  className={`bg-white rounded-[2rem] border-2 border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group flex flex-col ${isMobile ? 'mx-0' : 'mx-0'}`}
-                >
-                  {/* Card Header (Colored or Image) */}
-                  <div className={`h-32 ${!doc.imageUrl ? 'bg-gradient-to-r ' + (doc.color || 'from-slate-400 to-slate-500') : ''} p-6 relative overflow-hidden shrink-0`}>
-                    {!doc.imageUrl && (
-                      <>
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-                      </>
-                    )}
-                    {doc.imageUrl && (
-                      <>
-                        <Image src={doc.imageUrl} alt={doc.title} fill className="object-cover" referrerPolicy="no-referrer" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent mix-blend-multiply" />
-                      </>
-                    )}
-                    <div className="relative z-10 flex justify-between items-start">
-                      <div className="bg-white/20 backdrop-blur-md p-3 rounded-2xl text-white shadow-inner border border-white/20">
-                        {getIcon(doc.type)}
-                      </div>
-                      <div className="bg-white/90 backdrop-blur-sm text-slate-800 text-xs font-black px-3 py-1.5 rounded-xl shadow-sm border border-white/50">
-                        {doc.className}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card Body */}
-                  <div className="p-6 flex-1 flex flex-col">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg ${doc.bgColor || 'bg-slate-100'} ${doc.iconColor || 'text-slate-600'}`}>
-                        {doc.type}
-                      </span>
-                      <span className="text-xs font-medium text-slate-400">
-                        • {formatDate(doc.createdAt)}
-                      </span>
-                    </div>
-                    
-                    <h3 className="text-xl font-black text-slate-800 leading-tight mb-4 flex-1">
-                      {doc.title}
-                    </h3>
-                    
-                    {/* IA Resources */}
-                    {(() => {
-                      const courseResources = resources.filter(r => r.courseId === doc.id);
-                      if (courseResources.length === 0) return null;
-                      return (
-                        <div className="mb-4">
-                          <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                            <Sparkles className="w-3 h-3" /> Fiches IA
-                          </h4>
-                          <div className="space-y-1.5">
-                            {courseResources.map(res => (
-                              <div key={res.id} className="flex items-center justify-between bg-[#FFFAF3] hover:bg-slate-50 border border-slate-100 rounded-xl p-2 transition-colors">
-                                <div className="flex items-center gap-2 truncate pr-2 min-w-0">
-                                  <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                  <span className="text-xs font-bold text-slate-700 truncate">{res.title}</span>
-                                </div>
-                                <button onClick={() => setViewingDoc({ ...res, type: 'IA' } as GeneratedDoc)} className="p-1.5 bg-white text-slate-400 hover:text-indigo-600 rounded-lg shadow-sm border border-slate-200 transition-colors shrink-0">
-                                  <Eye className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Actions */}
-                    <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-auto">
-                      <div className="flex gap-2">
-                        <button onClick={() => setViewingDoc(doc)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-violet-50 hover:text-violet-600 transition-colors" title="Aperçu">
-                          <Eye className="w-5 h-5" />
-                        </button>
-                        <button onClick={() => exportToPDF(doc.content, doc.type)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-colors" title="Télécharger PDF">
-                          <Download className="w-5 h-5" />
-                        </button>
-                      </div>
-                      <button 
-                        onClick={() => handleDelete(doc.id)}
-                        className="w-10 h-10 rounded-xl text-slate-300 flex items-center justify-center hover:bg-rose-50 hover:text-rose-500 transition-colors" 
-                        title="Supprimer"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        ) : (
-          /* EMPTY STATE */
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`bg-white rounded-[3rem] border-2 border-dashed border-slate-200 ${isMobile ? 'p-6 mx-4' : 'p-12'} text-center flex flex-col items-center justify-center min-h-[400px]`}
+            exit={{ opacity: 0, y: 50 }}
+            className={`fixed bottom-4 right-4 z-[200] px-6 py-3 rounded-xl shadow-lg font-medium text-white ${toastMessage.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'}`}
           >
-            <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6">
-              <Search className="w-10 h-10 text-slate-300" />
-            </div>
-            <h3 className="text-xl md:text-2xl font-black text-slate-800 mb-2">Aucun document trouvé</h3>
-            <p className="text-slate-500 max-w-md mx-auto mb-8 text-sm md:text-base">
-              Vous n&apos;avez pas encore généré de documents correspondant à ces critères, ou votre bibliothèque est vide.
-            </p>
-            <Link href="/ai-generator" className="flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-amber-950 px-6 py-3 md:px-8 md:py-4 rounded-2xl font-black shadow-xl shadow-amber-500/20 transition-all hover:-translate-y-1 text-sm md:text-base">
-              <Sparkles className="w-5 h-5 md:w-6 md:h-6" />
-              Générer mon premier cours
-            </Link>
+            {toastMessage.message}
           </motion.div>
         )}
-      </div>
+      </AnimatePresence>
+
+      {/* CLASSIFICATION MODAL */}
+      <AnimatePresence>
+        {pendingFile && (
+          <div className="fixed inset-0 z-[150] bg-slate-800/90 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-md relative overflow-hidden"
+            >
+              <button 
+                onClick={() => setPendingFile(null)}
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                disabled={isUploading}
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Classer ce document</h3>
+                <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                  <FileText className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{pendingFile.name}</span>
+                </p>
+              </div>
+
+              <div className="space-y-4 mb-8">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1.5">Niveau (Dossier)<span className="text-rose-500">*</span></label>
+                  <select 
+                    value={selectedFolder}
+                    onChange={(e) => setSelectedFolder(e.target.value)}
+                    disabled={isUploading}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-400/10 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="3ème AP">3ème AP</option>
+                    <option value="4ème AP">4ème AP</option>
+                    <option value="5ème AP">5ème AP</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1.5">Type de document</label>
+                  <select 
+                    value={selectedFileType}
+                    onChange={(e) => setSelectedFileType(e.target.value)}
+                    disabled={isUploading}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-400/10 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="Fiche de préparation">Fiche de préparation</option>
+                    <option value="Exercice">Exercice</option>
+                    <option value="Évaluation">Évaluation</option>
+                    <option value="Autre">Autre</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setPendingFile(null)}
+                  disabled={isUploading}
+                  className="flex-1 px-4 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={confirmUpload}
+                  disabled={isUploading}
+                  className="flex-[2] flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                >
+                  {isUploading ? (
+                    <div className="w-5 h-5 flex items-center justify-center">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    </div>
+                  ) : (
+                    <>Valider et Sauvegarder</>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* DOCUMENT VIEWER MODAL */}
       <AnimatePresence>

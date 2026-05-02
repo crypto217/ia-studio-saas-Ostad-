@@ -292,9 +292,9 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ classId
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden pointer-events-auto border border-slate-100"
+              className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden pointer-events-auto border border-slate-100 flex flex-col max-h-[90dvh]"
             >
-              <div className="bg-slate-50 border-b border-slate-100 p-6 flex items-center justify-between">
+              <div className="bg-slate-50 border-b border-slate-100 p-4 sm:p-6 flex items-center justify-between shrink-0">
                 <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
                   <UserPlus className="w-5 h-5 text-indigo-500" />
                   Nouvel Élève
@@ -304,73 +304,74 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ classId
                 </button>
               </div>
               
-              <form onSubmit={(e) => { e.preventDefault(); handleAddStudent(true); }} className="p-6 space-y-6">
-                
-                {/* Dynamic Avatar */}
-                <div className={`w-20 h-20 rounded-full mx-auto mb-2 flex items-center justify-center text-3xl font-black transition-colors duration-300 shadow-inner ${
-                  gender === 'boy' ? 'bg-blue-100 text-blue-600' : 
-                  gender === 'girl' ? 'bg-pink-100 text-pink-600' : 
-                  'bg-slate-100 text-slate-400'
-                }`}>
-                  {newStudentName.trim() ? newStudentName.trim()[0].toUpperCase() : '?'}
-                </div>
+              <form onSubmit={(e) => { e.preventDefault(); handleAddStudent(true); }} className="flex-1 overflow-y-auto flex flex-col">
+                <div className="p-4 sm:p-6 space-y-6 pb-8 sm:pb-12">
+                  {/* Dynamic Avatar */}
+                  <div className={`w-20 h-20 rounded-full mx-auto mb-2 flex items-center justify-center text-3xl font-black transition-colors duration-300 shadow-inner ${
+                    gender === 'boy' ? 'bg-blue-100 text-blue-600' : 
+                    gender === 'girl' ? 'bg-pink-100 text-pink-600' : 
+                    'bg-slate-100 text-slate-400'
+                  }`}>
+                    {newStudentName.trim() ? newStudentName.trim()[0].toUpperCase() : '?'}
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Nom de l&apos;élève *</label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="Ex: Lucas D."
-                    value={newStudentName}
-                    onChange={(e) => setNewStudentName(e.target.value)}
-                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 transition-all"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Nom de l&apos;élève *</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="Ex: Lucas D."
+                      value={newStudentName}
+                      onChange={(e) => setNewStudentName(e.target.value)}
+                      className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Genre *</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button 
-                      type="button" 
-                      onClick={() => setGender('boy')} 
-                      className={`py-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${gender === 'boy' ? 'bg-blue-50 border-blue-500 text-blue-700 ring-4 ring-blue-100' : 'bg-white border-slate-200 text-slate-500 hover:border-blue-200'}`}
-                    >
-                      <span className="text-3xl">👦</span>
-                      <span className="font-bold text-sm">Garçon</span>
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={() => setGender('girl')} 
-                      className={`py-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${gender === 'girl' ? 'bg-pink-50 border-pink-500 text-pink-700 ring-4 ring-pink-100' : 'bg-white border-slate-200 text-slate-500 hover:border-pink-200'}`}
-                    >
-                      <span className="text-3xl">👧</span>
-                      <span className="font-bold text-sm">Fille</span>
-                    </button>
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Genre *</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button 
+                        type="button" 
+                        onClick={() => setGender('boy')} 
+                        className={`py-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${gender === 'boy' ? 'bg-blue-50 border-blue-500 text-blue-700 ring-4 ring-blue-100' : 'bg-white border-slate-200 text-slate-500 hover:border-blue-200'}`}
+                      >
+                        <span className="text-3xl">👦</span>
+                        <span className="font-bold text-sm">Garçon</span>
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => setGender('girl')} 
+                        className={`py-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${gender === 'girl' ? 'bg-pink-50 border-pink-500 text-pink-700 ring-4 ring-pink-100' : 'bg-white border-slate-200 text-slate-500 hover:border-pink-200'}`}
+                      >
+                        <span className="text-3xl">👧</span>
+                        <span className="font-bold text-sm">Fille</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Date de naissance *</label>
+                    <input 
+                      type="date" 
+                      required
+                      value={newStudentBirthDate}
+                      onChange={(e) => setNewStudentBirthDate(e.target.value)}
+                      className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 transition-all cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Photo (Optionnelle)</label>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={(e) => setNewStudentPhoto(e.target.files?.[0] || null)}
+                      className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                    />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Date de naissance *</label>
-                  <input 
-                    type="date" 
-                    required
-                    value={newStudentBirthDate}
-                    onChange={(e) => setNewStudentBirthDate(e.target.value)}
-                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 transition-all cursor-pointer"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Photo (Optionnelle)</label>
-                  <input 
-                    type="file" 
-                    accept="image/*"
-                    onChange={(e) => setNewStudentPhoto(e.target.files?.[0] || null)}
-                    className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-                  />
-                </div>
-
-                <div className="pt-2 flex flex-col gap-3">
+                <div className="sticky bottom-0 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-100 z-10 flex flex-col gap-3 mt-auto">
                   <button
                     type="button"
                     onClick={() => handleAddStudent(false)}

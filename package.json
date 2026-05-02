@@ -9,6 +9,9 @@
     "lint": "eslint .",
     "clean": "next clean"
   },
+  "overrides": {
+    "node-domexception": "file:./domexception-mock"
+  },
   "dependencies": {
     "@google/genai": "^1.17.0",
     "@hookform/resolvers": "^5.2.1",

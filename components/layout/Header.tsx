@@ -55,9 +55,10 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex shrink-0 w-full h-20 items-center justify-between border-b border-indigo-50 bg-white/80 px-4 md:px-8 backdrop-blur-xl print:hidden">
-        <div className="flex items-center gap-4">
-          <div className="relative hidden md:block">
+      <header className="sticky top-0 z-30 flex shrink-0 w-full h-20 items-center justify-between border-b border-indigo-50 bg-white/80 md:px-8 backdrop-blur-xl print:hidden">
+        {/* Desktop Left side */}
+        <div className="hidden md:flex items-center gap-4">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input 
               type="text" 
@@ -65,22 +66,30 @@ export function Header() {
               className="h-11 w-80 rounded-2xl border-none bg-slate-100/50 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
             />
           </div>
-          {/* Mobile Logo/Title & Hamburger (visible only on mobile) */}
-          <div className="flex md:hidden items-center gap-3">
-            <button 
-              onClick={() => setShowMobileMenu(true)}
-              className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
+        </div>
+
+        {/* Mobile Header elements container */}
+        <div className="flex items-center justify-between w-full md:hidden px-4">
+          <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400 text-white shadow-sm">
               <Sparkles className="h-5 w-5" />
             </div>
             <span className="text-xl font-black tracking-tight text-slate-800">LUDICLASS</span>
           </div>
+          
+          <div className="flex items-center gap-2">
+            <NotificationMenu />
+            <button 
+              onClick={() => setShowMobileMenu(true)}
+              className="p-2 -mr-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4 md:gap-6">
+        {/* Desktop Right Side */}
+        <div className="hidden md:flex items-center gap-4 md:gap-6">
           <div className="flex items-center gap-3 md:gap-6">
             <NotificationMenu />
           </div>

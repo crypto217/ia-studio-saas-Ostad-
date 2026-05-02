@@ -29,8 +29,6 @@ export function GenerateAIReportBtn({ studentId, classId, onReportReady }: Gener
       interval = setInterval(() => {
         setLoadingTextIndex((prevIndex) => (prevIndex + 1) % loadingStates.length);
       }, 2000);
-    } else {
-      setLoadingTextIndex(0);
     }
     return () => clearInterval(interval);
   }, [isLoading]);
@@ -38,6 +36,7 @@ export function GenerateAIReportBtn({ studentId, classId, onReportReady }: Gener
   const handleGenerate = async () => {
     if (isLoading) return;
     setIsLoading(true);
+    setLoadingTextIndex(0);
     setReport(null);
 
     try {

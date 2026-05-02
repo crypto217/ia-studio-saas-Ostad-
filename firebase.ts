@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, initializeFirestore, doc, getDocFromServer, setLogLevel } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import firebaseConfig from './firebase-applet-config.json';
 
 // Suppress Firestore internal GrpcConnection warnings in dev
@@ -22,6 +23,7 @@ try {
 export const db = firestoreDb;
 
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 
 async function testConnection() {
   try {

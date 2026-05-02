@@ -1,47 +1,30 @@
 import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner"
-import { SmartTicker } from "@/components/dashboard/SmartTicker"
-import { NextLessonCard } from "@/components/dashboard/NextLessonCard"
 import { TasksPanel } from "@/components/dashboard/TasksPanel"
-import { StatsPreview } from "@/components/dashboard/StatsPreview"
 import { QuickActions } from "@/components/dashboard/QuickActions"
-import { MiniCalendarWidget } from "@/components/dashboard/MiniCalendarWidget"
+import { ClassAnalyticsDashboard } from "@/components/dashboard/ClassAnalyticsDashboard"
 
 export default function DashboardPage() {
   return (
-    <div className="flex flex-col gap-4 sm:gap-4 md:space-y-4 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-6 max-w-7xl mx-auto pb-8">
       <WelcomeBanner />
 
       {/* Quick Actions - App-like horizontal row or dense grid on mobile */}
       <QuickActions />
 
       {/* Main Content Grid (Desktop mostly, or pushed down on mobile) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left Column: Schedule & Planning */}
-        <div className="lg:col-span-2 space-y-4 sm:space-y-4 md:space-y-4">
-          <NextLessonCard />
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-            <StatsPreview />
-            <MiniCalendarWidget />
-          </div>
+        {/* Left Column: Stats & Analytics */}
+        <div className="lg:col-span-2 space-y-6">
+          <ClassAnalyticsDashboard />
         </div>
 
         {/* Right Column: Tasks & Alerts */}
-        <div className="space-y-4 sm:space-y-4 md:space-y-4">
+        <div className="lg:col-span-1">
           <TasksPanel />
-          <div className="hidden md:block">
-            <SmartTicker />
-          </div>
         </div>
 
       </div>
-
-      {/* Dynamic Island for notifications - Mobile only typically or small screen indicator */}
-      <div className="md:hidden">
-        <SmartTicker />
-      </div>
-
     </div>
   )
 }

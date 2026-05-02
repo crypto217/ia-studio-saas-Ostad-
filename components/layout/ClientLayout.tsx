@@ -22,9 +22,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <ProtectedRoute>
-      <div className="flex min-h-screen w-full bg-slate-50">
+      <div className="flex min-h-screen w-full bg-slate-50 overflow-hidden">
         <Sidebar />
-        <div className="relative flex flex-1 flex-col">
+        <div className="relative flex flex-1 flex-col min-w-0">
           <Header />
           <main className="flex-1 p-4 md:p-5 pb-24 md:pb-5">
             <div className="mx-auto max-w-7xl h-full">

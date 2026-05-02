@@ -2,6 +2,8 @@ import { db } from "@/firebase";
 import { getAuth } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 
+import { FrenchActivity } from "@/lib/types";
+
 interface FormattedStudentData {
   profile: {
     name: string;
@@ -9,10 +11,11 @@ interface FormattedStudentData {
     classId: string;
   };
   performance: {
-    subject?: string;
+    subject?: FrenchActivity;
     score: number | string;
     date: string;
   }[];
+
   attendance: {
     totalAbsences: number;
     totalLates: number;

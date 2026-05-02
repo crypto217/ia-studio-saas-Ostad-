@@ -72,17 +72,9 @@ export function MobileNav() {
       </div>
 
       <div className="relative z-10 p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
-        <nav className="flex items-center justify-between">
-          <div className="flex flex-1 justify-around">
-            {leftItems.map(renderItem)}
-          </div>
-          
-          {/* Center Spacer for AIMagicHub */}
-          {isDashboard && <div className="w-[5.5rem] h-14 shrink-0" />}
-          
-          <div className="flex flex-1 justify-around">
-            {rightItems.map(renderItem)}
-          </div>
+        <nav className="flex items-center justify-around w-full px-2">
+          {leftItems.map(renderItem)}
+          {rightItems.map(renderItem)}
         </nav>
       </div>
     </div>
