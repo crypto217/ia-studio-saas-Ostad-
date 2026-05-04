@@ -186,7 +186,7 @@ export default function StatisticsPage() {
                     <Tooltip 
                         contentStyle={{ borderRadius: '0.75rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', color: '#334155' }}
                         itemStyle={{ fontWeight: 600 }}
-                        formatter={(value: number) => [`${value}%`, 'Proportion']}
+                        formatter={(value: any) => [`${value}%`, 'Proportion']}
                     />
                     <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '13px', color: '#64748B' }} />
                   </PieChart>
@@ -214,7 +214,7 @@ export default function StatisticsPage() {
                     <Tooltip 
                       cursor={{ fill: '#f8fafc' }} 
                       contentStyle={{ borderRadius: '0.75rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                      formatter={(value: number) => [`${value} élèves`, 'Effectif']}
+                      formatter={(value: any) => [`${value} élèves`, 'Effectif']}
                     />
                     <Bar dataKey="count" fill="#818cf8" radius={[0, 6, 6, 0]} barSize={28} />
                   </BarChart>
