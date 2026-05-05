@@ -1,21 +1,22 @@
 "use client"
 
+import { useState, use } from "react"
 import { motion } from "motion/react"
 import Link from "next/link"
 import { ClipboardList, ArrowRight, ArrowLeft } from "lucide-react"
-import { use } from "react"
 
 const evaluationTypes = [
   { id: 'oral', title: 'Compréhension et communication orales', icon: '🗣️', criteriaCount: 3, color: 'from-sky-100 to-blue-100', textColor: 'text-blue-700', borderColor: 'hover:border-blue-200' },
   { id: 'lecture', title: 'Lecture', icon: '📖', criteriaCount: 3, color: 'from-orange-100 to-rose-100', textColor: 'text-rose-700', borderColor: 'hover:border-rose-200' },
   { id: 'ecrit', title: "Compréhension de l'écrit", icon: '🧠', criteriaCount: 3, color: 'from-emerald-100 to-teal-100', textColor: 'text-teal-700', borderColor: 'hover:border-teal-200' },
   { id: 'production', title: 'Production écrite', icon: '✍️', criteriaCount: 4, color: 'from-purple-100 to-fuchsia-100', textColor: 'text-purple-700', borderColor: 'hover:border-purple-200' },
-  { id: 'continuous', title: 'Évaluation Continue (Notes sur 10)', icon: '📊', criteriaCount: 'Notes', color: 'from-indigo-100 to-violet-100', textColor: 'text-indigo-700', borderColor: 'hover:border-indigo-200' }
+  { id: 'continuous', title: 'Saisie des notes (Devoirs & Examens)', icon: '📝', criteriaCount: 'Notes', color: 'from-amber-100 to-yellow-100', textColor: 'text-amber-700', borderColor: 'hover:border-amber-200' }
 ]
 
 export default function ClassEvaluationsMenu({ params }: { params: Promise<{ classId: string }> }) {
   const { classId } = use(params)
   const className = classId === '3ap' ? '3ème AP' : classId === '4ap' ? '4ème AP' : '5ème AP'
+  const [trimestre, setTrimestre] = useState(1)
 
   return (
     <div className="min-h-screen pb-28 md:pb-24 bg-[#FFFAF3]">
@@ -43,9 +44,32 @@ export default function ClassEvaluationsMenu({ params }: { params: Promise<{ cla
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-8 mt-6 sm:mt-12">
+        {/* Trimestre Selector */}
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-white p-3 sm:p-4 rounded-3xl sm:rounded-full border-2 border-slate-100 shadow-sm gap-3 sm:gap-4">
+          <div className="flex items-center justify-center sm:justify-start gap-2">
+            <span className="font-bold text-slate-700 text-sm sm:text-base sm:ml-2">Sélectionner le trimestre :</span>
+          </div>
+          <div className="flex items-center justify-between bg-slate-100 p-1.5 rounded-2xl sm:rounded-full w-full sm:w-auto">
+            {[1, 2, 3].map((t) => (
+              <button
+                key={t}
+                onClick={() => setTrimestre(t)}
+                className={`flex-1 sm:flex-none px-2 sm:px-6 py-2.5 sm:py-2 rounded-xl sm:rounded-full font-bold text-xs sm:text-base transition-all whitespace-nowrap text-center ${
+                  trimestre === t 
+                    ? 'bg-indigo-600 text-white shadow-md scale-[1.02]' 
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'
+                }`}
+              >
+                <span className="sm:hidden">{t === 1 ? '1er' : `${t}ème`} Tri.</span>
+                <span className="hidden sm:inline">{t === 1 ? '1er' : `${t}ème`} Trimestre</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
           {evaluationTypes.map((type) => (
-            <Link key={type.id} href={`/grades/${classId}/${type.id}`} className="block group">
+            <Link key={type.id} href={`/grades/${classId}/${type.id}?t=${trimestre}`} className="block group">
               <motion.div 
                 whileHover={{ y: -4, scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}

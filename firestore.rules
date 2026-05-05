@@ -40,7 +40,7 @@ service cloud.firestore {
              data.uid is string &&
              data.email is string &&
              data.onboardingCompleted is bool &&
-             data.createdAt is string &&
+             (data.createdAt is string || data.createdAt is timestamp) &&
              (!('displayName' in data) || data.displayName is string) &&
              (!('cycle' in data) || data.cycle is string) &&
              (!('subject' in data) || data.subject is string) &&
@@ -52,29 +52,29 @@ service cloud.firestore {
     }
 
     function isValidClass(data) {
-      return hasRequiredFields(['id', 'teacherId', 'name', 'theme', 'createdAt']) &&
-             data.id is string &&
+      return hasRequiredFields(['teacherId', 'name', 'theme', 'createdAt']) &&
+             (!('id' in data) || data.id is string) &&
              data.teacherId is string &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.theme is string && data.theme.size() < 50 &&
-             data.createdAt is string &&
+             (data.createdAt is string || data.createdAt is timestamp) &&
              (!('cycle' in data) || data.cycle is string);
     }
 
     function isValidStudent(data) {
-      return hasRequiredFields(['id', 'teacherId', 'classId', 'name', 'createdAt']) &&
-             data.id is string &&
+      return hasRequiredFields(['teacherId', 'classId', 'name', 'createdAt']) &&
+             (!('id' in data) || data.id is string) &&
              data.teacherId is string &&
              data.classId is string &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.createdAt is string &&
+             (data.createdAt is string || data.createdAt is timestamp) &&
              (!('gender' in data) || data.gender in ['M', 'F']) &&
              (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 20));
     }
 
     function isValidLesson(data) {
-      return hasRequiredFields(['id', 'teacherId', 'classId', 'taskType', 'title', 'day', 'start', 'duration', 'createdAt']) &&
-             data.id is string &&
+      return hasRequiredFields(['teacherId', 'classId', 'taskType', 'title', 'day', 'start', 'duration', 'createdAt']) &&
+             (!('id' in data) || data.id is string) &&
              data.teacherId is string &&
              data.classId is string &&
              data.taskType is string && data.taskType.size() < 50 &&
@@ -82,7 +82,7 @@ service cloud.firestore {
              data.day is number && data.day >= 0 && data.day <= 6 &&
              data.start is number && data.start >= 0 && data.start <= 23 &&
              data.duration is number && data.duration > 0 && data.duration <= 24 &&
-             data.createdAt is string;
+             (data.createdAt is string || data.createdAt is timestamp);
     }
 
     // ===============================================================
@@ -90,13 +90,13 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidActivity(data) {
-      return hasRequiredFields(['id', 'teacherId', 'title', 'description', 'type', 'createdAt']) &&
-             data.id is string &&
+      return hasRequiredFields(['teacherId', 'title', 'description', 'type', 'createdAt']) &&
+             (!('id' in data) || data.id is string) &&
              data.teacherId is string &&
              data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
              data.description is string && data.description.size() < 500 &&
              data.type in ['grade', 'document', 'schedule', 'task'] &&
-             data.createdAt is string;
+             (data.createdAt is string || data.createdAt is timestamp);
     }
 
     function isValidCourse(data) {
@@ -118,7 +118,7 @@ service cloud.firestore {
              data.classId is string &&
              data.date is string &&
              data.records is map &&
-             data.createdAt is string;
+             (data.createdAt is string || data.createdAt is timestamp);
     }
 
     function isValidResource(data) {

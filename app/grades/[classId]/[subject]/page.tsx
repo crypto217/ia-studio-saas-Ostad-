@@ -59,17 +59,25 @@ const subjectsData: Record<string, { title: string, criteria: { id: string, labe
   }
 }
 
-export default function SubjectEvaluationPage({ params }: { params: Promise<{ classId: string, subject: string }> }) {
+export default function SubjectEvaluationPage({ 
+  params,
+  searchParams
+}: { 
+  params: Promise<{ classId: string, subject: string }>,
+  searchParams: Promise<{ t?: string }>
+}) {
   const { classId, subject } = use(params)
+  const resolvedSearchParams = use(searchParams)
+  const trimestre = resolvedSearchParams.t || "1"
   
   if (subject === 'continuous') {
-    return <ContinuousEvaluation classId={classId} />
+    return <ContinuousEvaluation classId={classId} trimestre={trimestre} />
   }
 
-  return <SubjectEvaluationGrid classId={classId} subject={subject} />
+  return <SubjectEvaluationGrid classId={classId} subject={subject} trimestre={trimestre} />
 }
 
-function SubjectEvaluationGrid({ classId, subject }: { classId: string, subject: string }) {
+function SubjectEvaluationGrid({ classId, subject, trimestre }: { classId: string, subject: string, trimestre: string }) {
   const data = subjectsData[subject]
 
   if (!data) {
@@ -99,6 +107,8 @@ function SubjectEvaluationGrid({ classId, subject }: { classId: string, subject:
 
   const className = classId === '3ap' ? '3ème AP' : classId === '4ap' ? '4ème AP' : '5ème AP'
 
+  const displayedTrimestre = trimestre === "1" ? "1er Trimestre" : `${trimestre}ème Trimestre`
+
   return (
     <div className="bg-[#FFFAF3] min-h-[calc(100vh-5rem)] -mx-4 -mt-4 md:-mx-8 md:-mt-8 px-4 py-6 md:px-8 md:py-8 pb-32 relative">
       {/* Navigation */}
@@ -112,10 +122,16 @@ function SubjectEvaluationGrid({ classId, subject }: { classId: string, subject:
 
       {/* Header */}
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-800 tracking-tight leading-tight mb-1 sm:mb-2 text-balance">
-          Évaluation : {data.title}
-        </h1>
-        <p className="text-slate-500 font-medium text-sm sm:text-lg mb-4 sm:mb-6">
+        <div className="flex flex-col md:flex-row md:items-center gap-2 mb-1 sm:mb-2 text-balance">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-800 tracking-tight leading-tight">
+            Évaluation : {data.title}
+          </h1>
+          <span className="hidden md:inline-block text-2xl text-slate-300 font-black">•</span>
+          <span className="inline-block bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg text-sm md:text-lg font-bold self-start md:self-auto">
+            {displayedTrimestre}
+          </span>
+        </div>
+        <p className="text-slate-500 font-medium text-sm sm:text-lg mb-4 sm:mb-6 mt-2 md:mt-0">
           Classe {className} - <span className="text-slate-700 font-bold">{students.length} Élèves</span>
         </p>
       </div>
