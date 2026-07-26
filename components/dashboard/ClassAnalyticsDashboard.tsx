@@ -1,59 +1,256 @@
 'use client';
 
 import { useState, useEffect } from "react"
-import { CheckCircle2, Clock, Check, Pencil, BookOpen, PenTool, AlertCircle, RefreshCw, Palmtree, GraduationCap, Briefcase, LucideIcon, Sparkles, ChevronDown } from "lucide-react"
-import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore"
-import { db, auth } from "@/firebase"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import { CheckCircle2, Clock, Check, Pencil, BookOpen, PenTool, AlertCircle, RefreshCw, Palmtree, GraduationCap, Briefcase, LucideIcon, TrendingUp, ChevronDown } from "lucide-react"
+import { useAuth } from "@/components/AuthProvider"
+import { createBrowserClient } from "@/lib/supabase"
+import Link from "next/link"
 
 export function ClassAnalyticsDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [classes, setClasses] = useState<{id: string, name: string}[]>([]);
   const [selectedClassName, setSelectedClassName] = useState<string>("all");
   const [allCourses, setAllCourses] = useState<any[]>([]);
+  const [lectureStats, setLectureStats] = useState({ acquis: 0, enCours: 0, aAider: 0 });
+  const [ecritStats, setEcritStats] = useState({ acquis: 0, enCours: 0, aAider: 0 });
+  const [langueStats, setLangueStats] = useState({ acquis: 0, enCours: 0, aAider: 0 });
+  const [hasGrades, setHasGrades] = useState(false);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const { user, isAuthReady } = useAuth();
+  const supabase = createBrowserClient();
 
   useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
-      if (user) {
-        // Fetch classes
-        const classesQ = query(collection(db, "classes"), where("teacherId", "==", user.uid));
-        const unsubClasses = onSnapshot(classesQ, (snapshot) => {
-          const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-          setClasses(fetchedClasses);
-        }, (error) => {
-          handleFirestoreError(error, OperationType.LIST, "classes");
-        });
+    if (!isAuthReady || !user?.id) return;
 
-        // Fetch courses for the teacher
-        const q = query(
-          collection(db, "courses"),
-          where("teacherId", "==", user.uid),
-          orderBy("createdAt", "desc")
-        );
-        
-        const unsubscribeDocs = onSnapshot(q, (snapshot) => {
-          if (!snapshot.empty) {
-            setAllCourses(snapshot.docs.map(doc => doc.data()));
-          } else {
-            setAllCourses([]);
+    const fetchData = async () => {
+      setError(null);
+      
+      try {
+        // 1. Fetch classes
+        const { data: classesData, error: classesError } = await supabase
+          .from('classes')
+          .select('id, name')
+          .eq('teacher_id', user.id);
+
+        if (classesError) throw classesError;
+        if (classesData) setClasses(classesData);
+
+        // 2. Fetch courses
+        const { data: coursesData, error: coursesError } = await supabase
+          .from('courses')
+          .select('*')
+          .eq('teacher_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (coursesError) throw coursesError;
+        if (coursesData) {
+          const mappedCourses = coursesData.map(c => ({
+            id: c.id,
+            title: c.title,
+            className: c.class_name,
+            projectNumber: c.project_number,
+            sequenceNumber: c.sequence_number,
+            createdAt: c.created_at
+          }));
+          setAllCourses(mappedCourses);
+        }
+
+        // 3. Fetch students
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('students')
+          .select('*')
+          .eq('teacher_id', user.id);
+
+        if (studentsError) throw studentsError;
+
+        // 4. Fetch tasks
+        const { data: tasksData, error: tasksError } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('teacher_id', user.id);
+
+        if (tasksError) throw tasksError;
+
+        // 5. Fetch grades
+        const { data: gradesData, error: gradesError } = await supabase
+          .from('grades')
+          .select('*')
+          .eq('teacher_id', user.id);
+
+        if (gradesError) throw gradesError;
+
+        // --- Calculate Competency Stats ---
+        let finalLecture = { acquis: 0, enCours: 0, aAider: 0 };
+        let finalEcrit = { acquis: 0, enCours: 0, aAider: 0 };
+        let finalLangue = { acquis: 0, enCours: 0, aAider: 0 };
+        let anyGrades = false;
+
+        if (gradesData && gradesData.length > 0) {
+          // Filter grades based on selected class
+          const targetClassId = selectedClassName !== "all" ? classesData.find(c => c.name === selectedClassName)?.id : null;
+          const filteredGrades = targetClassId 
+            ? gradesData.filter((g: any) => g.subject.startsWith(`${targetClassId}_`)) 
+            : gradesData;
+
+          if (filteredGrades.length > 0) {
+            anyGrades = true;
+            let lectureCounts = { A: 0, B: 0, C: 0, D: 0, total: 0 };
+            let ecritCounts = { A: 0, B: 0, C: 0, D: 0, total: 0 };
+            let langueCounts = { A: 0, B: 0, C: 0, D: 0, total: 0 };
+
+            const classifyScore = (score: any) => {
+              if (!score) return 'D';
+              const scoreStr = String(score);
+              const num = parseFloat(scoreStr);
+              if (!isNaN(num)) {
+                if (num >= 7.5) return 'A';
+                if (num >= 5) return 'B';
+                return 'D';
+              }
+              const s = scoreStr.toUpperCase();
+              if (s === 'A') return 'A';
+              if (s === 'B' || s === 'C') return 'B';
+              return 'D';
+            };
+
+            filteredGrades.forEach((g: any) => {
+              const category = classifyScore(g.score);
+              const subjectKey = g.subject.toLowerCase();
+
+              if (subjectKey.includes('_lecture_')) {
+                lectureCounts[category]++;
+                lectureCounts.total++;
+              } else if (subjectKey.includes('_ecrit_') || subjectKey.includes('_production_')) {
+                ecritCounts[category]++;
+                ecritCounts.total++;
+              } else if (subjectKey.includes('_oral_') || subjectKey.includes('_continuous_')) {
+                langueCounts[category]++;
+                langueCounts.total++;
+              }
+            });
+
+            if (lectureCounts.total > 0) {
+              finalLecture = {
+                acquis: Math.round((lectureCounts.A / lectureCounts.total) * 100),
+                enCours: Math.round((lectureCounts.B / lectureCounts.total) * 100),
+                aAider: Math.round((lectureCounts.D / lectureCounts.total) * 100)
+              };
+            }
+            if (ecritCounts.total > 0) {
+              finalEcrit = {
+                acquis: Math.round((ecritCounts.A / ecritCounts.total) * 100),
+                enCours: Math.round((ecritCounts.B / ecritCounts.total) * 105) % 100, // Safe boundings
+                aAider: Math.round((ecritCounts.D / ecritCounts.total) * 100)
+              };
+              // Normalize to sum up nicely
+              const totalSum = finalEcrit.acquis + finalEcrit.enCours + finalEcrit.aAider;
+              if (totalSum > 100) finalEcrit.enCours -= (totalSum - 100);
+            }
+            if (langueCounts.total > 0) {
+              finalLangue = {
+                acquis: Math.round((langueCounts.A / langueCounts.total) * 100),
+                enCours: Math.round((langueCounts.B / langueCounts.total) * 100),
+                aAider: Math.round((langueCounts.D / langueCounts.total) * 100)
+              };
+            }
           }
-          setIsLoading(false);
-        }, (error) => {
-          setIsLoading(false);
-          handleFirestoreError(error, OperationType.LIST, "courses");
-        });
+        }
+
+        setLectureStats(finalLecture);
+        setEcritStats(finalEcrit);
+        setLangueStats(finalLangue);
+        setHasGrades(anyGrades);
+
+        // --- Calculate Administrative Alerts ---
+        const activeAlerts = [];
         
-        return () => {
-          unsubscribeDocs();
-          unsubClasses();
-        };
-      } else {
+        // 1. Pending / Urgent tasks alert
+        const urgentTasksCount = tasksData?.filter((t: any) => t.urgent && !t.completed).length || 0;
+        const totalPendingTasks = tasksData?.filter((t: any) => !t.completed).length || 0;
+        
+        if (urgentTasksCount > 0) {
+          activeAlerts.push({
+            id: 'urgent-tasks',
+            title: `${urgentTasksCount} tâche${urgentTasksCount > 1 ? 's' : ''} urgente${urgentTasksCount > 1 ? 's' : ''} en attente`,
+            desc: "À traiter en priorité aujourd'hui",
+            type: "danger"
+          });
+        } else if (totalPendingTasks > 0) {
+          activeAlerts.push({
+            id: 'pending-tasks',
+            title: `${totalPendingTasks} tâche${totalPendingTasks > 1 ? 's' : ''} en suspens`,
+            desc: "Consultez votre liste de priorités",
+            type: "warning"
+          });
+        }
+
+        // 2. Students in difficulty alert
+        const lowGradeStudents = studentsData?.filter((s: any) => s.grade < 10).length || 0;
+        if (lowGradeStudents > 0) {
+          activeAlerts.push({
+            id: 'low-grades',
+            title: `${lowGradeStudents} élève${lowGradeStudents > 1 ? 's' : ''} en difficulté`,
+            desc: "Moyenne générale inférieure à 10/20",
+            type: "warning"
+          });
+        }
+
+        if (activeAlerts.length === 0) {
+          activeAlerts.push({
+            id: 'all-clear',
+            title: "Aucune alerte administrative",
+            desc: "Tout est en ordre !",
+            type: "success"
+          });
+        }
+
+        setAlerts(activeAlerts);
+
+      } catch (err: any) {
+        console.error("Dashboard data load error:", err);
+        setError(err.message || "Erreur lors du chargement des statistiques.");
+      } finally {
         setIsLoading(false);
       }
-    });
+    };
 
-    return () => unsubscribeAuth();
-  }, []);
+    fetchData();
+
+    // Set up realtime subscriptions
+    const classesChannel = supabase
+      .channel('dashboard-classes-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'classes', filter: `teacher_id=eq.${user.id}` }, () => fetchData())
+      .subscribe();
+
+    const coursesChannel = supabase
+      .channel('dashboard-courses-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'courses', filter: `teacher_id=eq.${user.id}` }, () => fetchData())
+      .subscribe();
+
+    const tasksChannel = supabase
+      .channel('dashboard-tasks-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `teacher_id=eq.${user.id}` }, () => fetchData())
+      .subscribe();
+
+    const studentsChannel = supabase
+      .channel('dashboard-students-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'students', filter: `teacher_id=eq.${user.id}` }, () => fetchData())
+      .subscribe();
+
+    const gradesChannel = supabase
+      .channel('dashboard-grades-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'grades', filter: `teacher_id=eq.${user.id}` }, () => fetchData())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(classesChannel);
+      supabase.removeChannel(coursesChannel);
+      supabase.removeChannel(tasksChannel);
+      supabase.removeChannel(studentsChannel);
+      supabase.removeChannel(gradesChannel);
+    };
+  }, [user, isAuthReady, selectedClassName]);
 
   let latestCourse;
   if (selectedClassName === "all") {
@@ -92,6 +289,15 @@ export function ClassAnalyticsDashboard() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl flex items-start gap-3 shadow-sm">
+          <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-bold text-rose-900">Erreur de connexion au backend</h4>
+            <p className="text-sm mt-0.5">{error}</p>
+          </div>
+        </div>
+      )}
       {/* Widget 1: Progression du Programme */}
       <div className="bg-gradient-to-b from-white to-slate-50/50 rounded-3xl shadow-sm border border-slate-200/60 p-6 sm:p-8 relative flex flex-col overflow-hidden group/widget">
         
@@ -102,10 +308,10 @@ export function ClassAnalyticsDashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 relative z-10">
           <div className="flex items-center gap-3">
              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center border border-indigo-100/50">
-               <Sparkles className="w-5 h-5 text-indigo-500 shrink-0" />
+               <TrendingUp className="w-5 h-5 text-indigo-500 shrink-0" />
              </div>
              <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-indigo-900">
-               Progression globale
+               Avancement Annuel
              </h3>
           </div>
           <div className="flex items-center gap-3">
@@ -306,7 +512,7 @@ export function ClassAnalyticsDashboard() {
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Élèves à aider</span>
             </div>
           </div>
-
+ 
           <div className="space-y-5">
             {/* Lecture */}
             <div>
@@ -315,14 +521,20 @@ export function ClassAnalyticsDashboard() {
                   <BookOpen className="w-4 h-4 text-slate-400" />
                   <span>Lecture globale</span>
                 </div>
+                {hasGrades && (
+                  <span className="text-xs font-bold text-slate-400">
+                    {lectureStats.acquis}% Acquis
+                  </span>
+                )}
               </div>
               <div className="flex w-full h-3 rounded-full overflow-hidden gap-0.5 bg-slate-100">
-                <div className="bg-emerald-500 h-full" style={{ width: '60%' }}></div>
-                <div className="bg-amber-400 h-full" style={{ width: '25%' }}></div>
-                <div className="bg-rose-500 h-full" style={{ width: '15%' }}></div>
+                {lectureStats.acquis > 0 && <div className="bg-emerald-500 h-full" style={{ width: `${lectureStats.acquis}%` }}></div>}
+                {lectureStats.enCours > 0 && <div className="bg-amber-400 h-full" style={{ width: `${lectureStats.enCours}%` }}></div>}
+                {lectureStats.aAider > 0 && <div className="bg-rose-500 h-full" style={{ width: `${lectureStats.aAider}%` }}></div>}
+                {!hasGrades && <div className="bg-slate-200 h-full w-full"></div>}
               </div>
             </div>
-
+ 
             {/* Écrit */}
             <div>
               <div className="flex items-center justify-between text-sm font-medium text-slate-700 mb-2">
@@ -330,14 +542,20 @@ export function ClassAnalyticsDashboard() {
                   <PenTool className="w-4 h-4 text-slate-400" />
                   <span>Production écrite</span>
                 </div>
+                {hasGrades && (
+                  <span className="text-xs font-bold text-slate-400">
+                    {ecritStats.acquis}% Acquis
+                  </span>
+                )}
               </div>
               <div className="flex w-full h-3 rounded-full overflow-hidden gap-0.5 bg-slate-100">
-                <div className="bg-emerald-500 h-full" style={{ width: '40%' }}></div>
-                <div className="bg-amber-400 h-full" style={{ width: '40%' }}></div>
-                <div className="bg-rose-500 h-full" style={{ width: '20%' }}></div>
+                {ecritStats.acquis > 0 && <div className="bg-emerald-500 h-full" style={{ width: `${ecritStats.acquis}%` }}></div>}
+                {ecritStats.enCours > 0 && <div className="bg-amber-400 h-full" style={{ width: `${ecritStats.enCours}%` }}></div>}
+                {ecritStats.aAider > 0 && <div className="bg-rose-500 h-full" style={{ width: `${ecritStats.aAider}%` }}></div>}
+                {!hasGrades && <div className="bg-slate-200 h-full w-full"></div>}
               </div>
             </div>
-
+ 
             {/* Langue */}
             <div>
               <div className="flex items-center justify-between text-sm font-medium text-slate-700 mb-2">
@@ -345,16 +563,22 @@ export function ClassAnalyticsDashboard() {
                   <Clock className="w-4 h-4 text-slate-400" />
                   <span>Grammaire & Vocabulaire</span>
                 </div>
+                {hasGrades && (
+                  <span className="text-xs font-bold text-slate-400">
+                    {langueStats.acquis}% Acquis
+                  </span>
+                )}
               </div>
               <div className="flex w-full h-3 rounded-full overflow-hidden gap-0.5 bg-slate-100">
-                <div className="bg-emerald-500 h-full" style={{ width: '75%' }}></div>
-                <div className="bg-amber-400 h-full" style={{ width: '15%' }}></div>
-                <div className="bg-rose-500 h-full" style={{ width: '10%' }}></div>
+                {langueStats.acquis > 0 && <div className="bg-emerald-500 h-full" style={{ width: `${langueStats.acquis}%` }}></div>}
+                {langueStats.enCours > 0 && <div className="bg-amber-400 h-full" style={{ width: `${langueStats.enCours}%` }}></div>}
+                {langueStats.aAider > 0 && <div className="bg-rose-500 h-full" style={{ width: `${langueStats.aAider}%` }}></div>}
+                {!hasGrades && <div className="bg-slate-200 h-full w-full"></div>}
               </div>
             </div>
           </div>
         </div>
-
+ 
         {/* Widget 3: Alerte Administrative */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
           <div>
@@ -364,26 +588,24 @@ export function ClassAnalyticsDashboard() {
             </h3>
             
             <ul className="space-y-4">
-              <li className="flex gap-3">
-                <div className="mt-0.5 w-2 h-2 rounded-full bg-rose-500 flex-shrink-0"></div>
-                <div>
-                  <p className="text-sm font-medium text-slate-800">Cahier journal non rempli</p>
-                  <p className="text-xs text-slate-500">Pour la journée de demain</p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <div className="mt-0.5 w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></div>
-                <div>
-                  <p className="text-sm font-medium text-slate-800">3 élèves sans notes en dictée</p>
-                  <p className="text-xs text-slate-500">Séquence précédente</p>
-                </div>
-              </li>
+              {alerts.map((alert) => {
+                const bulletColor = alert.type === 'danger' ? 'bg-rose-500' : alert.type === 'warning' ? 'bg-amber-500' : 'bg-emerald-500';
+                return (
+                  <li key={alert.id} className="flex gap-3">
+                    <div className={`mt-1.5 w-2 h-2 rounded-full ${bulletColor} flex-shrink-0`}></div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">{alert.title}</p>
+                      <p className="text-xs text-slate-500">{alert.desc}</p>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </div>
           
-          <button className="mt-6 w-full text-center text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 py-2.5 rounded-lg transition-colors">
-            Voir les dossiers
-          </button>
+          <Link href="/planning" className="mt-6 w-full text-center text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 py-2.5 rounded-lg transition-colors block">
+            Voir l&apos;emploi du temps
+          </Link>
         </div>
       </div>
     </div>

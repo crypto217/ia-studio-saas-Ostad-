@@ -1,11 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "motion/react"
-import { ArrowLeft, Save, ToggleLeft, ToggleRight, Download } from "lucide-react"
+import { ArrowLeft, Save, ToggleLeft, ToggleRight, Download, Loader2 } from "lucide-react"
 import Link from "next/link"
 import ExcelJS from "exceljs"
 import { saveAs } from "file-saver"
+import { useAuth } from "@/components/AuthProvider"
+import { createBrowserClient } from "@/lib/supabase"
 
 interface StudentMarks {
   id: string
@@ -17,21 +19,143 @@ interface StudentMarks {
   composition: number | ''
 }
 
-const initialStudents: StudentMarks[] = [
-  { id: "1", name: "Sami Benali", avatarColor: "bg-sky-100 text-sky-600", evalContinue: '', devoir1: '', devoir2: '', composition: '' },
-  { id: "2", name: "Lina Mansouri", avatarColor: "bg-pink-100 text-pink-600", evalContinue: 8, devoir1: 7.5, devoir2: 8, composition: 8.5 },
-  { id: "3", name: "Yanis Kaddour", avatarColor: "bg-amber-100 text-amber-600", evalContinue: 5, devoir1: 6, devoir2: 5.5, composition: 5.5 },
-]
-
 export default function ContinuousEvaluation({ classId, trimestre }: { classId: string, trimestre: string }) {
-  const [students, setStudents] = useState<StudentMarks[]>(initialStudents)
+  const { user, isAuthReady } = useAuth()
+  const [students, setStudents] = useState<StudentMarks[]>([])
+  const [className, setClassName] = useState<string>("")
+  const [loading, setLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
   const [hasDevoir2, setHasDevoir2] = useState(true)
+  const supabase = createBrowserClient()
+
+  useEffect(() => {
+    if (!isAuthReady || !user?.id || !classId) return
+
+    const fetchData = async () => {
+      setLoading(true)
+      try {
+        // 1. Fetch class details to get className
+        const { data: classDoc } = await supabase
+          .from('classes')
+          .select('name')
+          .eq('id', classId)
+          .eq('teacher_id', user.id)
+          .single()
+        
+        if (classDoc) {
+          setClassName(classDoc.name)
+        }
+
+        // 2. Fetch students for this class
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('students')
+          .select('*')
+          .eq('class_id', classId)
+          .eq('teacher_id', user.id)
+
+        if (studentsError) throw studentsError
+
+        if (studentsData) {
+          // 3. Fetch existing grades for this subject/trimester/students
+          const { data: gradesData, error: gradesError } = await supabase
+            .from('grades')
+            .select('*')
+            .eq('teacher_id', user.id)
+            .in('student_id', studentsData.map(s => s.id))
+            .like('subject', `${classId}_continuous_%_t${trimestre}`)
+
+          if (gradesError) throw gradesError
+
+          const initialMarks: Record<string, { evalContinue: number | '', devoir1: number | '', devoir2: number | '', composition: number | '' }> = {}
+          studentsData.forEach(s => {
+            initialMarks[s.id] = { evalContinue: '', devoir1: '', devoir2: '', composition: '' }
+          })
+
+          gradesData?.forEach(g => {
+            const parts = g.subject.split('_')
+            if (parts.length >= 4) {
+              const field = parts[2] as 'evalContinue' | 'devoir1' | 'devoir2' | 'composition'
+              const scoreVal = g.score === null || g.score === '' ? '' : parseFloat(g.score)
+              if (initialMarks[g.student_id]) {
+                initialMarks[g.student_id][field] = scoreVal
+              }
+            }
+          })
+
+          const mapped = studentsData.map(s => ({
+            id: s.id,
+            name: s.name,
+            avatarColor: s.gender === 'F' ? 'bg-pink-100 text-pink-600' : 'bg-sky-100 text-sky-600',
+            evalContinue: initialMarks[s.id]?.evalContinue ?? '',
+            devoir1: initialMarks[s.id]?.devoir1 ?? '',
+            devoir2: initialMarks[s.id]?.devoir2 ?? '',
+            composition: initialMarks[s.id]?.composition ?? ''
+          }))
+          setStudents(mapped)
+        }
+      } catch (err) {
+        console.error("Error loading continuous evaluations:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [user, isAuthReady, classId, trimestre])
 
   const handleMarkChange = (studentId: string, field: keyof Omit<StudentMarks, 'id'|'name'|'avatarColor'>, value: string) => {
     let numValue: number | '' = value === '' ? '' : parseFloat(value)
     if (numValue !== '' && (numValue < 0 || numValue > 10)) return // validation
     
     setStudents(prev => prev.map(s => s.id === studentId ? { ...s, [field]: numValue } : s))
+  }
+
+  const handleSave = async () => {
+    if (!user?.id || students.length === 0) return
+    setIsSaving(true)
+    try {
+      // 1. Delete existing marks
+      const { error: deleteError } = await supabase
+        .from('grades')
+        .delete()
+        .eq('teacher_id', user.id)
+        .in('student_id', students.map(s => s.id))
+        .like('subject', `${classId}_continuous_%_t${trimestre}`)
+
+      if (deleteError) throw deleteError
+
+      // 2. Prepare new rows to insert
+      const rowsToInsert: any[] = []
+      students.forEach(student => {
+        const fields = ['evalContinue', 'devoir1', 'devoir2', 'composition'] as const
+        fields.forEach(field => {
+          const val = student[field]
+          if (val !== '') {
+            rowsToInsert.push({
+              student_id: student.id,
+              teacher_id: user.id,
+              subject: `${classId}_continuous_${field}_t${trimestre}`,
+              score: String(val)
+            })
+          }
+        })
+      })
+
+      if (rowsToInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from('grades')
+          .insert(rowsToInsert)
+
+        if (insertError) throw insertError
+      }
+
+      alert("Notes enregistrées avec succès ! 🚀")
+    } catch (err) {
+      console.error(err)
+      alert("Erreur lors de l'enregistrement des notes.")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const calculateContinuousAvg = (s: StudentMarks) => {
@@ -58,8 +182,16 @@ export default function ContinuousEvaluation({ classId, trimestre }: { classId: 
     return num.toFixed(2)
   }
 
-  const className = classId === '3ap' ? '3ème AP' : classId === '4ap' ? '4ème AP' : '5ème AP'
   const displayedTrimestre = trimestre === "1" ? "1er Trimestre" : `${trimestre}ème Trimestre`
+
+  if (loading) {
+    return (
+      <div className="bg-[#FFFAF3] min-h-[calc(100vh-5rem)] -mx-4 -mt-4 md:-mx-8 md:-mt-8 flex flex-col items-center justify-center py-12">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mb-2" />
+        <p className="text-slate-500 font-medium">Chargement des notes...</p>
+      </div>
+    )
+  }
 
   const handleDownloadExcel = async () => {
     const workbook = new ExcelJS.Workbook();
@@ -276,7 +408,9 @@ export default function ContinuousEvaluation({ classId, trimestre }: { classId: 
                       <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${student.avatarColor}`}>
                         {student.name.charAt(0)}
                       </div>
-                      <span className="font-bold text-slate-800 truncate">{student.name}</span>
+                      <Link href={`/students/${student.id}`} className="font-bold text-slate-800 truncate transition-opacity hover:opacity-75">
+                        {student.name}
+                      </Link>
                     </div>
                   </td>
                   <td className="px-2 py-3 border-r border-slate-200 text-center">
@@ -347,7 +481,9 @@ export default function ContinuousEvaluation({ classId, trimestre }: { classId: 
                 <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-sm font-bold shadow-inner ${student.avatarColor}`}>
                   {student.name.charAt(0)}
                 </div>
-                <span className="font-bold text-slate-800 text-xl tracking-tight">{student.name}</span>
+                <Link href={`/students/${student.id}`} className="font-bold text-slate-800 text-xl tracking-tight transition-opacity hover:opacity-75">
+                  {student.name}
+                </Link>
               </div>
 
               {/* Body (Inputs) */}
@@ -423,9 +559,13 @@ export default function ContinuousEvaluation({ classId, trimestre }: { classId: 
           <Download className="w-5 h-5" />
           Exporter Excel
         </button>
-        <button className="flex items-center justify-center gap-3 bg-indigo-600 text-white px-8 py-4 rounded-full font-black text-lg shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 hover:-translate-y-1 transition-all active:translate-y-0 w-full sm:w-auto">
+        <button 
+          onClick={handleSave}
+          disabled={isSaving}
+          className="flex items-center justify-center gap-3 bg-indigo-600 text-white px-8 py-4 rounded-full font-black text-lg shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 hover:-translate-y-1 transition-all active:translate-y-0 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           <Save className="w-5 h-5" />
-          Enregistrer les notes
+          {isSaving ? "Enregistrement en cours... ⏳" : "Enregistrer les notes"}
         </button>
       </div>
     </div>

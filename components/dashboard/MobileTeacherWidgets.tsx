@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion } from "motion/react"
 import { AlertTriangle, Star } from "lucide-react"
-import { collection, onSnapshot, query, where } from "firebase/firestore"
-import { db } from "@/firebase"
+import { createBrowserClient } from "@/lib/supabase"
 import { useAuth } from "@/components/AuthProvider"
 import { TasksPanel } from "./TasksPanel"
 
@@ -16,26 +15,40 @@ interface StudentAlert {
 }
 
 export function MobileTeacherWidgets() {
-  const { user } = useAuth()
+  const { user, isAuthReady } = useAuth()
   const [alerts, setAlerts] = useState<StudentAlert[]>([])
+  const supabase = createBrowserClient()
 
   useEffect(() => {
-    if (!user?.uid) return
+    if (!isAuthReady || !user?.id) return
 
-    // Écoute de la collection "student_alerts" en temps réel
-    const qAlerts = query(collection(db, "student_alerts"), where("teacherId", "==", user.uid))
-    const unsubscribeAlerts = onSnapshot(qAlerts, (snapshot) => {
-      const alertsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as StudentAlert[]
-      setAlerts(alertsData)
-    })
+    const fetchAlerts = async () => {
+      const { data, error } = await supabase
+        .from('student_alerts')
+        .select('*')
+        .eq('teacher_id', user.id)
+
+      if (!error && data) {
+        setAlerts(data.map((d: any) => ({
+          id: d.id,
+          type: d.type as any,
+          title: d.title,
+          message: d.message
+        })))
+      }
+    }
+
+    fetchAlerts()
+
+    const channel = supabase
+      .channel('student_alerts-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_alerts', filter: `teacher_id=eq.${user.id}` }, () => fetchAlerts())
+      .subscribe()
 
     return () => {
-      unsubscribeAlerts()
+      supabase.removeChannel(channel)
     }
-  }, [user?.uid])
+  }, [user, isAuthReady])
 
   return (
     <div className="flex flex-col gap-6 mb-6">

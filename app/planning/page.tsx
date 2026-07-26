@@ -8,9 +8,7 @@ import { motion, AnimatePresence } from "motion/react"
 
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/AuthProvider"
-import { db } from "@/firebase"
-import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc, serverTimestamp, setDoc } from "firebase/firestore"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import { createBrowserClient } from "@/lib/supabase"
 
 
 
@@ -61,6 +59,7 @@ const initialLessons = [
 
 export default function PlanningPage() {
   const { user, isAuthReady } = useAuth()
+  const supabase = createBrowserClient()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [lessons, setLessons] = useState<any[]>([])
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -79,48 +78,83 @@ export default function PlanningPage() {
 
   // Data fetching
   useEffect(() => {
-    if (!isAuthReady || !user?.uid) return
+    if (!isAuthReady || !user?.id) return
 
-    // Lessons
-    const lessonsQuery = query(collection(db, "lessons"), where("teacherId", "==", user.uid))
-    const unsubscribeLessons = onSnapshot(lessonsQuery, (snapshot) => {
-      const lessonsData = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      }))
-      setLessons(lessonsData)
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "lessons")
-    })
+    const fetchLessons = async () => {
+      const { data, error } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('teacher_id', user.id)
+      if (!error && data) {
+        setLessons(data.map((l: any) => {
+          const roomVal = l.time_slot?.includes(" | Room:") ? l.time_slot.split(" | Room:")[1] : (l.room || "Salle 01");
+          return {
+            id: l.id,
+            classId: l.class_id,
+            taskType: l.task_type || "cours",
+            title: l.title,
+            room: roomVal,
+            day: l.day_number ?? 0,
+            start: l.start_hour ?? 8,
+            duration: l.duration_hours ?? 1,
+            teacherId: l.teacher_id,
+            createdAt: l.created_at
+          };
+        }))
+      }
+    }
 
-    // Classes
-    const classesQuery = query(collection(db, "classes"), where("teacherId", "==", user.uid))
-    const unsubscribeClasses = onSnapshot(classesQuery, (snapshot) => {
-      const classesData = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      }))
-      setClasses(classesData)
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "classes")
-    })
+    const fetchClasses = async () => {
+      const { data, error } = await supabase
+        .from('classes')
+        .select('*')
+        .eq('teacher_id', user.id)
+      if (!error && data) {
+        setClasses(data)
+      }
+    }
 
-    // Tasks
-    const tasksQuery = query(collection(db, "tasks"), where("teacherId", "==", user.uid))
-    const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
-      const tasksData = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      })) as TodoTask[]
-      setTasks(tasksData)
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "tasks")
-    })
+    const fetchTasks = async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('teacher_id', user.id)
+      if (!error && data) {
+        setTasks(data.map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          priority: t.urgent ? "high" : "medium",
+          completed: t.completed ?? false,
+          dueDate: t.deadline || "Aujourd'hui",
+          teacherId: t.teacher_id,
+          createdAt: t.created_at
+        })))
+      }
+    }
+
+    fetchLessons()
+    fetchClasses()
+    fetchTasks()
+
+    const lessonsChannel = supabase
+      .channel('lessons-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lessons', filter: `teacher_id=eq.${user.id}` }, () => fetchLessons())
+      .subscribe()
+
+    const classesChannel = supabase
+      .channel('classes-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'classes', filter: `teacher_id=eq.${user.id}` }, () => fetchClasses())
+      .subscribe()
+
+    const tasksChannel = supabase
+      .channel('tasks-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `teacher_id=eq.${user.id}` }, () => fetchTasks())
+      .subscribe()
 
     return () => {
-      unsubscribeLessons()
-      unsubscribeClasses()
-      unsubscribeTasks()
+      supabase.removeChannel(lessonsChannel)
+      supabase.removeChannel(classesChannel)
+      supabase.removeChannel(tasksChannel)
     }
   }, [user, isAuthReady])
 
@@ -148,18 +182,26 @@ export default function PlanningPage() {
   const todayIndex = new Date().getDay();
 
   const handleAddActivity = async () => {
-    if (!user?.uid) return
-    
-    const newDocRef = doc(collection(db, "lessons"))
-    const lessonData = {
-      ...newActivity,
-      id: newDocRef.id,
-      teacherId: user.uid,
-      createdAt: new Date().toISOString()
-    }
+    if (!user?.id) return
     
     try {
-      await setDoc(newDocRef, lessonData)
+      const { error } = await supabase
+        .from('lessons')
+        .insert([{
+          teacher_id: user.id,
+          class_id: newActivity.classId || null,
+          title: newActivity.title,
+          task_type: newActivity.taskType,
+          day_number: newActivity.day,
+          start_hour: newActivity.start,
+          duration_hours: newActivity.duration,
+          day: newActivity.day.toString(),
+          time_slot: `${newActivity.start}h - ${newActivity.start + newActivity.duration}h | Room:${newActivity.room}`,
+          duration: `${newActivity.duration}h`
+        }])
+
+      if (error) throw error
+
       setIsAddModalOpen(false)
       setNewActivity({
         title: "Cours",
@@ -170,17 +212,23 @@ export default function PlanningPage() {
         start: 8,
         duration: 1
       })
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, "lessons")
+    } catch (error: any) {
+      console.error("Error adding lesson:", error?.message || error)
     }
   }
 
   const handleDeleteActivity = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
+    if (!user?.id) return
     try {
-      await deleteDoc(doc(db, "lessons", id))
+      const { error } = await supabase
+        .from('lessons')
+        .delete()
+        .eq('id', id)
+        .eq('teacher_id', user.id)
+      if (error) throw error
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `lessons/${id}`)
+      console.error("Error deleting lesson:", error)
     }
   }
 
@@ -198,17 +246,21 @@ export default function PlanningPage() {
   }
 
   const handleAddTask = async () => {
-    if (!newTask.title?.trim() || !user?.uid) return
+    if (!newTask.title?.trim() || !user?.id) return
     
     try {
-      await addDoc(collection(db, "tasks"), {
-        title: newTask.title,
-        priority: newTask.priority as TaskPriority,
-        completed: false,
-        dueDate: newTask.dueDate || null,
-        teacherId: user.uid,
-        createdAt: serverTimestamp()
-      })
+      const { error } = await supabase
+        .from('tasks')
+        .insert([{
+          title: newTask.title,
+          urgent: newTask.priority === "high",
+          completed: false,
+          deadline: newTask.dueDate || "Aujourd'hui",
+          teacher_id: user.id,
+          color: newTask.priority === "high" ? "rose" : "sky"
+        }])
+
+      if (error) throw error
       
       setIsAddTaskModalOpen(false)
       setNewTask({
@@ -218,23 +270,35 @@ export default function PlanningPage() {
         dueDate: "Aujourd'hui"
       })
     } catch(error) {
-      handleFirestoreError(error, OperationType.CREATE, "tasks")
+      console.error("Error adding task:", error)
     }
   }
 
   const handleDeleteTask = async (id: string) => {
+    if (!user?.id) return
     try {
-      await deleteDoc(doc(db, "tasks", id))
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', id)
+        .eq('teacher_id', user.id)
+      if (error) throw error
     } catch(error) {
-      handleFirestoreError(error, OperationType.DELETE, `tasks/${id}`)
+      console.error("Error deleting task:", error)
     }
   }
 
   const toggleTaskCompletion = async (id: string, currentCompleted: boolean) => {
+    if (!user?.id) return
     try {
-      await updateDoc(doc(db, "tasks", id), { completed: !currentCompleted })
+      const { error } = await supabase
+        .from('tasks')
+        .update({ completed: !currentCompleted })
+        .eq('id', id)
+        .eq('teacher_id', user.id)
+      if (error) throw error
     } catch(error) {
-      handleFirestoreError(error, OperationType.UPDATE, `tasks/${id}`)
+      console.error("Error toggling task completion:", error)
     }
   }
 

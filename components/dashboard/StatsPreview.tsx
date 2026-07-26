@@ -6,9 +6,7 @@ import { motion } from "motion/react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/components/AuthProvider"
-import { db } from "@/firebase"
-import { collection, query, where, getDocs } from "firebase/firestore"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import { createBrowserClient } from "@/lib/supabase"
 
 export function StatsPreview() {
   const [stats, setStats] = useState({
@@ -19,43 +17,70 @@ export function StatsPreview() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const { user, isAuthReady } = useAuth()
+  const supabase = createBrowserClient()
 
   useEffect(() => {
     const fetchStats = async () => {
-      if (!isAuthReady || !user) return
+      if (!isAuthReady || !user?.id) return
 
       try {
-        const studentsQuery = query(collection(db, "students"), where("teacherId", "==", user.uid))
-        const classesQuery = query(collection(db, "classes"), where("teacherId", "==", user.uid))
+        const { data: studentsSnapshot, error: studentsError } = await supabase
+          .from('students')
+          .select('id')
+          .eq('teacher_id', user.id)
+
+        const { data: classesSnapshot, error: classesError } = await supabase
+          .from('classes')
+          .select('id')
+          .eq('teacher_id', user.id)
+
+        const { data: gradesSnapshot, error: gradesError } = await supabase
+          .from('grades')
+          .select('*')
+          .eq('teacher_id', user.id)
         
-        const [snapshot, classesSnapshot] = await Promise.all([
-          getDocs(studentsQuery),
-          getDocs(classesQuery)
-        ])
+        if (studentsError) throw studentsError
+        if (classesError) throw classesError
+        if (gradesError) throw gradesError
         
         let totalScore = 0
         let scoreCount = 0
         let difficultyCount = 0
         
-        snapshot.forEach(doc => {
-          const student = doc.data()
-          if (student.score !== undefined) {
-            totalScore += student.score
-            scoreCount++
-            if (student.score < 10) {
-              difficultyCount++
+        const getNumericScore = (score: string) => {
+          const num = parseFloat(score);
+          if (!isNaN(num)) return num;
+          const s = score.toUpperCase();
+          if (s === 'A') return 9.0;
+          if (s === 'B') return 7.5;
+          if (s === 'C') return 6.0;
+          if (s === 'D') return 4.0;
+          return 0;
+        };
+
+        if (studentsSnapshot && gradesSnapshot) {
+          studentsSnapshot.forEach((student: any) => {
+            const studentGrades = gradesSnapshot.filter(g => g.student_id === student.id);
+            if (studentGrades.length > 0) {
+              const studentTotal = studentGrades.reduce((sum, g) => sum + getNumericScore(g.score), 0);
+              const studentAvg = studentTotal / studentGrades.length;
+              totalScore += studentAvg;
+              scoreCount++;
+              if (studentAvg < 5.0) {
+                difficultyCount++;
+              }
             }
-          }
-        })
+          });
+        }
         
         setStats({
-          averageScore: scoreCount > 0 ? Number((totalScore / scoreCount).toFixed(1)) : 0,
-          totalStudents: snapshot.size,
+          averageScore: scoreCount > 0 ? Number(((totalScore / scoreCount) * 2).toFixed(1)) : 0,
+          totalStudents: studentsSnapshot ? studentsSnapshot.length : 0,
           studentsInDifficulty: difficultyCount,
-          totalClasses: classesSnapshot.size
+          totalClasses: classesSnapshot ? classesSnapshot.length : 0
         })
       } catch (error) {
-        handleFirestoreError(error, OperationType.GET, "dashboard_stats")
+        console.error("Error fetching stats preview from Supabase:", error)
       } finally {
         setIsLoading(false)
       }

@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/AuthProvider"
 import { Sparkles, CheckCircle2, Mail, Lock } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
-import { auth } from "@/firebase"
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth"
+import { createBrowserClient } from '@/lib/supabase'
+import Link from "next/link"
 
 export default function LoginPage() {
   const { user, isAuthReady, signIn } = useAuth()
   const router = useRouter()
+  const supabase = createBrowserClient()
   const [isLoginMode, setIsLoginMode] = useState(true)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -28,19 +29,23 @@ export default function LoginPage() {
     setError("")
     setLoading(true)
 
+    const cleanEmail = email.trim()
+
     try {
       if (isLoginMode) {
-        await signInWithEmailAndPassword(auth, email, password)
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password })
+        if (signInError) throw signInError
       } else {
-        await createUserWithEmailAndPassword(auth, email, password)
+        const { error: signUpError } = await supabase.auth.signUp({ email: cleanEmail, password })
+        if (signUpError) throw signUpError
       }
     } catch (err: any) {
       console.error(err)
-      if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
+      if (err.message?.includes("Invalid login credentials")) {
          setError("Email ou mot de passe incorrect.")
-      } else if (err.code === "auth/email-already-in-use") {
+      } else if (err.message?.includes("User already registered")) {
          setError("Cet email est déjà utilisé.")
-      } else if (err.code === "auth/weak-password") {
+      } else if (err.message?.includes("Password should be at least")) {
          setError("Le mot de passe doit faire au moins 6 caractères.")
       } else {
          setError("Une erreur est survenue. Veuillez réessayer.")
@@ -68,12 +73,12 @@ export default function LoginPage() {
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-fuchsia-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-50 animate-pulse" style={{ animationDelay: '2s' }}></div>
 
         <div className="relative z-10">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="inline-flex items-center gap-3 hover:opacity-80 transition-opacity">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400 text-white shadow-sm">
               <Sparkles className="h-5 w-5" />
             </div>
             <span className="text-2xl font-black tracking-tight">LUDICLASS</span>
-          </div>
+          </Link>
         </div>
 
         <div className="relative z-10 space-y-8 max-w-lg">
@@ -113,12 +118,12 @@ export default function LoginPage() {
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 sm:p-12 relative bg-white overflow-y-auto">
         <div className="w-full max-w-[400px] space-y-8">
           {/* Mobile Logo */}
-          <div className="flex lg:hidden items-center justify-center gap-3 mb-8">
+          <Link href="/" className="flex lg:hidden items-center justify-center gap-3 mb-8 hover:opacity-80 transition-opacity">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-400 text-white shadow-sm">
               <Sparkles className="h-6 w-6" />
             </div>
             <span className="text-3xl font-black tracking-tight text-slate-900">LUDICLASS</span>
-          </div>
+          </Link>
 
           <div className="text-center lg:text-left space-y-3">
             <h2 className="text-3xl font-bold tracking-tight text-slate-900">

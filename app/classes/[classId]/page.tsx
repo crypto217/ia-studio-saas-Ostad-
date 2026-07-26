@@ -20,13 +20,12 @@ import {
   UserPlus,
   X,
   Check,
-  Plus
+  Plus,
+  Trash2
 } from "lucide-react"
 
-import { db } from "@/firebase"
-import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore"
+import { createBrowserClient } from "@/lib/supabase"
 import { useAuth } from "@/components/AuthProvider"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
 
 // --- TYPES ---
 type StudentStatus = "excellent" | "good" | "needs_help"
@@ -107,6 +106,7 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ classId
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null)
   const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const supabase = createBrowserClient()
 
   // Add Student Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -116,35 +116,45 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ classId
   const [newStudentBirthDate, setNewStudentBirthDate] = useState("")
   const [newStudentPhoto, setNewStudentPhoto] = useState<File | null>(null)
 
+  // Delete Student Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   const handleAddStudent = async (closeAfter: boolean) => {
-    if (!newStudentName.trim() || !newStudentBirthDate || !gender || !user?.uid || !classId) return
+    if (!newStudentName.trim() || !newStudentBirthDate || !gender || !user?.id || !classId) return
     
     setIsAddingStudent(true)
     try {
-      // TODO: Upload newStudentPhoto to Firebase Storage here and get URL
+      // TODO: Upload newStudentPhoto to Supabase Storage here and get URL
       const photoUrl = ""
       const studentGenderArg = gender === 'boy' ? "M" : "F"
 
-      const docRef = await addDoc(collection(db, "students"), {
-        teacherId: user.uid,
-        classId: classId,
-        name: newStudentName,
-        gender: studentGenderArg,
-        birthDate: newStudentBirthDate,
-        photoUrl: photoUrl,
-        status: "good",
-        grade: 0,
-        createdAt: serverTimestamp()
-      })
+      const { data, error } = await supabase
+        .from('students')
+        .insert([{
+          teacher_id: user.id,
+          class_id: classId,
+          name: newStudentName,
+          gender: studentGenderArg,
+          birth_date: newStudentBirthDate,
+          photo_url: photoUrl,
+          status: "good",
+          grade: 0
+        }])
+        .select()
+        .single()
+
+      if (error) throw error;
       
       const newStudent: Student = {
-        id: docRef.id,
-        name: newStudentName,
-        gender: studentGenderArg,
-        status: "good",
-        grade: 0,
-        birthDate: newStudentBirthDate,
-        photoUrl: photoUrl
+        id: data.id,
+        name: data.name,
+        gender: data.gender as "M" | "F",
+        status: data.status as StudentStatus,
+        grade: data.grade,
+        birthDate: data.birth_date,
+        photoUrl: data.photo_url
       }
       
       setStudents(prev => [...prev, newStudent])
@@ -155,41 +165,91 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ classId
       setGender(null)
       setNewStudentBirthDate("")
       setNewStudentPhoto(null)
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, "students")
+    } catch (error: any) {
+      console.error("Error adding student:", error.message)
     } finally {
       setIsAddingStudent(false)
     }
   }
 
+  const handleDeleteStudent = async () => {
+    if (!studentToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('students')
+        .delete()
+        .eq('id', studentToDelete.id);
+        
+      if (error) throw error;
+      
+      setStudents(prev => prev.filter(s => s.id !== studentToDelete.id));
+      setIsDeleteModalOpen(false);
+      setStudentToDelete(null);
+    } catch (error: any) {
+      console.error("Error deleting student:", error.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   useEffect(() => {
     const fetchClassAndStudents = async () => {
-      if (!isAuthReady || !user?.uid) return
+      if (!isAuthReady || !user?.id) return
       
       try {
-        const classDoc = await getDoc(doc(db, "classes", classId))
-        if (classDoc.exists() && classDoc.data().teacherId === user.uid) {
-          const classData = { id: classDoc.id, ...classDoc.data() } as ClassData
+        const { data: classDoc, error: classError } = await supabase
+          .from('classes')
+          .select('*')
+          .eq('id', classId)
+          .eq('teacher_id', user.id)
+          .single()
+
+        if (classError) {
+          if (classError.code !== 'PGRST116') throw classError // PGRST116 is not found
+          setSelectedClass(null)
+        } else if (classDoc) {
+          const classData: ClassData = { 
+            id: classDoc.id, 
+            name: classDoc.name,
+            cycle: classDoc.cycle,
+            theme: classDoc.theme as any,
+            studentsCount: 0,
+            average: 0,
+            schedule: classDoc.schedule || '',
+            room: classDoc.room || '',
+            students: [] 
+          }
           setSelectedClass(classData)
           
-          const studentsQ = query(collection(db, "students"), where("classId", "==", classId), where("teacherId", "==", user.uid))
-          const studentsSnap = await getDocs(studentsQ)
-          const studentsData = studentsSnap.docs.map(doc => ({
+          const { data: studentsSnap, error: studentsError } = await supabase
+            .from('students')
+            .select('*')
+            .eq('class_id', classId)
+            .eq('teacher_id', user.id)
+            .order('name', { ascending: true })
+
+          if (studentsError) throw studentsError
+
+          const studentsData: Student[] = (studentsSnap || []).map(doc => ({
              id: doc.id,
-             ...doc.data()
-          })) as Student[]
+             name: doc.name,
+             gender: doc.gender as "M" | "F",
+             status: doc.status as StudentStatus,
+             grade: doc.grade,
+             birthDate: doc.birth_date,
+             photoUrl: doc.photo_url
+          }))
           setStudents(studentsData)
-        } else {
-          setSelectedClass(null)
         }
-      } catch (error) {
-        handleFirestoreError(error, OperationType.GET, `classes/${classId}`)
+      } catch (error: any) {
+        console.error("Error fetching class/students:", error.message)
       } finally {
         setIsLoading(false)
       }
     }
     fetchClassAndStudents()
-  }, [classId, user, isAuthReady])
+  }, [classId, user, isAuthReady, supabase])
 
   if (isLoading) {
     return (
@@ -262,11 +322,22 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ classId
               {getInitials(student.name)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-base font-bold text-slate-800 truncate">{student.name}</p>
+               <p className="text-base font-bold text-slate-800 truncate group-hover:opacity-75 transition-opacity">{student.name}</p>
               <p className="text-sm text-slate-400 truncate mt-0.5">
                 {student.status === 'excellent' ? 'Niveau Excellent' : student.status === 'good' ? 'Bilan à jour' : 'Aide requise'}
               </p>
             </div>
+            <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setStudentToDelete(student);
+                  setIsDeleteModalOpen(true);
+                }}
+                className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
+                title="Supprimer l'élève"
+              >
+                <Trash2 className="w-5 h-5" />
+            </button>
             <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 transition-colors shrink-0" />
           </motion.div>
         ))}
@@ -396,6 +467,59 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ classId
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DELETE STUDENT MODAL */}
+      <AnimatePresence>
+        {isDeleteModalOpen && studentToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden pointer-events-auto border border-slate-100 flex flex-col p-6 sm:p-8 text-center"
+            >
+              <div className="w-16 h-16 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 shrink-0">
+                <Trash2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-800 mb-2">Supprimer l&apos;élève ?</h3>
+              <p className="text-slate-500 mb-8">
+                Êtes-vous sûr de vouloir supprimer <strong className="text-slate-700">{studentToDelete.name}</strong> ? Cette action est irréversible.
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setStudentToDelete(null);
+                  }}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-4 rounded-2xl transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleDeleteStudent}
+                  disabled={isDeleting}
+                  className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-rose-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isDeleting ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  ) : (
+                    <>
+                      <Trash2 className="w-5 h-5" />
+                      Supprimer
+                    </>
+                  )}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

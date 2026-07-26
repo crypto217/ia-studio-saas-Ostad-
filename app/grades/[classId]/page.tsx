@@ -1,22 +1,58 @@
 "use client"
 
-import { useState, use } from "react"
+import { useState, use, useEffect } from "react"
 import { motion } from "motion/react"
 import Link from "next/link"
-import { ClipboardList, ArrowRight, ArrowLeft } from "lucide-react"
+import { ClipboardList, ArrowRight, ArrowLeft, Loader2 } from "lucide-react"
+import { useAuth } from "@/components/AuthProvider"
+import { createBrowserClient } from "@/lib/supabase"
 
 const evaluationTypes = [
   { id: 'oral', title: 'Compréhension et communication orales', icon: '🗣️', criteriaCount: 3, color: 'from-sky-100 to-blue-100', textColor: 'text-blue-700', borderColor: 'hover:border-blue-200' },
   { id: 'lecture', title: 'Lecture', icon: '📖', criteriaCount: 3, color: 'from-orange-100 to-rose-100', textColor: 'text-rose-700', borderColor: 'hover:border-rose-200' },
   { id: 'ecrit', title: "Compréhension de l'écrit", icon: '🧠', criteriaCount: 3, color: 'from-emerald-100 to-teal-100', textColor: 'text-teal-700', borderColor: 'hover:border-teal-200' },
-  { id: 'production', title: 'Production écrite', icon: '✍️', criteriaCount: 4, color: 'from-purple-100 to-fuchsia-100', textColor: 'text-purple-700', borderColor: 'hover:border-purple-200' },
-  { id: 'continuous', title: 'Saisie des notes (Devoirs & Examens)', icon: '📝', criteriaCount: 'Notes', color: 'from-amber-100 to-yellow-100', textColor: 'text-amber-700', borderColor: 'hover:border-amber-200' }
+  { id: 'production', title: 'Production écrite', icon: '✍️', criteriaCount: 4, color: 'from-purple-100 to-fuchsia-100', textColor: 'text-purple-700', borderColor: 'hover:border-purple-200' }
 ]
 
 export default function ClassEvaluationsMenu({ params }: { params: Promise<{ classId: string }> }) {
   const { classId } = use(params)
-  const className = classId === '3ap' ? '3ème AP' : classId === '4ap' ? '4ème AP' : '5ème AP'
+  const { user, isAuthReady } = useAuth()
+  const [className, setClassName] = useState<string>("")
+  const [loading, setLoading] = useState(true)
   const [trimestre, setTrimestre] = useState(1)
+  const supabase = createBrowserClient()
+
+  useEffect(() => {
+    if (!isAuthReady || !user?.id || !classId) return
+    const fetchClass = async () => {
+      setLoading(true)
+      try {
+        const { data, error } = await supabase
+          .from('classes')
+          .select('name')
+          .eq('id', classId)
+          .eq('teacher_id', user.id)
+          .single()
+        if (data) {
+          setClassName(data.name)
+        }
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchClass()
+  }, [user, isAuthReady, classId])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#FFFAF3] flex flex-col items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mb-2" />
+        <p className="text-slate-500 font-medium">Chargement des détails de la classe...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen pb-28 md:pb-24 bg-[#FFFAF3]">
@@ -30,7 +66,7 @@ export default function ClassEvaluationsMenu({ params }: { params: Promise<{ cla
             <ArrowLeft className="w-4 h-4" />
             Retour aux classes
           </Link>
-
+ 
           <div className="flex items-center gap-3 sm:gap-4 mb-2">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
               <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -42,7 +78,7 @@ export default function ClassEvaluationsMenu({ params }: { params: Promise<{ cla
           </p>
         </div>
       </div>
-
+ 
       <div className="max-w-6xl mx-auto px-4 sm:px-8 mt-6 sm:mt-12">
         {/* Trimestre Selector */}
         <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-white p-3 sm:p-4 rounded-3xl sm:rounded-full border-2 border-slate-100 shadow-sm gap-3 sm:gap-4">
@@ -66,7 +102,7 @@ export default function ClassEvaluationsMenu({ params }: { params: Promise<{ cla
             ))}
           </div>
         </div>
-
+ 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
           {evaluationTypes.map((type) => (
             <Link key={type.id} href={`/grades/${classId}/${type.id}?t=${trimestre}`} className="block group">
@@ -101,3 +137,4 @@ export default function ClassEvaluationsMenu({ params }: { params: Promise<{ cla
     </div>
   )
 }
+

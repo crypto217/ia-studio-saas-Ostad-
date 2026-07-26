@@ -125,10 +125,16 @@ export default function LiveSessionPage() {
                   className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black ${student.avatar}`}>
-                      {student.name.charAt(0)}
-                    </div>
-                    <span className="font-bold text-slate-800 text-lg">{student.name}</span>
+                    <Link 
+                      href={`/students/${student.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-3 group/student"
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black transition-opacity group-hover/student:opacity-85 ${student.avatar}`}>
+                        {student.name.charAt(0)}
+                      </div>
+                      <span className="font-bold text-slate-800 text-lg group-hover/student:text-indigo-600 group-hover/student:underline transition-colors">{student.name}</span>
+                    </Link>
                   </div>
                   <div className="text-slate-400">
                     {isExpanded ? <ChevronUp /> : <ChevronDown />}

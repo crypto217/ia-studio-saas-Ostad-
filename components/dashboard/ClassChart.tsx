@@ -6,9 +6,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGri
 import { Users, ArrowLeft, BookOpen, GraduationCap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/AuthProvider"
-import { db } from "@/firebase"
-import { collection, query, where, getDocs } from "firebase/firestore"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import { createBrowserClient } from "@/lib/supabase"
 
 type ClassData = {
   id: string
@@ -25,40 +23,49 @@ export function ClassChart() {
   const [classesData, setClassesData] = useState<ClassData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { user, isAuthReady } = useAuth()
+  const supabase = createBrowserClient()
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!isAuthReady || !user) return
+      if (!isAuthReady || !user?.id) return
 
       try {
         // Fetch classes
-        const classesQuery = query(collection(db, "classes"), where("teacherId", "==", user.uid))
-        const classesSnapshot = await getDocs(classesQuery)
+        const { data: classesSnapshot, error: classesError } = await supabase
+          .from('classes')
+          .select('*')
+          .eq('teacher_id', user.id)
+
+        if (classesError) throw classesError
         
         // Fetch students to count them per class
-        const studentsQuery = query(collection(db, "students"), where("teacherId", "==", user.uid))
-        const studentsSnapshot = await getDocs(studentsQuery)
+        const { data: studentsSnapshot, error: studentsError } = await supabase
+          .from('students')
+          .select('class_id')
+          .eq('teacher_id', user.id)
+
+        if (studentsError) throw studentsError
         
         const studentCounts: Record<string, number> = {}
-        studentsSnapshot.forEach(doc => {
-          const student = doc.data()
-          studentCounts[student.classId] = (studentCounts[student.classId] || 0) + 1
-        })
+        if (studentsSnapshot) {
+          studentsSnapshot.forEach((student: any) => {
+            studentCounts[student.class_id] = (studentCounts[student.class_id] || 0) + 1
+          })
+        }
 
-        const formattedData: ClassData[] = classesSnapshot.docs.map((doc, index) => {
-          const data = doc.data()
+        const formattedData: ClassData[] = (classesSnapshot || []).map((c: any, index: number) => {
           return {
-            id: doc.id,
-            name: data.name,
-            theme: data.theme,
-            studentCount: studentCounts[doc.id] || 0,
+            id: c.id,
+            name: c.name,
+            theme: c.theme || "emerald",
+            studentCount: studentCounts[c.id] || 0,
             color: colors[index % colors.length]
           }
         })
 
         setClassesData(formattedData)
       } catch (error) {
-        handleFirestoreError(error, OperationType.GET, "classes/students")
+        console.error("Error fetching class stats from Supabase:", error)
       } finally {
         setIsLoading(false)
       }

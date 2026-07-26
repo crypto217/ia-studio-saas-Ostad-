@@ -1,12 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Trophy, Medal, Star, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/components/AuthProvider"
-import { db } from "@/firebase"
-import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import { createBrowserClient } from "@/lib/supabase"
 
 type Student = {
   id: string
@@ -25,49 +24,58 @@ export function TopStudents() {
   const [topStudents, setTopStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { user, isAuthReady } = useAuth()
+  const supabase = createBrowserClient()
 
   useEffect(() => {
     const fetchTopStudents = async () => {
-      if (!isAuthReady || !user) return
+      if (!isAuthReady || !user?.id) return
 
       try {
-        const q = query(
-          collection(db, "students"), 
-          where("teacherId", "==", user.uid),
-          orderBy("score", "desc"),
-          limit(4)
-        )
-        const snapshot = await getDocs(q)
-        
-        const studentsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          name: doc.data().name,
-          score: doc.data().score
-        })) as Student[]
-        
-        // Filter out students without a score
-        setTopStudents(studentsData.filter(s => s.score !== undefined))
-      } catch (error) {
-        // The query might fail if the index is not created yet, 
-        // fallback to fetching all and sorting client-side
-        try {
-          const fallbackQ = query(collection(db, "students"), where("teacherId", "==", user.uid))
-          const snapshot = await getDocs(fallbackQ)
-          const studentsData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            name: doc.data().name,
-            score: doc.data().score
-          })) as Student[]
-          
-          const sorted = studentsData
-            .filter(s => s.score !== undefined)
-            .sort((a, b) => (b.score || 0) - (a.score || 0))
-            .slice(0, 4)
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('students')
+          .select('id, name')
+          .eq('teacher_id', user.id)
+
+        if (studentsError) throw studentsError
+
+        const { data: gradesData, error: gradesError } = await supabase
+          .from('grades')
+          .select('*')
+          .eq('teacher_id', user.id)
+
+        if (gradesError) throw gradesError
+
+        if (studentsData) {
+          const getNumericScore = (score: string) => {
+            const num = parseFloat(score);
+            if (!isNaN(num)) return num;
+            const s = score.toUpperCase();
+            if (s === 'A') return 9.0;
+            if (s === 'B') return 7.5;
+            if (s === 'C') return 6.0;
+            if (s === 'D') return 4.0;
+            return 0;
+          };
+
+          const listWithScores = studentsData.map(s => {
+            const studentGrades = gradesData?.filter(g => g.student_id === s.id) || [];
+            if (studentGrades.length === 0) return { ...s, score: undefined };
             
-          setTopStudents(sorted)
-        } catch (fallbackError) {
-          handleFirestoreError(fallbackError, OperationType.GET, "students")
+            const total = studentGrades.reduce((sum, g) => sum + getNumericScore(g.score), 0);
+            const avgOutOf10 = total / studentGrades.length;
+            const scoreOutOf20 = parseFloat((avgOutOf10 * 2).toFixed(1));
+            return {
+              id: s.id,
+              name: s.name,
+              score: scoreOutOf20
+            };
+          }).filter(s => s.score !== undefined) as Student[];
+
+          listWithScores.sort((a, b) => (b.score || 0) - (a.score || 0));
+          setTopStudents(listWithScores.slice(0, 4));
         }
+      } catch (error) {
+        console.error("Error fetching top students:", error)
       } finally {
         setIsLoading(false)
       }
@@ -112,18 +120,20 @@ export function TopStudents() {
               const style = rankStyles[index] || rankStyles[3]
               const Icon = style.icon
               return (
-                <div key={student.id} className="group flex items-center justify-between p-2.5 sm:p-3 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all cursor-pointer hover:-translate-y-1">
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <div className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full border ${style.bg} ${style.color} ${style.border} group-hover:scale-110 transition-transform`}>
-                      <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+                <Link key={student.id} href={`/students/${student.id}`} className="contents">
+                  <div className="group flex items-center justify-between p-2.5 sm:p-3 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all cursor-pointer hover:-translate-y-1">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <div className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full border ${style.bg} ${style.color} ${style.border} group-hover:scale-110 transition-transform`}>
+                        <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+                      </div>
+                      <p className="text-base sm:text-lg font-black text-slate-800 group-hover:text-indigo-600 transition-colors">{student.name}</p>
                     </div>
-                    <p className="text-base sm:text-lg font-black text-slate-800">{student.name}</p>
+                    <div className="text-right bg-white px-2.5 sm:px-3 py-1 rounded-xl border border-slate-100 shadow-sm">
+                      <p className="text-base sm:text-lg font-black text-indigo-600 leading-none">{student.score}</p>
+                      <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">sur 20</p>
+                    </div>
                   </div>
-                  <div className="text-right bg-white px-2.5 sm:px-3 py-1 rounded-xl border border-slate-100 shadow-sm">
-                    <p className="text-base sm:text-lg font-black text-indigo-600 leading-none">{student.score}</p>
-                    <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">sur 20</p>
-                  </div>
-                </div>
+                </Link>
               )
             })}
           </div>

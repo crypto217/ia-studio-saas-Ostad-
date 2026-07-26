@@ -6,43 +6,75 @@ import { motion } from "motion/react"
 import { Sparkles, BookOpen, Star, Pencil, Heart } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/components/AuthProvider"
-import { db } from "@/firebase"
-import { collection, query, where, onSnapshot } from "firebase/firestore"
+import { createBrowserClient } from "@/lib/supabase"
 
 export function WelcomeBanner() {
   const { user, isAuthReady } = useAuth()
   const [tasksCount, setTasksCount] = useState(0)
   const [classesCount, setClassesCount] = useState(0)
+  const supabase = createBrowserClient()
 
   useEffect(() => {
-    if (!isAuthReady || !user?.uid) return
+    if (!isAuthReady || !user) return
 
-    const tasksQuery = query(
-      collection(db, "tasks"), 
-      where("teacherId", "==", user.uid)
-    )
-    
-    const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
-      // Extraction explicite du tableau de données comme demandé
-      const tasksData = snapshot.docs.map(doc => doc.data())
-      const pendingTasks = tasksData.filter(task => task.completed === false)
-      setTasksCount(pendingTasks.length)
-    })
+    const fetchCounts = async () => {
+      const { count: tasksCountData, error: tasksError } = await supabase
+        .from('tasks')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', user.id)
+        .eq('completed', false)
 
-    const classesQuery = query(
-      collection(db, "classes"), 
-      where("teacherId", "==", user.uid)
-    )
-    
-    const unsubscribeClasses = onSnapshot(classesQuery, (snapshot) => {
-      // Utilisation du tableau récupéré pour la propriété .length
-      const classesData = snapshot.docs.map(doc => doc.data())
-      setClassesCount(classesData.length)
-    })
+      if (!tasksError && tasksCountData !== null) {
+        setTasksCount(tasksCountData)
+      }
+
+      const { count: classesCountData, error: classesError } = await supabase
+        .from('classes')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', user.id)
+
+      if (!classesError && classesCountData !== null) {
+        setClassesCount(classesCountData)
+      }
+    }
+
+    fetchCounts()
+
+    const tasksChannel = supabase
+      .channel('welcome-tasks-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+          filter: `teacher_id=eq.${user.id}`
+        },
+        () => {
+          fetchCounts()
+        }
+      )
+      .subscribe()
+
+    const classesChannel = supabase
+      .channel('welcome-classes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'classes',
+          filter: `teacher_id=eq.${user.id}`
+        },
+        () => {
+          fetchCounts()
+        }
+      )
+      .subscribe()
 
     return () => {
-      unsubscribeTasks()
-      unsubscribeClasses()
+      supabase.removeChannel(tasksChannel)
+      supabase.removeChannel(classesChannel)
     }
   }, [user, isAuthReady])
 

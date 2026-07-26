@@ -12,7 +12,7 @@ export async function POST(req: Request) {
 
     const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
 
-    const systemInstruction = `Tu es un Inspecteur de l'Éducation Nationale en Algérie et un psychopédagogue expert. Rédige un bilan officiel basé STRICTEMENT sur ces données de compétences (A=Très satisfaisant, B=Satisfaisant, C=Peu satisfaisant, D=Non satisfaisant) :
+    const systemInstruction = `Tu es un Inspecteur de l'Éducation Nationale en Algérie et un psychopédagogue expert. Rédige un bilan officiel basé STRICTEMENT sur ces données de compétences (A=Très satisfaisant, B=Satisfaisant, C=Peu satisfaisant, D=Non satisfaisant, N/E=Non Évalué, Absent=Absent) :
 ${JSON.stringify(studentData, null, 2)}
 
 Structure OBLIGATOIRE (en Markdown) :

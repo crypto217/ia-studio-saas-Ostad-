@@ -5,9 +5,7 @@ import { Check, Plus, Clock, AlertCircle, ListTodo, Trash2, CalendarHeart } from
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/AuthProvider"
-import { db } from "@/firebase"
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, addDoc } from "firebase/firestore"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import { createBrowserClient } from "@/lib/supabase"
 import { motion, AnimatePresence } from "motion/react"
 
 type Task = {
@@ -32,51 +30,102 @@ const colors = [
 
 export function TasksPanel() {
   const [tasks, setTasks] = useState<Task[]>([])
+  const [error, setError] = useState<string | null>(null)
   const { user, isAuthReady } = useAuth()
   const [newTaskTitle, setNewTaskTitle] = useState("")
   const [isAdding, setIsAdding] = useState(false)
+  const supabase = createBrowserClient()
 
   useEffect(() => {
-    if (!isAuthReady || !user) return
+    if (!isAuthReady || !user?.id) return
 
-    const q = query(collection(db, "tasks"), where("teacherId", "==", user.uid))
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const tasksData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Task[]
-      
-      // Sort by creation date or urgency
-      tasksData.sort((a, b) => {
-        if (a.completed !== b.completed) return a.completed ? 1 : -1;
-        if (a.urgent !== b.urgent) return a.urgent ? -1 : 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      })
-      
-      setTasks(tasksData)
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "tasks")
-    })
+    const fetchTasks = async () => {
+      setError(null)
+      const { data, error: tasksError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('teacher_id', user.id)
 
-    return () => unsubscribe()
+      if (!tasksError && data) {
+        const mappedTasks = data.map(t => ({
+          id: t.id,
+          teacherId: t.teacher_id,
+          title: t.title,
+          deadline: t.deadline,
+          urgent: t.urgent,
+          color: t.color,
+          completed: t.completed,
+          createdAt: t.created_at
+        })) as Task[]
+
+        // Sort by creation date or urgency
+        mappedTasks.sort((a, b) => {
+          if (a.completed !== b.completed) return a.completed ? 1 : -1;
+          if (a.urgent !== b.urgent) return a.urgent ? -1 : 1;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        })
+
+        setTasks(mappedTasks)
+      } else if (tasksError) {
+        console.error("Error fetching tasks details:", {
+          message: tasksError.message,
+          details: tasksError.details,
+          hint: tasksError.hint,
+          code: tasksError.code
+        })
+        setError(`Erreur tâches : ${tasksError.message || "Erreur de connexion (RLS)"}`)
+      }
+    }
+
+    fetchTasks()
+
+    const channel = supabase
+      .channel('tasks-panel-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+          filter: `teacher_id=eq.${user.id}`
+        },
+        () => {
+          fetchTasks()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [user, isAuthReady])
 
   const toggleTask = async (id: string, currentStatus: boolean) => {
+    if (!user) return
     try {
-      await updateDoc(doc(db, "tasks", id), {
-        completed: !currentStatus
-      })
+      const { error } = await supabase
+        .from('tasks')
+        .update({ completed: !currentStatus })
+        .eq('id', id)
+        .eq('teacher_id', user.id)
+      if (error) throw error
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `tasks/${id}`)
+      console.error("Error updating task:", error)
     }
   }
 
   const deleteTask = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
+    if (!user) return
     try {
-      await deleteDoc(doc(db, "tasks", id))
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', id)
+        .eq('teacher_id', user.id)
+      if (error) throw error
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `tasks/${id}`)
+      console.error("Error deleting task:", error)
     }
   }
 
@@ -85,19 +134,21 @@ export function TasksPanel() {
     if (!user || !newTaskTitle.trim()) return
 
     try {
-      await addDoc(collection(db, "tasks"), {
-        teacherId: user.uid,
-        title: newTaskTitle.trim(),
-        deadline: "À définir",
-        urgent: false,
-        color: "sky",
-        completed: false,
-        createdAt: new Date().toISOString()
-      })
+      const { error } = await supabase
+        .from('tasks')
+        .insert([{
+          teacher_id: user.id,
+          title: newTaskTitle.trim(),
+          deadline: "À définir",
+          urgent: false,
+          color: "sky",
+          completed: false
+        }])
+      if (error) throw error
       setNewTaskTitle("")
       setIsAdding(false)
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, "tasks")
+      console.error("Error adding task:", error)
     }
   }
 
@@ -128,7 +179,15 @@ export function TasksPanel() {
       </CardHeader>
       <CardContent className="flex-1 pt-4 sm:pt-5 flex flex-col px-4 sm:px-6 pb-5 sm:pb-6 overflow-hidden relative z-10">
         <div className="space-y-3 sm:space-y-4 flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-          {tasks.length === 0 && !isAdding && (
+          {error && (
+            <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl flex items-start gap-2.5 shadow-sm text-xs">
+              <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-rose-900">Échec du chargement des tâches :</span> {error}
+              </div>
+            </div>
+          )}
+          {tasks.length === 0 && !isAdding && !error && (
             <div className="text-center py-10 flex flex-col items-center justify-center text-slate-500 font-medium bg-slate-50 rounded-3xl border border-slate-100/50 border-dashed">
               <Check className="w-12 h-12 mb-3 text-slate-300" />
               <p className="text-lg text-slate-600 font-bold">Tout est à jour !</p>

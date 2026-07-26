@@ -2,17 +2,17 @@
 
 import { useState } from "react"
 import { useAuth } from "@/components/AuthProvider"
-import { db } from "@/firebase"
-import { collection, doc, setDoc, writeBatch } from "firebase/firestore"
+import { createBrowserClient } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 
 export default function SeedPage() {
   const { user, isAuthReady } = useAuth()
   const [status, setStatus] = useState("")
   const [loading, setLoading] = useState(false)
+  const supabase = createBrowserClient()
 
   const generateData = async () => {
-    if (!user) {
+    if (!user?.id) {
       setStatus("Veuillez vous connecter d'abord.")
       return
     }
@@ -21,168 +21,148 @@ export default function SeedPage() {
     setStatus("Génération en cours...")
 
     try {
-      const batch = writeBatch(db)
-      const teacherId = user.uid
-      const now = new Date().toISOString()
+      const teacherId = user.id
 
       // 1. Create Classes
-      const class1Ref = doc(collection(db, "classes"))
-      const class2Ref = doc(collection(db, "classes"))
-      
-      batch.set(class1Ref, {
-        id: class1Ref.id,
-        teacherId,
-        name: "3ème AP - Groupe A",
-        cycle: "Primaire",
-        theme: "amber",
-        createdAt: now
-      })
+      const { data: class1Data, error: c1Error } = await supabase
+        .from('classes')
+        .insert([{
+          teacher_id: teacherId,
+          name: "3ème AP - Groupe A",
+          cycle: "Primaire",
+          theme: "amber",
+          level: "3AP",
+          school_year: "2025-2026"
+        }])
+        .select()
+        .single()
 
-      batch.set(class2Ref, {
-        id: class2Ref.id,
-        teacherId,
-        name: "4ème AP - Groupe B",
-        cycle: "Primaire",
-        theme: "emerald",
-        createdAt: now
-      })
+      const { data: class2Data, error: c2Error } = await supabase
+        .from('classes')
+        .insert([{
+          teacher_id: teacherId,
+          name: "4ème AP - Groupe B",
+          cycle: "Primaire",
+          theme: "emerald",
+          level: "4AP",
+          school_year: "2025-2026"
+        }])
+        .select()
+        .single()
+
+      if (c1Error || c2Error) {
+        console.error("c1Error:", c1Error, "c2Error:", c2Error)
+        throw new Error("Erreur lors de la création des classes : " + JSON.stringify(c1Error || c2Error))
+      }
+      const class1Id = class1Data.id
+      const class2Id = class2Data.id
 
       // 2. Create Students for Class 1
       const studentsC1 = ["Amine Benali", "Lina Merzoug", "Yanis Kadi", "Ines Saidi", "Rayane Toumi", "Sarah Djouadi"]
-      const studentRefsC1: any[] = []
-      studentsC1.forEach(name => {
-        const sRef = doc(collection(db, "students"))
-        studentRefsC1.push(sRef)
-        batch.set(sRef, {
-          id: sRef.id,
-          teacherId,
-          classId: class1Ref.id,
-          name,
-          gender: Math.random() > 0.5 ? "M" : "F",
-          score: Math.floor(Math.random() * 10) + 10, // 10 to 19
-          createdAt: now
-        })
-      })
+      const studentPayloadC1 = studentsC1.map(name => ({
+        teacher_id: teacherId,
+        class_id: class1Id,
+        name,
+        gender: Math.random() > 0.5 ? "M" : "F",
+        grade: Math.floor(Math.random() * 10) + 10, // 10 to 19
+        status: "good"
+      }))
+
+      const { data: insertedStudentsC1, error: s1Error } = await supabase
+        .from('students')
+        .insert(studentPayloadC1)
+        .select()
+
+      if (s1Error) throw s1Error
 
       // Create Students for Class 2
       const studentsC2 = ["Mehdi L.", "Aya B.", "Wassim C.", "Kenza D.", "Samy E.", "Nour F."]
-      const studentRefsC2: any[] = []
-      studentsC2.forEach(name => {
-        const sRef = doc(collection(db, "students"))
-        studentRefsC2.push(sRef)
-        batch.set(sRef, {
-          id: sRef.id,
-          teacherId,
-          classId: class2Ref.id,
-          name,
-          gender: Math.random() > 0.5 ? "M" : "F",
-          score: Math.floor(Math.random() * 10) + 10,
-          createdAt: now
-        })
-      })
+      const studentPayloadC2 = studentsC2.map(name => ({
+        teacher_id: teacherId,
+        class_id: class2Id,
+        name,
+        gender: Math.random() > 0.5 ? "M" : "F",
+        grade: Math.floor(Math.random() * 10) + 10,
+        status: "good"
+      }))
+
+      const { error: s2Error } = await supabase
+        .from('students')
+        .insert(studentPayloadC2)
+
+      if (s2Error) throw s2Error
 
       // 3. Create Lessons (Schedule)
-      const lessons = [
-        { title: "Lecture", taskType: "Cours", day: 1, start: 8, duration: 2, classId: class1Ref.id },
-        { title: "Mathématiques", taskType: "Exercices", day: 1, start: 10, duration: 2, classId: class2Ref.id },
-        { title: "Écriture", taskType: "Cours", day: 2, start: 9, duration: 1, classId: class1Ref.id },
-        { title: "Histoire", taskType: "Cours", day: 3, start: 13, duration: 2, classId: class2Ref.id },
+      const lessonsPayload = [
+        { title: "Lecture", task_type: "cours", day_number: 1, start_hour: 8, duration_hours: 2, class_id: class1Id, teacher_id: teacherId, day: "1", room: "Salle 01", duration: "2h", time_slot: "08:00 - 10:00" },
+        { title: "Mathématiques", task_type: "exercice", day_number: 1, start_hour: 10, duration_hours: 2, class_id: class2Id, teacher_id: teacherId, day: "1", room: "Salle 02", duration: "2h", time_slot: "10:00 - 12:00" },
+        { title: "Écriture", task_type: "cours", day_number: 2, start_hour: 9, duration_hours: 1, class_id: class1Id, teacher_id: teacherId, day: "2", room: "Salle 01", duration: "1h", time_slot: "09:00 - 10:00" },
+        { title: "Histoire", task_type: "cours", day_number: 3, start_hour: 13, duration_hours: 2, class_id: class2Id, teacher_id: teacherId, day: "3", room: "Salle 02", duration: "2h", time_slot: "13:00 - 15:00" },
       ]
 
-      lessons.forEach(l => {
-        const lRef = doc(collection(db, "lessons"))
-        batch.set(lRef, {
-          id: lRef.id,
-          teacherId,
-          classId: l.classId,
-          taskType: l.taskType,
-          title: l.title,
-          day: l.day,
-          start: l.start,
-          duration: l.duration,
-          createdAt: now
-        })
-      })
+      const { error: lesError } = await supabase
+        .from('lessons')
+        .insert(lessonsPayload)
+
+      if (lesError) throw lesError
 
       // 4. Create Tasks
-      const tasks = [
-        { title: "Corriger les copies de 3ème AP", deadline: "Demain", urgent: true, color: "rose", completed: false },
-        { title: "Préparer le cours d'histoire", deadline: "Mercredi", urgent: false, color: "sky", completed: false },
-        { title: "Réunion parents d'élèves", deadline: "Vendredi", urgent: false, color: "amber", completed: false },
+      const tasksPayload = [
+        { title: "Corriger les copies de 3ème AP", deadline: "Demain", urgent: true, color: "rose", completed: false, teacher_id: teacherId },
+        { title: "Préparer le cours d'histoire", deadline: "Mercredi", urgent: false, color: "sky", completed: false, teacher_id: teacherId },
+        { title: "Réunion parents d'élèves", deadline: "Vendredi", urgent: false, color: "amber", completed: false, teacher_id: teacherId },
       ]
 
-      tasks.forEach(t => {
-        const tRef = doc(collection(db, "tasks"))
-        batch.set(tRef, {
-          id: tRef.id,
-          teacherId,
-          title: t.title,
-          deadline: t.deadline,
-          urgent: t.urgent,
-          color: t.color,
-          completed: t.completed,
-          createdAt: now
-        })
-      })
+      const { error: tskError } = await supabase
+        .from('tasks')
+        .insert(tasksPayload)
+
+      if (tskError) throw tskError
 
       // 4.5 Create Courses
-      const courses = [
-        { title: "Les verbes du 1er groupe", type: "Cours", className: "3ème AP - Groupe A", term: "Trimestre 1", content: "Introduction aux verbes en -er." },
-        { title: "Exercices de conjugaison", type: "Exercice", className: "3ème AP - Groupe A", term: "Trimestre 1", content: "Série d'exercices sur les verbes du 1er groupe." },
-        { title: "Évaluation de lecture", type: "Examen", className: "4ème AP - Groupe B", term: "Trimestre 1", content: "Lecture à voix haute et compréhension." },
+      const coursesPayload = [
+        { title: "Les verbes du 1er groupe", type: "Cours", class_name: "3ème AP - Groupe A", term: "Trimestre 1", content: "Introduction aux verbes en -er.", teacher_id: teacherId },
+        { title: "Exercices de conjugaison", type: "Exercice", class_name: "3ème AP - Groupe A", term: "Trimestre 1", content: "Série d'exercices sur les verbes du 1er groupe.", teacher_id: teacherId },
+        { title: "Évaluation de lecture", type: "Examen", class_name: "4ème AP - Groupe B", term: "Trimestre 1", content: "Lecture à voix haute et compréhension.", teacher_id: teacherId },
       ]
 
-      courses.forEach(c => {
-        const cRef = doc(collection(db, "courses"))
-        batch.set(cRef, {
-          teacherId,
-          title: c.title,
-          type: c.type,
-          className: c.className,
-          term: c.term,
-          content: c.content,
-          createdAt: now
-        })
-      })
+      const { error: crsError } = await supabase
+        .from('courses')
+        .insert(coursesPayload)
+
+      if (crsError) throw crsError
 
       // 5. Create Activities
-      const activities = [
-        { title: "Notes ajoutées", description: "Vous avez ajouté 24 notes pour la 3ème AP", type: "grade" },
-        { title: "Nouveau document", description: "Support de cours 'Grammaire' partagé", type: "document" },
-        { title: "Emploi du temps", description: "Modification de la séance de mardi", type: "schedule" },
+      const activitiesPayload = [
+        { title: "Notes ajoutées", description: "Vous avez ajouté 24 notes pour la 3ème AP", type: "grade", teacher_id: teacherId },
+        { title: "Nouveau document", description: "Support de cours 'Grammaire' partagé", type: "document", teacher_id: teacherId },
+        { title: "Emploi du temps", description: "Modification de la séance de mardi", type: "schedule", teacher_id: teacherId },
       ]
 
-      activities.forEach(a => {
-        const aRef = doc(collection(db, "activities"))
-        batch.set(aRef, {
-          id: aRef.id,
-          teacherId,
-          title: a.title,
-          description: a.description,
-          type: a.type,
-          createdAt: now
-        })
-      })
+      const { error: actError } = await supabase
+        .from('activities')
+        .insert(activitiesPayload)
+
+      if (actError) throw actError
 
       // 6. Create Attendances
-      const today = new Date().toISOString().split('T')[0]
-      const recordsC1: Record<string, string> = {}
-      studentRefsC1.forEach(ref => {
+      const todayDate = new Date().toISOString().split('T')[0]
+      const attPayloadC1 = (insertedStudentsC1 || []).map(s => {
         const statuses = ['present', 'present', 'present', 'absent', 'late']
-        recordsC1[ref.id] = statuses[Math.floor(Math.random() * statuses.length)]
+        return {
+          teacher_id: teacherId,
+          student_id: s.id,
+          class_id: class1Id,
+          date: todayDate,
+          status: statuses[Math.floor(Math.random() * statuses.length)]
+        }
       })
 
-      const attRef = doc(collection(db, "attendances"))
-      batch.set(attRef, {
-        teacherId,
-        classId: class1Ref.id,
-        date: today,
-        records: recordsC1,
-        createdAt: now
-      })
+      const { error: attError } = await supabase
+        .from('attendances')
+        .insert(attPayloadC1)
 
-      // Commit all
-      await batch.commit()
+      if (attError) throw attError
 
       setStatus("✅ Données générées avec succès ! Vous pouvez maintenant explorer l'application.")
     } catch (error: any) {

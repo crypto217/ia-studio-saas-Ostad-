@@ -5,9 +5,7 @@ import { Calendar as CalendarIcon, ChevronRight, BookOpen } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/AuthProvider"
-import { db } from "@/firebase"
-import { collection, query, where, getDocs, orderBy, doc, getDoc } from "firebase/firestore"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import { createBrowserClient } from "@/lib/supabase"
 import Link from "next/link"
 
 type ScheduleItem = {
@@ -23,63 +21,52 @@ export function MiniCalendarWidget() {
   const [schedule, setSchedule] = useState<ScheduleItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { user, isAuthReady } = useAuth()
+  const supabase = createBrowserClient()
 
   // Get current date info
   const today = new Date()
   const dateStr = today.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
-  // JS getDay(): 0 = Sunday, 1 = Monday. 
-  // Assuming the app uses 0 = Monday, 1 = Tuesday, ..., 6 = Sunday for the `day` field
   const jsDay = today.getDay()
   const appDay = jsDay === 0 ? 6 : jsDay - 1
 
   useEffect(() => {
     const fetchSchedule = async () => {
-      if (!isAuthReady || !user) return
+      if (!isAuthReady || !user?.id) return
 
       try {
-        const q = query(
-          collection(db, "lessons"),
-          where("teacherId", "==", user.uid),
-          where("day", "==", appDay),
-          orderBy("start")
-        )
-        const snapshot = await getDocs(q)
-        
-        const items: ScheduleItem[] = []
-        
-        for (const lessonDoc of snapshot.docs) {
-          const data = lessonDoc.data()
-          
-          let className = ""
-          if (data.classId) {
-            try {
-              const classDocRef = doc(db, "classes", data.classId)
-              const classDocSnap = await getDoc(classDocRef)
-              if (classDocSnap.exists()) {
-                className = classDocSnap.data().name
-              }
-            } catch (e) {
-              console.error("Error fetching class name", e)
-            }
-          }
+        const { data, error } = await supabase
+          .from('lessons')
+          .select(`
+            *,
+            classes (
+              name
+            )
+          `)
+          .eq('teacher_id', user.id)
+          .eq('day_number', appDay)
+          .order('start_hour')
 
-          const hours = Math.floor(data.start)
-          const minutes = Math.round((data.start - hours) * 60)
+        if (error) throw error
+
+        const items: ScheduleItem[] = (data || []).map((row: any) => {
+          const start = row.start_hour ?? 8
+          const hours = Math.floor(start)
+          const minutes = Math.round((start - hours) * 60)
           const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
 
-          items.push({
-            id: lessonDoc.id,
+          return {
+            id: row.id,
             time: timeStr,
-            subject: data.title,
-            class: className,
-            type: data.taskType,
-            start: data.start
-          })
-        }
+            subject: row.title,
+            class: row.classes?.name || "Classe inconnue",
+            type: row.task_type || "cours",
+            start
+          }
+        })
 
         setSchedule(items)
       } catch (error) {
-        handleFirestoreError(error, OperationType.GET, "lessons")
+        console.error("Error fetching schedule from Supabase:", error)
       } finally {
         setIsLoading(false)
       }

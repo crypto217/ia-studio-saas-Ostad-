@@ -69,12 +69,12 @@ export function Sidebar() {
   return (
     <div className="hidden md:flex h-screen w-64 flex-col border-r-2 border-slate-200 bg-white sticky top-0 print:hidden">
       <div className="flex h-20 items-center px-8">
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400 text-white shadow-sm">
             <Sparkles className="h-6 w-6" />
           </div>
           <span className="text-2xl font-black tracking-tight text-slate-800">LUDICLASS</span>
-        </div>
+        </Link>
       </div>
 
       <nav className="flex-1 space-y-1.5 px-4 py-6 overflow-y-auto">

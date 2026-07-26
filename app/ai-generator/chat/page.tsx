@@ -7,8 +7,8 @@ import { Bot, Send, ArrowLeft, Paperclip, Sparkles, MoreHorizontal, Printer, Boo
 import { useIsMobile } from "@/hooks/use-mobile"
 import { GoogleGenAI } from "@google/genai"
 import Markdown from "react-markdown"
-import { db, auth } from "@/firebase"
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore"
+import { createBrowserClient } from "@/lib/supabase"
+import { useAuth } from "@/components/AuthProvider"
 
 const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY })
 
@@ -45,6 +45,8 @@ const INITIAL_MESSAGE: Message = {
 }
 
 export default function ChatPage() {
+  const { user, isAuthReady } = useAuth()
+  const supabase = createBrowserClient()
   const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE])
   const [inputValue, setInputValue] = useState("")
   const [isTyping, setIsTyping] = useState(false)
@@ -66,17 +68,21 @@ export default function ChatPage() {
   const [selectedCourseId, setSelectedCourseId] = useState("")
 
   const openSaveModal = async (content: string) => {
-    if (!auth.currentUser) {
+    if (!user?.id) {
       alert("Veuillez vous connecter pour sauvegarder.")
       return
     }
     setResourceContentToSave(content)
     try {
-      const q = query(collection(db, "courses"), where("teacherId", "==", auth.currentUser.uid))
-      const snapshot = await getDocs(q)
-      const fetchedCourses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      setCourses(fetchedCourses)
-      if (fetchedCourses.length > 0) setSelectedCourseId(fetchedCourses[0].id)
+      const { data: fetchedCourses, error } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('teacher_id', user.id)
+      
+      if (error) throw error
+
+      setCourses(fetchedCourses || [])
+      if (fetchedCourses && fetchedCourses.length > 0) setSelectedCourseId(fetchedCourses[0].id)
       setSaveModalOpen(true)
     } catch (err) {
       console.error(err)
@@ -85,20 +91,24 @@ export default function ChatPage() {
   }
 
   const confirmSaveToCourse = async () => {
-    if (!selectedCourseId || !auth.currentUser) return
+    if (!selectedCourseId || !user?.id) return
 
     try {
       const firstLine = resourceContentToSave.split('\n').map(l => l.replace(/#/g, '').trim()).filter(l => l.length > 0)[0] || "Nouvelle ressource"
       const title = firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine
       
-      await addDoc(collection(db, "resources"), {
-        userId: auth.currentUser.uid,
-        courseId: selectedCourseId,
-        title,
-        content: resourceContentToSave,
-        type: "lesson_plan",
-        createdAt: serverTimestamp()
-      })
+      const { error: insertError } = await supabase
+        .from('resources')
+        .insert([{
+          user_id: user.id,
+          course_id: selectedCourseId,
+          title,
+          content: resourceContentToSave,
+          type: "lesson_plan"
+        }])
+
+      if (insertError) throw insertError
+
       setSaveModalOpen(false)
       alert("Ressource sauvegardée dans le cours avec succès !")
     } catch (error) {

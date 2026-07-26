@@ -6,9 +6,7 @@ import { Clock, MapPin, Users, Star, Circle, Sparkles, BookOpen } from "lucide-r
 import { motion } from "motion/react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { useAuth } from "@/components/AuthProvider"
-import { db } from "@/firebase"
-import { collection, query, where, getDocs, orderBy, doc, getDoc } from "firebase/firestore"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import { createBrowserClient } from "@/lib/supabase"
 
 type Lesson = {
   id: string
@@ -25,94 +23,81 @@ export function NextLessonCard() {
   const [nextLesson, setNextLesson] = useState<Lesson | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const { user, isAuthReady } = useAuth()
+  const supabase = createBrowserClient()
 
   useEffect(() => {
     const fetchNextLesson = async () => {
-      if (!isAuthReady || !user?.uid) return
+      if (!isAuthReady || !user?.id) return
 
       try {
-        // En vrai: filtrer par jour (actuel ou après) et trier par début
-        const q = query(
-          collection(db, "lessons"),
-          where("teacherId", "==", user.uid),
-          orderBy("day", "asc"),
-          orderBy("start", "asc")
-        )
-        const snapshot = await getDocs(q)
+        const { data: lessons, error } = await supabase
+          .from('lessons')
+          .select(`
+            *,
+            classes (
+              name,
+              students (
+                id
+              )
+            )
+          `)
+          .eq('teacher_id', user.id)
+          .order('day_number', { ascending: true })
+          .order('start_hour', { ascending: true })
+
+        if (error) throw error
         
-        if (!snapshot.empty) {
+        if (lessons && lessons.length > 0) {
           const now = new Date()
-          const currentDay = now.getDay() // 0 = Dimanche, 1 = Lundi, etc.
+          const currentDay = now.getDay() // 0 = Sunday, 1 = Monday, etc.
           const currentHour = now.getHours() + now.getMinutes() / 60
 
-          let upcomingLessonDoc = null
+          let upcomingLesson = null
 
           // Chercher le prochain cours d'aujourd'hui
-          for (const doc of snapshot.docs) {
-            const data = doc.data()
-            if (data.day === currentDay && data.start + data.duration > currentHour) {
-              upcomingLessonDoc = doc
+          for (const row of lessons) {
+            const dayNum = row.day_number ?? 0
+            const start = row.start_hour ?? 8
+            const duration = row.duration_hours ?? 1
+            if (dayNum === currentDay && start + duration > currentHour) {
+              upcomingLesson = row
               break
             }
           }
 
           // Si plus de cours aujourd'hui, prendre le premier cours du jour suivant disponible
-          if (!upcomingLessonDoc) {
-             for (const doc of snapshot.docs) {
-               const data = doc.data()
-               if (data.day !== currentDay) { // simplifie on prend les jours qui suivent vu qu'on a trié
-                 upcomingLessonDoc = doc
+          if (!upcomingLesson) {
+             for (const row of lessons) {
+               const dayNum = row.day_number ?? 0
+               if (dayNum !== currentDay) {
+                 upcomingLesson = row
                  break
                }
              }
           }
 
-          // Si c'est très vide, on retourne à rien
-          if (!upcomingLessonDoc) {
+          if (!upcomingLesson) {
              setNextLesson(null)
              setIsLoading(false)
              return
           }
           
-          const lessonData = upcomingLessonDoc.data()
-          
-          let className = "Classe"
-          let studentCount = 0
-
-          // Fetch class details
-          if (lessonData.classId) {
-            try {
-              const classDocRef = doc(db, "classes", lessonData.classId)
-              const classDocSnap = await getDoc(classDocRef)
-              if (classDocSnap.exists()) {
-                className = classDocSnap.data().name
-              }
-
-              const studentsQuery = query(
-                collection(db, "students"), 
-                where("classId", "==", lessonData.classId),
-                where("teacherId", "==", user.uid)
-              )
-              const studentsSnapshot = await getDocs(studentsQuery)
-              studentCount = studentsSnapshot.size
-            } catch (e) {
-              console.error("Error fetching class details for lesson", e)
-            }
-          }
+          const className = upcomingLesson.classes?.name || "Classe"
+          const studentCount = upcomingLesson.classes?.students?.length || 0
 
           setNextLesson({
-            id: upcomingLessonDoc.id,
-            title: lessonData.title,
-            taskType: lessonData.taskType,
-            classId: lessonData.classId,
+            id: upcomingLesson.id,
+            title: upcomingLesson.title,
+            taskType: upcomingLesson.task_type || "cours",
+            classId: upcomingLesson.class_id,
             className,
             studentCount,
-            start: lessonData.start,
-            duration: lessonData.duration
+            start: upcomingLesson.start_hour ?? 8,
+            duration: upcomingLesson.duration_hours ?? 1
           })
         }
       } catch (error) {
-        handleFirestoreError(error, OperationType.GET, "lessons")
+        console.error("Error fetching next lesson from Supabase:", error)
       } finally {
         setIsLoading(false)
       }

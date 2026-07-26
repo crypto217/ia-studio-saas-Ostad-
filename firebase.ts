@@ -22,7 +22,36 @@ try {
 
 export const db = firestoreDb;
 
-export const auth = getAuth(app);
+// Mock user for local development
+const mockUser = {
+  uid: "d3b07384-d113-4956-809e-206af520d0e2",
+  email: "dev@example.com",
+  displayName: "Dev Teacher",
+  emailVerified: true,
+  isAnonymous: false,
+  providerData: [],
+  getIdToken: async () => "mock-id-token"
+};
+
+export const auth = {
+  currentUser: mockUser,
+  onAuthStateChanged: (callback: any) => {
+    if (typeof callback === 'function') {
+      callback(mockUser);
+    }
+    return () => {};
+  },
+  onIdTokenChanged: (callback: any) => {
+    if (typeof callback === 'function') {
+      callback(mockUser);
+    }
+    return () => {};
+  },
+  signOut: async () => {},
+  signInWithEmailAndPassword: async () => ({ user: mockUser }),
+  createUserWithEmailAndPassword: async () => ({ user: mockUser })
+} as any;
+
 export const storage = getStorage(app);
 
 async function testConnection() {

@@ -25,12 +25,15 @@ import {
   Folder,
   ChevronRight,
   MoreVertical,
-  Upload
+  Upload,
+  Check,
+  ChevronDown,
+  Calendar,
+  ChevronLeft,
+  RefreshCw,
+  TrendingUp
 } from "lucide-react"
-import { db, storage } from "@/firebase"
-import { collection, query, onSnapshot, deleteDoc, doc, where, addDoc, serverTimestamp } from "firebase/firestore"
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import { createBrowserClient } from "@/lib/supabase"
 import Link from "next/link"
 import Markdown from "react-markdown"
 import { useAuth } from "@/components/AuthProvider"
@@ -60,20 +63,27 @@ interface TeacherFile {
   type: string;
   folder: string;
   fileType?: string;
+  trimestre?: string;
   teacherId: string;
   createdAt: any;
 }
 
-const CLASSES = ["Toutes", "3ème AP", "4ème AP", "5ème AP", "1ère AM"]
-const TYPES = ["Tous", "Cours", "Exercice", "Examen"]
+const formatSize = (bytes: number) => {
+  if (bytes === 0) return '0 Octets';
+  const k = 1024;
+  const sizes = ['Octets', 'Ko', 'Mo', 'Go'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
 
 export default function CoursesLibraryPage() {
   const { user, isAuthReady } = useAuth()
   const isMobile = useIsMobile()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedClass, setSelectedClass] = useState("Toutes")
-  const [selectedType, setSelectedType] = useState("Tous")
   const [docs, setDocs] = useState<GeneratedDoc[]>([])
+  const [classes, setClasses] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState<"programme" | "files">("programme")
   const [isLoading, setIsLoading] = useState(true)
   
   // Viewer State
@@ -87,7 +97,11 @@ export default function CoursesLibraryPage() {
   // New States for Classification Modal & Toast
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [selectedFolder, setSelectedFolder] = useState<string>("3ème AP")
-  const [selectedFileType, setSelectedFileType] = useState<string>("Fiche de préparation")
+  const [selectedFileType, setSelectedFileType] = useState<string>("Leçon")
+  const [selectedTrimestre, setSelectedTrimestre] = useState<string>("T1")
+  const [filterType, setFilterType] = useState<string>("Toutes")
+  const [filterNiveau, setFilterNiveau] = useState<string>("Toutes")
+  const [filterTrimestre, setFilterTrimestre] = useState<string>("Toutes")
   const [toastMessage, setToastMessage] = useState<{message: string, type: 'success' | 'error'} | null>(null)
 
   const showToast = (message: string, type: 'success' | 'error') => {
@@ -96,119 +110,400 @@ export default function CoursesLibraryPage() {
   }
 
   const [currentPath, setCurrentPath] = useState(["Mon Classeur"]);
-  const folders = [
-    { id: '1', name: '3ème AP', date: 'Hier', color: 'text-blue-500', bgColor: 'bg-blue-100' },
-    { id: '2', name: '4ème AP', date: 'Il y a 2 jours', color: 'text-emerald-500', bgColor: 'bg-emerald-100' },
-    { id: '3', name: '5ème AP', date: "Aujourd'hui", color: 'text-orange-500', bgColor: 'bg-orange-100' },
-  ];
+
+  const supabase = createBrowserClient()
+
+  // Safely encodes a file URL to handle spaces and parenthesises correctly
+  const encodeFileUrl = (url: string) => {
+    if (!url) return "";
+    try {
+      // Decode first to prevent double-encoding issues
+      const decoded = decodeURI(url);
+      // encodeURI handles spaces and standard special characters but leaves : / ? & = intact
+      let encoded = encodeURI(decoded);
+      // Manually encode parenthesises as encodeURI does not touch them
+      encoded = encoded.replace(/\(/g, '%28').replace(/\)/g, '%29');
+      return encoded;
+    } catch (e) {
+      return url;
+    }
+  };
+
+  // Retrieve the official public URL using Supabase Storage client
+  const getFilePublicUrl = (fileUrl: string) => {
+    if (!fileUrl) return "";
+    try {
+      const marker = '/storage/v1/object/public/teacher-files/';
+      const index = fileUrl.indexOf(marker);
+      if (index !== -1) {
+        const filePath = fileUrl.substring(index + marker.length);
+        const decodedPath = decodeURIComponent(filePath);
+        
+        const { data } = supabase.storage
+          .from('teacher-files')
+          .getPublicUrl(decodedPath);
+          
+        return data?.publicUrl || fileUrl;
+      }
+      
+      // Fallback if marker not found
+      return decodeURIComponent(fileUrl);
+    } catch (e) {
+      console.error("Error generating public URL:", e);
+      return fileUrl;
+    }
+  };
+
+  // Render document lists inside Neo-brutalist distinct panels
+  const renderFileSections = (filesList: TeacherFile[]) => {
+    const listLecons = filesList.filter(f => f.fileType === "Leçon" || f.fileType === "Fiche de préparation" || f.fileType === "Cours");
+    const listExercices = filesList.filter(f => f.fileType === "Exercice");
+    const listExamens = filesList.filter(f => f.fileType === "Examen");
+    const listRessources = filesList.filter(f => 
+      f.fileType !== "Leçon" && 
+      f.fileType !== "Fiche de préparation" && 
+      f.fileType !== "Cours" && 
+      f.fileType !== "Exercice" && 
+      f.fileType !== "Examen"
+    );
+
+    const hasAnyFiles = filesList.length > 0;
+
+    if (!hasAnyFiles) {
+      return (
+        <div className="p-12 text-center border-4 border-slate-900 rounded-3xl bg-white flex flex-col items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <div className="w-16 h-16 bg-slate-50 border-2 border-slate-900 rounded-2xl flex items-center justify-center mb-4">
+            <FileText className="w-8 h-8 text-slate-400" />
+          </div>
+          <h3 className="text-lg font-black text-slate-800 mb-1">Aucun document trouvé</h3>
+          <p className="text-sm font-bold text-slate-500">
+            Modifiez vos filtres ou ajoutez des fichiers pour commencer.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-10">
+        {/* Leçons & Fiches */}
+        {listLecons.length > 0 && (
+          <div className="bg-sky-50/50 border-3 border-slate-900 rounded-3xl p-6 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
+            <h3 className="text-base font-black text-slate-900 mb-4 flex items-center gap-2">
+              <span className="w-4 h-4 rounded-full bg-sky-400 border-2 border-slate-900"></span>
+              📘 Cours & Leçons ({listLecons.length})
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {listLecons.map(file => (
+                <FileCard key={file.id} file={file} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Exercices */}
+        {listExercices.length > 0 && (
+          <div className="bg-emerald-50/50 border-3 border-slate-900 rounded-3xl p-6 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
+            <h3 className="text-base font-black text-slate-900 mb-4 flex items-center gap-2">
+              <span className="w-4 h-4 rounded-full bg-emerald-400 border-2 border-slate-900"></span>
+              🟢 Exercices ({listExercices.length})
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {listExercices.map(file => (
+                <FileCard key={file.id} file={file} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Examens */}
+        {listExamens.length > 0 && (
+          <div className="bg-rose-50/50 border-3 border-slate-900 rounded-3xl p-6 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
+            <h3 className="text-base font-black text-slate-900 mb-4 flex items-center gap-2">
+              <span className="w-4 h-4 rounded-full bg-rose-400 border-2 border-slate-900"></span>
+              🔴 Examens & Évaluations ({listExamens.length})
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {listExamens.map(file => (
+                <FileCard key={file.id} file={file} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Autres ressources */}
+        {listRessources.length > 0 && (
+          <div className="bg-purple-50/50 border-3 border-slate-900 rounded-3xl p-6 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
+            <h3 className="text-base font-black text-slate-900 mb-4 flex items-center gap-2">
+              <span className="w-4 h-4 rounded-full bg-purple-400 border-2 border-slate-900"></span>
+              🟣 Ressources complémentaires ({listRessources.length})
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {listRessources.map(file => (
+                <FileCard key={file.id} file={file} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Define database fetching functions at the component level
+  const fetchClasses = async () => {
+    if (!user?.id) return
+    const { data, error } = await supabase
+      .from('classes')
+      .select('*')
+      .eq('teacher_id', user.id)
+    
+    if (!error && data) {
+      setClasses(data)
+      if (data.length > 0 && !selectedFolder) {
+        const firstLevel = data[0].level || data[0].name;
+        setSelectedFolder(firstLevel);
+      }
+    }
+  }
+
+  const fetchCourses = async () => {
+    if (!user?.id) return
+    const { data, error } = await supabase
+      .from('courses')
+      .select('*')
+      .eq('teacher_id', user.id)
+    
+    if (!error && data) {
+      const sorted = data.map((d: any) => ({
+        id: d.id,
+        title: d.title,
+        type: d.type,
+        className: d.class_name,
+        term: d.term,
+        content: d.content,
+        imageUrl: d.image_url,
+        createdAt: d.created_at,
+        color: d.color || "from-blue-500 to-cyan-400",
+        iconColor: d.icon_color || "text-blue-500",
+        bgColor: d.bg_color || "bg-blue-50"
+      })).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      setDocs(sorted)
+    }
+  }
+
+  const fetchFiles = async () => {
+    if (!user?.id) return
+    try {
+      const response = await fetch(`/api/files?teacherId=${user.id}`);
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || "Erreur de chargement des fichiers.");
+      }
+
+      const data = result.files || [];
+      const sorted = data.map((f: any) => {
+        let displayName = f.name || "";
+        let fileClass = f.niveau || "Toutes";
+        let fileCategory = f.document_type || "Ressources complémentaires";
+        let fileTrimestre = f.trimestre || "T1";
+
+        if (f.name && f.name.includes(":::")) {
+          const parts = f.name.split(":::");
+          if (parts.length >= 3) {
+            fileClass = parts[0];
+            fileCategory = parts[1];
+            if (parts.length === 4) {
+              fileTrimestre = parts[2];
+              displayName = parts[3];
+            } else {
+              displayName = parts[2];
+            }
+          }
+        }
+
+        return {
+          id: f.id,
+          fileName: displayName,
+          fileUrl: f.url,
+          size: formatSize(Number(f.size) || 0),
+          type: f.type,
+          folder: fileClass,
+          fileType: fileCategory,
+          trimestre: fileTrimestre,
+          teacherId: f.teacher_id,
+          createdAt: f.created_at
+        };
+      }).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      setTeacherFiles(sorted)
+    } catch (err: any) {
+      console.error("fetchFiles error:", err);
+      showToast("Impossible de lire les fichiers de la base.", "error");
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!isAuthReady) return;
-    if (!user) {
+    if (!user?.id) {
       setTimeout(() => {
         setDocs([]);
         setTeacherFiles([]);
+        setClasses([]);
         setIsLoading(false);
       }, 0);
       return;
     }
 
-    const q = query(collection(db, "courses"), where("teacherId", "==", user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedDocs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as GeneratedDoc[];
-      
-      fetchedDocs.sort((a, b) => {
-        const dateA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const dateB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-        return dateB - dateA;
-      });
-      
-      setDocs(fetchedDocs);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, "courses");
-    });
+    const init = async () => {
+      await Promise.resolve();
+      fetchClasses();
+      fetchCourses();
+      fetchFiles();
+    };
+    init();
 
-    const qFiles = query(collection(db, "teacher_files"), where("teacherId", "==", user.uid));
-    const unsubFiles = onSnapshot(qFiles, (snapshot) => {
-      const fetchedFiles = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as TeacherFile[];
-      
-      fetchedFiles.sort((a, b) => {
-        const dateA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const dateB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-        return dateB - dateA;
-      });
-      
-      setTeacherFiles(fetchedFiles);
-      setIsLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, "teacher_files");
-      setIsLoading(false);
-    });
+    const coursesChannel = supabase
+      .channel('courses-page-courses')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'courses', filter: `teacher_id=eq.${user.id}` }, () => fetchCourses())
+      .subscribe()
+
+    const filesChannel = supabase
+      .channel('courses-page-files')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'teacher_files', filter: `teacher_id=eq.${user.id}` }, () => fetchFiles())
+      .subscribe()
 
     return () => {
-      unsubscribe();
-      unsubFiles();
+      supabase.removeChannel(coursesChannel)
+      supabase.removeChannel(filesChannel)
+    }
+  }, [user, isAuthReady])
+
+  // Get unique class levels dynamically
+  const uniqueClassLevels = Array.from(new Set(classes.map(c => c.level || c.name))).filter(Boolean);
+
+  const dynamicFolders = uniqueClassLevels.map((level, idx) => {
+    const colors = [
+      { color: 'text-blue-500', bgColor: 'bg-blue-100 hover:bg-blue-200' },
+      { color: 'text-emerald-500', bgColor: 'bg-emerald-100 hover:bg-emerald-200' },
+      { color: 'text-orange-500', bgColor: 'bg-orange-100 hover:bg-orange-200' },
+      { color: 'text-pink-500', bgColor: 'bg-pink-100 hover:bg-pink-200' },
+    ];
+    return {
+      id: String(idx + 1),
+      name: level,
+      ...colors[idx % colors.length]
     };
-  }, [user, isAuthReady]);
+  });
 
   const filteredFiles = teacherFiles.filter(file => {
-    return file.fileName.toLowerCase().includes(searchQuery.toLowerCase())
-  })
+    const matchesSearch = file.fileName.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesClass = filterNiveau === "Toutes"
+      ? (selectedClass === "Toutes" || file.folder === selectedClass)
+      : (file.folder === filterNiveau);
 
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return '0 Octets';
-    const k = 1024;
-    const sizes = ['Octets', 'Ko', 'Mo', 'Go'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    const matchesType = filterType === "Toutes" || file.fileType === filterType;
+    const matchesTrimestre = filterTrimestre === "Toutes" || file.trimestre === filterTrimestre;
+
+    return matchesSearch && matchesClass && matchesType && matchesTrimestre;
+  });
+
+  const classCourses = docs.filter(course => {
+    const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesClass = selectedClass === "Toutes" || course.className?.toLowerCase().includes(selectedClass.toLowerCase());
+    return matchesSearch && matchesClass;
+  });
+
+  const completedCourses = classCourses.filter(c => {
+    try {
+      if (c.bgColor && c.bgColor.startsWith("{")) {
+        return JSON.parse(c.bgColor).status === "Terminé";
+      }
+    } catch(e) {}
+    return false;
+  });
+  
+  const programProgress = classCourses.length === 0 ? 0 : Math.round((completedCourses.length / classCourses.length) * 100);
+
+  const handleSelectFolder = (name: string) => {
+    setSelectedClass(name);
+    setCurrentPath(["Mon Classeur", name]);
+  };
+
+  const handleResetPath = () => {
+    setSelectedClass("Toutes");
+    setCurrentPath(["Mon Classeur"]);
   };
 
   const handleFileUpload = async (file: File) => {
     if (!user) return;
+    if (selectedClass !== "Toutes") {
+      setSelectedFolder(selectedClass);
+    }
     setPendingFile(file);
   };
 
   const confirmUpload = async () => {
-    if (!user || !pendingFile) return;
+    if (!user?.id || !pendingFile) return;
     setIsUploading(true);
     try {
-      const fileRef = ref(storage, `uploads/teachers/${user.uid}/${Date.now()}_${pendingFile.name}`);
+      const bucketName = 'teacher-files';
+      const filePath = `${user.id}/${Date.now()}_${pendingFile.name}`;
       
-      // Setup a timeout for the upload in case Firebase Storage is not enabled
-      const uploadPromise = uploadBytes(fileRef, pendingFile);
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("STORAGE_TIMEOUT")), 20000); // 20s timeout
+      // 1. Upload to storage bucket using direct browser SDK
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, pendingFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(filePath);
+
+      const safePublicUrl = data.publicUrl;
+
+      const ext = pendingFile.name.split('.').pop()?.toUpperCase() || 'FICHIER';
+      const encodedName = `${selectedFolder}:::${selectedFileType}:::${pendingFile.name}`;
+
+      // 2. Call server-side API endpoint to insert database record (bypasses RLS)
+      const response = await fetch('/api/files', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: pendingFile.name,
+          url: safePublicUrl,
+          size: pendingFile.size,
+          type: ext,
+          teacherId: user.id,
+          documentType: selectedFileType,
+          niveau: selectedFolder,
+          trimestre: selectedTrimestre
+        })
       });
 
-      await Promise.race([uploadPromise, timeoutPromise]);
-      const fileUrl = await getDownloadURL(fileRef);
-      const ext = pendingFile.name.split('.').pop()?.toUpperCase() || 'FICHIER';
-      
-      await addDoc(collection(db, 'teacher_files'), {
-        fileName: pendingFile.name,
-        fileUrl,
-        size: formatSize(pendingFile.size),
-        type: ext,
-        folder: selectedFolder,
-        fileType: selectedFileType,
-        teacherId: user.uid,
-        createdAt: serverTimestamp()
-      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Erreur d'insertion en base de données.");
+      }
+
+      // Explicitly trigger manual reload of list
+      await fetchFiles();
+
+      // Automatically switch to files tab to show the upload result
+      if (selectedClass !== "Toutes") {
+        setActiveTab("files");
+      }
+
       setPendingFile(null);
       showToast("Document classé avec succès !", "success");
     } catch (error: any) {
       console.error("Upload error:", error);
-      if (error?.message === "STORAGE_TIMEOUT") {
-        showToast("Erreur: Le stockage (Storage) n'est pas activé sur votre projet Firebase.", "error");
-      } else {
-        showToast("Erreur lors de l'envoi. Vérifiez que Firebase Storage est bien activé.", "error");
-      }
+      showToast("Erreur lors de l'envoi : " + (error.message || error), "error");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -234,26 +529,110 @@ export default function CoursesLibraryPage() {
     }
   };
 
-  const handleDeleteFile = async (id: string, e: React.MouseEvent) => {
+  const handleDeleteFile = async (id: string, fileUrl: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!user?.id) return;
     if (window.confirm("Êtes-vous sûr de vouloir supprimer ce fichier ?")) {
       try {
-        await deleteDoc(doc(db, "teacher_files", id));
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `teacher_files/${id}`);
+        // 1. Delete from storage bucket using direct browser SDK
+        const marker = '/storage/v1/object/public/teacher-files/';
+        const index = fileUrl.indexOf(marker);
+        if (index !== -1) {
+          const filePath = fileUrl.substring(index + marker.length);
+          // decodeURIComponent handles any %20 or %28 in the URL so that the raw storage path is clean
+          const decodedPath = decodeURIComponent(filePath);
+          const { error: storageError } = await supabase.storage
+            .from('teacher-files')
+            .remove([decodedPath]);
+          
+          if (storageError) {
+            console.error("Storage delete error:", storageError);
+          }
+        }
+
+        // 2. Call server-side API endpoint to delete database record (bypasses RLS)
+        const response = await fetch(`/api/files?id=${id}&teacherId=${user.id}`, {
+          method: 'DELETE',
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Erreur de suppression en base de données.");
+        }
+
+        // Explicitly trigger manual reload of list
+        await fetchFiles();
+        
+        showToast("Fichier supprimé avec succès", "success")
+      } catch (error: any) {
+        console.error("Error deleting file:", error)
+        showToast("Erreur lors de la suppression : " + (error.message || error), "error")
       }
     }
   }
 
   const handleDelete = async (id: string) => {
+    if (!user?.id) return;
     if (window.confirm("Êtes-vous sûr de vouloir supprimer ce document ?")) {
       try {
-        await deleteDoc(doc(db, "courses", id));
+        const { error } = await supabase
+          .from('courses')
+          .delete()
+          .eq('id', id)
+          .eq('teacher_id', user.id)
+        if (error) throw error
+        
+        // Explicitly trigger manual reload of list
+        await fetchCourses();
+        
+        showToast("Cours supprimé avec succès", "success")
       } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `courses/${id}`);
+        console.error("Error deleting course:", error)
+        showToast("Erreur lors de la suppression", "error")
       }
     }
   }
+
+  const handleUpdateStatus = async (courseId: string, currentBgColor: string, newStatus: string) => {
+    if (!user?.id) return;
+    
+    let originalBg = currentBgColor || "bg-blue-50";
+    try {
+      if (currentBgColor && currentBgColor.startsWith("{")) {
+        const meta = JSON.parse(currentBgColor);
+        originalBg = meta.originalBg || "bg-blue-50";
+      }
+    } catch (e) {}
+
+    const metaData = {
+      status: newStatus,
+      completedAt: newStatus === "Terminé" ? new Date().toISOString().split('T')[0] : null,
+      originalBg: originalBg
+    };
+
+    const { error } = await supabase
+      .from('courses')
+      .update({ bg_color: JSON.stringify(metaData) })
+      .eq('id', courseId)
+      .eq('teacher_id', user.id);
+
+    if (error) {
+      console.error("Error updating course status:", error);
+      showToast("Erreur lors de la mise à jour", "error");
+    } else {
+      showToast(`Statut mis à jour : ${newStatus}`, "success");
+      setDocs(prev => prev.map(d => {
+        if (d.id === courseId) {
+          return {
+            ...d,
+            bgColor: JSON.stringify(metaData)
+          };
+        }
+        return d;
+      }));
+    }
+  };
 
   const getIcon = (type: DocType) => {
     switch (type) {
@@ -266,7 +645,7 @@ export default function CoursesLibraryPage() {
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return "Récemment";
-    const date = timestamp.toDate();
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
   }
 
@@ -367,6 +746,145 @@ export default function CoursesLibraryPage() {
     }
   }
 
+  // Nested Components for cleaner structure
+  const FileCard = ({ file }: { file: TeacherFile }) => {
+    const getExtBg = (ext: string) => {
+      switch (ext?.toUpperCase()) {
+        case 'PDF': return 'bg-rose-50 text-rose-600 border-rose-100';
+        case 'DOC':
+        case 'DOCX': return 'bg-blue-50 text-blue-600 border-blue-100';
+        case 'PNG':
+        case 'JPG':
+        case 'JPEG': return 'bg-purple-50 text-purple-600 border-purple-100';
+        default: return 'bg-slate-50 text-slate-600 border-slate-100';
+      }
+    };
+
+    return (
+      <div 
+        className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+        onClick={() => window.open(getFilePublicUrl(file.fileUrl), '_blank')}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${getExtBg(file.type)}`}>
+            <FileText className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-slate-800 truncate text-sm">{file.fileName}</p>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{file.type} • {file.size}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+          <button 
+            onClick={() => window.open(getFilePublicUrl(file.fileUrl), '_blank')} 
+            className="p-2 text-slate-400 hover:text-slate-700 bg-white hover:bg-slate-50 rounded-lg transition-colors border border-transparent"
+            title="Télécharger"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={(e) => handleDeleteFile(file.id, file.fileUrl, e)} 
+            className="p-2 text-slate-400 hover:text-rose-600 bg-white hover:bg-rose-50 rounded-lg transition-colors border border-transparent"
+            title="Supprimer"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const CourseCard = ({ course }: { course: GeneratedDoc }) => {
+    let status = "À faire";
+    let completedAt = null;
+    let originalBg = course.bgColor || "bg-blue-50";
+
+    try {
+      if (course.bgColor && course.bgColor.startsWith("{")) {
+        const meta = JSON.parse(course.bgColor);
+        status = meta.status || "À faire";
+        completedAt = meta.completedAt || null;
+        originalBg = meta.originalBg || "bg-blue-50";
+      }
+    } catch (e) {}
+
+    const getStatusBadge = (s: string) => {
+      switch (s) {
+        case 'Terminé': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        case 'En cours': return 'bg-blue-100 text-blue-800 border-blue-200';
+        default: return 'bg-slate-100 text-slate-700 border-slate-200';
+      }
+    };
+
+    const isCompleted = status === "Terminé";
+
+    const toggleComplete = () => {
+      const newStatus = isCompleted ? "À faire" : "Terminé";
+      handleUpdateStatus(course.id, course.bgColor, newStatus);
+    };
+
+    return (
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
+        <div className="flex items-center gap-4 min-w-0 flex-1">
+          <button 
+            onClick={toggleComplete}
+            className={`w-6 h-6 rounded-lg border-2 border-slate-300 flex items-center justify-center shrink-0 transition-all ${isCompleted ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white hover:border-slate-400'}`}
+          >
+            {isCompleted && <Check className="w-4 h-4 stroke-[3]" />}
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap mb-1.5">
+              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${getStatusBadge(status)}`}>
+                {status}
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
+                {course.type}
+              </span>
+              {completedAt && (
+                <span className="text-[10px] font-semibold text-slate-400">
+                  Fait le {new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short' }).format(new Date(completedAt))}
+                </span>
+              )}
+            </div>
+            <h4 className={`font-bold text-slate-800 text-base truncate ${isCompleted ? 'line-through text-slate-400' : ''}`}>
+              {course.title}
+            </h4>
+            <p className="text-xs font-semibold text-slate-400 mt-0.5">{course.className} • {course.term}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 justify-end shrink-0">
+          <select 
+            value={status}
+            onChange={(e) => handleUpdateStatus(course.id, course.bgColor, e.target.value)}
+            className="bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold shadow-sm cursor-pointer focus:outline-none hover:bg-slate-50"
+          >
+            <option value="À faire">À faire</option>
+            <option value="En cours">En cours</option>
+            <option value="Terminé">Terminé</option>
+          </select>
+
+          <button 
+            onClick={() => setViewingDoc(course)} 
+            className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold shadow-sm hover:bg-slate-50 transition-all"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>Voir</span>
+          </button>
+
+          <button 
+            onClick={() => handleDelete(course.id)} 
+            className="p-2 text-slate-400 hover:text-rose-600 bg-white hover:bg-rose-50 border border-slate-200 rounded-xl transition-all"
+            title="Supprimer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen pb-24 bg-slate-50/50 print:bg-white print:p-0">
       <div className={`max-w-7xl mx-auto ${isMobile ? 'px-4' : 'px-8'} py-8 print:hidden`}>
@@ -376,7 +894,16 @@ export default function CoursesLibraryPage() {
           <div className="flex items-center gap-2 text-lg md:text-xl font-bold text-slate-800">
             {currentPath.map((segment, index) => (
               <div key={segment} className="flex items-center gap-2">
-                <span className={index === currentPath.length - 1 ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700 cursor-pointer transition-colors'}>
+                <span 
+                  onClick={() => {
+                    if (index === 0) {
+                      handleResetPath();
+                    } else {
+                      handleSelectFolder(segment);
+                    }
+                  }}
+                  className={index === currentPath.length - 1 ? 'text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-700 cursor-pointer transition-colors'}
+                >
                   {segment}
                 </span>
                 {index < currentPath.length - 1 && <ChevronRight className="w-5 h-5 text-slate-400" />}
@@ -401,22 +928,48 @@ export default function CoursesLibraryPage() {
              <input type="file" className="hidden" ref={fileInputRef} onChange={onFileSelect} />
              <button onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-xl font-bold transition-all hover:-translate-y-0.5 text-sm shadow-sm hover:shadow-md">
                <Plus className="w-4 h-4" />
-               Ajouter
+               Ajouter un document
              </button>
           </div>
         </div>
+
+        {/* PROGRAM PROGRESS BAR */}
+        {selectedClass !== "Toutes" && (
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm mb-8 flex flex-col md:flex-row items-center justify-between gap-6 hover:shadow-md transition-all">
+            <div className="flex flex-col gap-1 w-full md:w-auto">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-emerald-500" />
+                Progression du Programme
+              </h3>
+              <p className="text-sm font-semibold text-slate-500">
+                Classe : {selectedClass}
+              </p>
+            </div>
+            <div className="w-full md:w-2/3 flex flex-col sm:flex-row items-center gap-4">
+              <div className="w-full bg-slate-100 h-4 rounded-full overflow-hidden relative shadow-inner">
+                <div 
+                  className="h-full bg-emerald-500 transition-all duration-500 ease-in-out" 
+                  style={{ width: `${programProgress}%` }}
+                ></div>
+              </div>
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl shrink-0">
+                {programProgress}% du programme annuel complété
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* DRAG & DROP AREA */}
         <div 
           onDragOver={onDragOver}
           onDrop={onDrop}
+          className="mb-10 bg-white border-2 border-dashed border-slate-200 rounded-3xl p-8 text-center flex flex-col items-center justify-center hover:bg-slate-50 hover:border-violet-300 transition-all cursor-pointer group shadow-sm"
           onClick={() => fileInputRef.current?.click()}
-          className="mb-10 bg-white border-2 border-dashed border-slate-200 rounded-3xl p-8 text-center flex flex-col items-center justify-center hover:bg-slate-50 hover:border-violet-300 transition-colors cursor-pointer group shadow-sm"
         >
           {isUploading ? (
             <>
               <div className="w-16 h-16 bg-slate-100 text-slate-500 rounded-2xl flex items-center justify-center mb-4">
-                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
               </div>
               <h3 className="text-lg font-bold text-slate-800 mb-1">Téléchargement en cours...</h3>
             </>
@@ -426,106 +979,216 @@ export default function CoursesLibraryPage() {
                 <Upload className="w-8 h-8" />
               </div>
               <h3 className="text-lg font-bold text-slate-800 mb-1">Glissez-déposez vos fichiers ici</h3>
-              <p className="text-sm text-slate-500">(PDF, Word, Images supportés)</p>
+              <p className="text-sm font-semibold text-slate-500">(PDF, Word, Images supportés)</p>
             </>
           )}
         </div>
 
-        {/* FOLDERS SECTION */}
-        <div className="mb-10">
-          <h2 className="text-lg font-bold text-slate-800 mb-4">Dossiers</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {folders.map(folder => (
-              <div key={folder.id} className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-4 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer group">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${folder.bgColor} ${folder.color} group-hover:scale-110 transition-transform`}>
-                  <Folder className="w-6 h-6 fill-current" />
-                </div>
-                <div className="min-w-0">
-                  <h4 className="font-bold text-slate-800 truncate">{folder.name}</h4>
-                  <p className="text-xs text-slate-500 truncate">Modifié · {folder.date}</p>
-                </div>
-              </div>
-            ))}
+        {/* TAB SWITCHER */}
+        {selectedClass !== "Toutes" && (
+          <div className="flex border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm mb-8 max-w-md">
+            <button 
+              onClick={() => setActiveTab("programme")} 
+              className={`flex-1 py-3 text-center text-sm font-bold transition-all border-r border-slate-200 ${activeTab === "programme" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+            >
+              Suivi du Programme ({classCourses.length})
+            </button>
+            <button 
+              onClick={() => setActiveTab("files")} 
+              className={`flex-1 py-3 text-center text-sm font-bold transition-all ${activeTab === "files" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+            >
+              Documents ({filteredFiles.length})
+            </button>
           </div>
-        </div>
+        )}
 
-        {/* RECENT FILES SECTION */}
-        <div>
-          <h2 className="text-lg font-bold text-slate-800 mb-4">Fichiers récents</h2>
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        {/* ALL CLASSES VIEW */}
+        {selectedClass === "Toutes" && (
+          <div className="mb-10">
+            <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <Folder className="w-5 h-5 text-slate-500" />
+              Classes & Niveaux
+            </h2>
             {isLoading ? (
               <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
               </div>
-            ) : filteredFiles.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50/50">
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Nom</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Type</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider hidden md:table-cell">Taille</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Date</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredFiles.map((file) => (
-                      <tr 
-                        key={file.id} 
-                        className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
-                        onClick={() => window.open(file.fileUrl, '_blank')}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
-                               <FileText className="w-5 h-5" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-bold text-slate-800 truncate">{file.fileName}</p>
-                              <p className="text-xs text-slate-500 truncate sm:hidden">{file.type} • {formatDate(file.createdAt)}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 hidden sm:table-cell">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md bg-slate-100 text-slate-600`}>
-                            {file.type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-500 hidden md:table-cell">
-                           {file.size}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-500 hidden lg:table-cell">
-                          {formatDate(file.createdAt)}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                           <div className="flex items-center justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                             <button onClick={(e) => { e.stopPropagation(); window.open(file.fileUrl, '_blank'); }} className="p-2 text-slate-400 hover:text-emerald-600 bg-white hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-100" title="Télécharger">
-                               <Download className="w-4 h-4" />
-                             </button>
-                             <button onClick={(e) => handleDeleteFile(file.id, e)} className="p-2 text-slate-400 hover:text-rose-600 bg-white hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100" title="Supprimer">
-                               <Trash2 className="w-4 h-4" />
-                             </button>
-                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            ) : dynamicFolders.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {dynamicFolders.map(folder => (
+                  <div 
+                    key={folder.name} 
+                    onClick={() => handleSelectFolder(folder.name)}
+                    className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-4 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer group"
+                  >
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${folder.bgColor} ${folder.color} group-hover:scale-110 transition-transform`}>
+                      <Folder className="w-6 h-6 fill-current" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-slate-800 truncate text-sm sm:text-base">{folder.name}</h4>
+                      <p className="text-xs text-slate-500 truncate">Voir la progression</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
-              <div className="p-12 text-center flex flex-col items-center justify-center">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                  <FileText className="w-8 h-8 text-slate-300" />
+              <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center flex flex-col items-center justify-center shadow-sm">
+                <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4 text-slate-500">
+                  <GraduationCap className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-1">Aucun fichier</h3>
-                <p className="text-sm text-slate-500">
-                  {searchQuery ? "Aucun fichier ne correspond à votre recherche." : "Générez ou déposez des fichiers pour commencer."}
+                <h3 className="text-lg font-bold text-slate-800 mb-1">Aucune classe configurée</h3>
+                <p className="text-sm font-semibold text-slate-500 max-w-md mb-6">
+                  Créez des classes et ajoutez des élèves pour commencer à organiser vos cours.
                 </p>
+                <Link href="/classes" className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-3 rounded-2xl transition-all shadow-sm">
+                  <Plus className="w-4 h-4" />
+                  Créer ma première classe
+                </Link>
               </div>
             )}
           </div>
+        )}
+
+        {/* PLAYFUL FILTER BAR */}
+        <div className="bg-amber-50 border-4 border-slate-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(15,23,42,1)] mb-8 print:hidden">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xl">🎯</span>
+            <h3 className="text-lg font-black text-slate-900 uppercase tracking-wide">Filtres de Tri</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Filter by Level */}
+            <div>
+              <label className="block text-sm font-bold text-slate-800 mb-2">🎓 Classe / Niveau</label>
+              <div className="flex flex-wrap gap-2">
+                {["Toutes", "1AP", "2AP", "3AP", "4AP", "5AP"].map((level) => {
+                  const isActive = filterNiveau === level;
+                  return (
+                    <button
+                      key={level}
+                      onClick={() => setFilterNiveau(level)}
+                      className={`px-3 py-1.5 text-xs font-black rounded-lg border-2 border-slate-900 transition-all ${
+                        isActive 
+                          ? "bg-sky-400 text-slate-900 translate-x-[2px] translate-y-[2px] shadow-none" 
+                          : "bg-white text-slate-700 hover:bg-slate-50 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]"
+                      }`}
+                    >
+                      {level}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Filter by Type */}
+            <div>
+              <label className="block text-sm font-bold text-slate-800 mb-2">📂 Type de document</label>
+              <div className="flex flex-wrap gap-2">
+                {["Toutes", "Cours", "Exercice", "Examen", "Ressources complémentaires"].map((type) => {
+                  const isActive = filterType === type;
+                  const typeColors: Record<string, string> = {
+                    "Cours": "bg-blue-300",
+                    "Exercice": "bg-emerald-300",
+                    "Examen": "bg-rose-300",
+                    "Ressources complémentaires": "bg-purple-300",
+                    "Toutes": "bg-yellow-300"
+                  };
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => setFilterType(type)}
+                      className={`px-3 py-1.5 text-xs font-black rounded-lg border-2 border-slate-900 transition-all ${
+                        isActive 
+                          ? `${typeColors[type] || "bg-slate-400"} text-slate-900 translate-x-[2px] translate-y-[2px] shadow-none` 
+                          : "bg-white text-slate-700 hover:bg-slate-50 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]"
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Filter by Trimestre */}
+            <div>
+              <label className="block text-sm font-bold text-slate-800 mb-2">📅 Trimestre</label>
+              <div className="flex flex-wrap gap-2">
+                {["Toutes", "T1", "T2", "T3"].map((tri) => {
+                  const isActive = filterTrimestre === tri;
+                  return (
+                    <button
+                      key={tri}
+                      onClick={() => setFilterTrimestre(tri)}
+                      className={`px-3 py-1.5 text-xs font-black rounded-lg border-2 border-slate-900 transition-all ${
+                        isActive 
+                          ? "bg-amber-400 text-slate-900 translate-x-[2px] translate-y-[2px] shadow-none" 
+                          : "bg-white text-slate-700 hover:bg-slate-50 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]"
+                      }`}
+                    >
+                      {tri}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* CONTENT DISPLAY SECTION */}
+        {selectedClass === "Toutes" ? (
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-slate-500" />
+              Tous les documents récents
+            </h2>
+            {isLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+              </div>
+            ) : (
+              renderFileSections(filteredFiles)
+            )}
+          </div>
+        ) : (
+          <div>
+            {activeTab === "programme" ? (
+              <div>
+                <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-slate-500" />
+                  Suivi du Programme Annuel
+                </h2>
+                {isLoading ? (
+                  <div className="flex justify-center items-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+                  </div>
+                ) : classCourses.length > 0 ? (
+                  <div className="flex flex-col gap-4">
+                    {classCourses.map(course => (
+                      <CourseCard key={course.id} course={course} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center flex flex-col items-center justify-center shadow-sm">
+                    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4 text-slate-500">
+                      <BookOpen className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">Aucun cours dans le programme</h3>
+                    <p className="text-sm font-semibold text-slate-500 max-w-md mb-6">
+                      Vous n&apos;avez pas encore généré ou ajouté de cours pour cette classe. Utilisez notre assistant IA pour générer instantanément vos fiches de cours, exercices et évaluations.
+                    </p>
+                    <Link href="/ai-generator" className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-3 rounded-2xl transition-all shadow-sm">
+                      <Sparkles className="w-4 h-4" />
+                      Générer un cours avec l&apos;IA
+                    </Link>
+                  </div>
+                )}
+              </div>
+            ) : (
+              renderFileSections(filteredFiles)
+            )}
+          </div>
+        )}
 
       </div>
 
@@ -536,7 +1199,7 @@ export default function CoursesLibraryPage() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className={`fixed bottom-4 right-4 z-[200] px-6 py-3 rounded-xl shadow-lg font-medium text-white ${toastMessage.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'}`}
+            className={`fixed bottom-4 right-4 z-[200] px-6 py-3 rounded-xl shadow-lg border font-bold text-white ${toastMessage.type === 'success' ? 'bg-emerald-600 border-emerald-500' : 'bg-rose-600 border-rose-500'}`}
           >
             {toastMessage.message}
           </motion.div>
@@ -546,78 +1209,139 @@ export default function CoursesLibraryPage() {
       {/* CLASSIFICATION MODAL */}
       <AnimatePresence>
         {pendingFile && (
-          <div className="fixed inset-0 z-[150] bg-slate-800/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[150] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-md relative overflow-hidden"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white border-4 border-slate-900 rounded-3xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 sm:p-8 w-full max-w-lg relative overflow-hidden"
             >
               <button 
                 onClick={() => setPendingFile(null)}
-                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                className="absolute top-4 right-4 p-2 text-slate-700 hover:text-slate-900 border-2 border-transparent hover:border-slate-900 rounded-xl transition-all"
                 disabled={isUploading}
               >
                 <X className="w-5 h-5" />
               </button>
               
               <div className="mb-6">
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Classer ce document</h3>
-                <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                <div className="inline-block bg-yellow-300 border-2 border-slate-900 rounded-lg px-3 py-1 font-black text-xs uppercase tracking-wider mb-2">
+                  Nouveau Fichier
+                </div>
+                <h3 className="text-2xl font-black text-slate-900">Classer le document</h3>
+                <p className="text-sm font-bold text-slate-500 flex items-center gap-2 mt-1 truncate">
                   <FileText className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{pendingFile.name}</span>
+                  <span>{pendingFile.name}</span>
                 </p>
               </div>
 
-              <div className="space-y-4 mb-8">
+              <div className="space-y-6 mb-8">
+                {/* Document Type Section */}
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">Niveau (Dossier)<span className="text-rose-500">*</span></label>
-                  <select 
-                    value={selectedFolder}
-                    onChange={(e) => setSelectedFolder(e.target.value)}
-                    disabled={isUploading}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-400/10 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    <option value="3ème AP">3ème AP</option>
-                    <option value="4ème AP">4ème AP</option>
-                    <option value="5ème AP">5ème AP</option>
-                  </select>
+                  <label className="block text-sm font-black text-slate-900 uppercase tracking-wider mb-2.5">
+                    📂 Type de Document
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { key: "Cours", label: "Cours", color: "bg-blue-200 border-blue-900 hover:bg-blue-300 text-blue-950" },
+                      { key: "Exercice", label: "Exercice", color: "bg-emerald-200 border-emerald-900 hover:bg-emerald-300 text-emerald-950" },
+                      { key: "Examen", label: "Examen", color: "bg-rose-200 border-rose-900 hover:bg-rose-300 text-rose-950" }
+                    ].map(item => {
+                      const isActive = selectedFileType === item.key;
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => setSelectedFileType(item.key)}
+                          className={`py-3 px-2 text-center rounded-xl border-3 border-slate-900 font-extrabold text-sm transition-all flex flex-col items-center gap-1 ${
+                            isActive 
+                              ? `${item.color} translate-x-[2px] translate-y-[2px] shadow-none` 
+                              : "bg-white text-slate-700 hover:bg-slate-50 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]"
+                          }`}
+                        >
+                          <span className="text-lg">
+                            {item.key === "Cours" ? "📘" : item.key === "Exercice" ? "📝" : "🏆"}
+                          </span>
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+
+                {/* Niveau / Classe Section */}
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">Type de document</label>
-                  <select 
-                    value={selectedFileType}
-                    onChange={(e) => setSelectedFileType(e.target.value)}
-                    disabled={isUploading}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-400/10 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    <option value="Fiche de préparation">Fiche de préparation</option>
-                    <option value="Exercice">Exercice</option>
-                    <option value="Évaluation">Évaluation</option>
-                    <option value="Autre">Autre</option>
-                  </select>
+                  <label className="block text-sm font-black text-slate-900 uppercase tracking-wider mb-2.5">
+                    🎓 Niveau / Classe
+                  </label>
+                  <div className="flex flex-wrap gap-2.5">
+                    {["1AP", "2AP", "3AP", "4AP", "5AP"].map((level) => {
+                      const isActive = selectedFolder === level;
+                      return (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => setSelectedFolder(level)}
+                          className={`px-4 py-2 text-xs font-black rounded-xl border-3 border-slate-900 transition-all ${
+                            isActive 
+                              ? "bg-sky-300 text-slate-900 translate-x-[2px] translate-y-[2px] shadow-none" 
+                              : "bg-white text-slate-700 hover:bg-slate-50 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]"
+                          }`}
+                        >
+                          {level}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Trimestre Section */}
+                <div>
+                  <label className="block text-sm font-black text-slate-900 uppercase tracking-wider mb-2.5">
+                    📅 Trimestre
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {["T1", "T2", "T3"].map((tri) => {
+                      const isActive = selectedTrimestre === tri;
+                      return (
+                        <button
+                          key={tri}
+                          type="button"
+                          onClick={() => setSelectedTrimestre(tri)}
+                          className={`py-2 px-4 rounded-xl border-3 border-slate-900 font-extrabold text-sm text-center transition-all ${
+                            isActive 
+                              ? "bg-amber-300 text-slate-900 translate-x-[2px] translate-y-[2px] shadow-none" 
+                              : "bg-white text-slate-700 hover:bg-slate-50 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]"
+                          }`}
+                        >
+                          Trimestre {tri === "T1" ? "1" : tri === "T2" ? "2" : "3"}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              {/* Action Buttons */}
+              <div className="flex gap-4">
                 <button 
                   onClick={() => setPendingFile(null)}
                   disabled={isUploading}
-                  className="flex-1 px-4 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-3 rounded-xl border-3 border-slate-900 font-extrabold text-slate-700 bg-white hover:bg-slate-50 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
                 >
                   Annuler
                 </button>
                 <button 
                   onClick={confirmUpload}
                   disabled={isUploading}
-                  className="flex-[2] flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                  className="flex-[2] flex justify-center items-center gap-2 px-4 py-3 rounded-xl border-3 border-slate-900 font-extrabold text-white bg-slate-900 hover:bg-slate-800 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.25)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isUploading ? (
                     <div className="w-5 h-5 flex items-center justify-center">
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                     </div>
                   ) : (
-                    <>Valider et Sauvegarder</>
+                    <>💾 Sauvegarder</>
                   )}
                 </button>
               </div>
@@ -643,8 +1367,8 @@ export default function CoursesLibraryPage() {
                     <X className="w-5 h-5" />
                   </button>
                   <div className="truncate min-w-0">
-                    <h3 className="font-black text-slate-800 truncate text-sm md:text-base">{viewingDoc.title}</h3>
-                    <p className="text-[10px] md:text-xs font-medium text-slate-500 truncate">{viewingDoc.className} • {viewingDoc.type}</p>
+                    <h3 className="font-bold text-slate-800 truncate text-sm md:text-base">{viewingDoc.title}</h3>
+                    <p className="text-[10px] md:text-xs font-semibold text-slate-500 truncate">{viewingDoc.className} • {viewingDoc.type}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -741,7 +1465,7 @@ export default function CoursesLibraryPage() {
                   </div>
                 ) : (
                   <div 
-                    className={`bg-white shadow-sm mx-auto w-full sm:max-w-4xl rounded-sm ${isMobile ? 'p-4' : 'p-4 sm:p-8'} overflow-hidden @container [&_*]:!max-w-full [&_*]:!box-border [&_*]:![overflow-wrap:anywhere] [&_*]:![word-break:break-word] [&_img]:!max-w-full [&_img]:!w-full [&_img]:!h-auto [&_video]:!max-w-full [&_video]:!w-full [&_video]:!h-auto [&_iframe]:!max-w-full [&_iframe]:!w-full [&_iframe]:!h-auto [&_table]:!block [&_table]:!max-w-full [&_table]:!overflow-x-auto`} 
+                    className="bg-white shadow-sm mx-auto w-full sm:max-w-4xl rounded-sm p-4 sm:p-8 overflow-hidden @container [&_*]:!max-w-full [&_*]:!box-border [&_*]:![overflow-wrap:anywhere] [&_*]:![word-break:break-word] [&_img]:!max-w-full [&_img]:!w-full [&_img]:!h-auto [&_video]:!max-w-full [&_video]:!w-full [&_video]:!h-auto [&_iframe]:!max-w-full [&_iframe]:!w-full [&_iframe]:!h-auto [&_table]:!block [&_table]:!max-w-full [&_table]:!overflow-x-auto" 
                     dangerouslySetInnerHTML={{ __html: viewingDoc.content }} 
                   />
                 )}

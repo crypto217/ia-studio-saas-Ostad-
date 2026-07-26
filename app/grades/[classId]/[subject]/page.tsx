@@ -1,11 +1,13 @@
 "use client"
 
-import { useState, Fragment, use } from "react"
+import { useState, Fragment, use, useEffect } from "react"
 import { motion } from "motion/react"
-import { Sparkles, ArrowLeft } from "lucide-react"
+import { Sparkles, ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import ContinuousEvaluation from "@/app/components/dashboard/ContinuousEvaluation"
+import { useAuth } from "@/components/AuthProvider"
+import { createBrowserClient } from "@/lib/supabase"
 
 type Grade = 'A' | 'B' | 'C' | 'D' | null
 
@@ -16,45 +18,38 @@ interface StudentEvaluation {
   grades: Record<string, Grade>
 }
 
-const initialStudents: StudentEvaluation[] = [
-  { id: "1", name: "Sami Benali", avatarColor: "bg-sky-100 text-sky-600", grades: {} },
-  { id: "2", name: "Lina Mansouri", avatarColor: "bg-pink-100 text-pink-600", grades: {} },
-  { id: "3", name: "Yanis Kaddour", avatarColor: "bg-amber-100 text-amber-600", grades: {} },
-  { id: "4", name: "Inès Merah", avatarColor: "bg-emerald-100 text-emerald-600", grades: {} }
-]
-
 const subjectsData: Record<string, { title: string, criteria: { id: string, label: string }[] }> = {
   oral: {
     title: "Compréhension et communication orales",
     criteria: [
-      { id: 'c1', label: "Identifier le thème de la situation de communication" },
-      { id: 'c2', label: "Identifier les unités de sens" },
-      { id: 'c3', label: "S'exprimer en fonction de la situation de communication" }
+      { id: 'c1', label: "Thème de la situation" },
+      { id: 'c2', label: "Unités de sens" },
+      { id: 'c3', label: "Expression adaptée" }
     ]
   },
   lecture: {
     title: "Lecture",
     criteria: [
-      { id: 'c1', label: "Activer la correspondance graphie/phonie" },
-      { id: 'c2', label: "Réaliser une lecture fluide" },
-      { id: 'c3', label: "Respecter l'intonation" }
+      { id: 'c1', label: "Correspondance graphie/phonie" },
+      { id: 'c2', label: "Fluidité (mots/min)" },
+      { id: 'c3', label: "Intonation" }
     ]
   },
   ecrit: {
     title: "Compréhension de l'écrit",
     criteria: [
-      { id: 'c1', label: "Identifier le thème général du texte" },
-      { id: 'c2', label: "Identifier le champ lexical relatif au thème" },
-      { id: 'c3', label: "Repérer des informations" }
+      { id: 'c1', label: "Thème général" },
+      { id: 'c2', label: "Champ lexical" },
+      { id: 'c3', label: "Repérage d'informations" }
     ]
   },
   production: {
     title: "Production écrite",
     criteria: [
-      { id: 'c1', label: "Pertinence du texte produit" },
-      { id: 'c2', label: "Cohérence du texte produit" },
+      { id: 'c1', label: "Pertinence" },
+      { id: 'c2', label: "Cohérence" },
       { id: 'c3', label: "Correction de la langue" },
-      { id: 'c4', label: "Lisibilité de l'écrit" }
+      { id: 'c4', label: "Lisibilité" }
     ]
   }
 }
@@ -84,7 +79,84 @@ function SubjectEvaluationGrid({ classId, subject, trimestre }: { classId: strin
     notFound()
   }
 
-  const [students, setStudents] = useState<StudentEvaluation[]>(initialStudents)
+  const { user, isAuthReady } = useAuth()
+  const [students, setStudents] = useState<StudentEvaluation[]>([])
+  const [className, setClassName] = useState<string>("")
+  const [loading, setLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [wordCounts, setWordCounts] = useState<Record<string, string>>({})
+  const supabase = createBrowserClient()
+
+  useEffect(() => {
+    if (!isAuthReady || !user?.id || !classId) return
+
+    const fetchData = async () => {
+      setLoading(true)
+      try {
+        // 1. Fetch class details to get className
+        const { data: classDoc } = await supabase
+          .from('classes')
+          .select('name')
+          .eq('id', classId)
+          .eq('teacher_id', user.id)
+          .single()
+        
+        if (classDoc) {
+          setClassName(classDoc.name)
+        }
+
+        // 2. Fetch students for this class
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('students')
+          .select('*')
+          .eq('class_id', classId)
+          .eq('teacher_id', user.id)
+
+        if (studentsError) throw studentsError
+
+        if (studentsData) {
+          // 3. Fetch existing grades for this subject/trimester/students
+          const { data: gradesData, error: gradesError } = await supabase
+            .from('grades')
+            .select('*')
+            .eq('teacher_id', user.id)
+            .in('student_id', studentsData.map(s => s.id))
+            .like('subject', `${classId}_${subject}_%_t${trimestre}`)
+
+          if (gradesError) throw gradesError
+
+          const initialGrades: Record<string, Record<string, Grade>> = {}
+          studentsData.forEach(s => {
+            initialGrades[s.id] = {}
+          })
+
+          gradesData?.forEach(g => {
+            const parts = g.subject.split('_')
+            if (parts.length >= 3) {
+              const criterionId = parts[2]
+              if (initialGrades[g.student_id]) {
+                initialGrades[g.student_id][criterionId] = g.score as Grade
+              }
+            }
+          })
+
+          const mapped = studentsData.map(s => ({
+            id: s.id,
+            name: s.name,
+            avatarColor: s.gender === 'F' ? 'bg-pink-100 text-pink-600' : 'bg-sky-100 text-sky-600',
+            grades: initialGrades[s.id] || {}
+          }))
+          setStudents(mapped)
+        }
+      } catch (err) {
+        console.error("Error loading evaluations:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [user, isAuthReady, classId, subject, trimestre])
 
   const handleGradeChange = (studentId: string, criterionId: string, grade: Grade) => {
     setStudents(prev => prev.map(student => {
@@ -105,9 +177,64 @@ function SubjectEvaluationGrid({ classId, subject, trimestre }: { classId: strin
     }))
   }
 
-  const className = classId === '3ap' ? '3ème AP' : classId === '4ap' ? '4ème AP' : '5ème AP'
+  const handleSave = async () => {
+    if (!user?.id || students.length === 0) return
+    setIsSaving(true)
+    try {
+      // 1. Delete existing grades for this subject/trimester/students
+      const { error: deleteError } = await supabase
+        .from('grades')
+        .delete()
+        .eq('teacher_id', user.id)
+        .in('student_id', students.map(s => s.id))
+        .like('subject', `${classId}_${subject}_%_t${trimestre}`)
+
+      if (deleteError) throw deleteError
+
+      // 2. Prepare new rows to insert
+      const rowsToInsert: any[] = []
+      students.forEach(student => {
+        data.criteria.forEach(criterion => {
+          const score = student.grades[criterion.id]
+          if (score !== null) {
+            rowsToInsert.push({
+              student_id: student.id,
+              teacher_id: user.id,
+              subject: `${classId}_${subject}_${criterion.id}_t${trimestre}`,
+              score: score
+            })
+          }
+        })
+      })
+
+      if (rowsToInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from('grades')
+          .insert(rowsToInsert)
+
+        if (insertError) throw insertError
+      }
+
+      alert("Évaluation enregistrée avec succès ! 🚀")
+    } catch (err) {
+      console.error(err)
+      alert("Erreur lors de l'enregistrement de l'évaluation.")
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const displayedTrimestre = trimestre === "1" ? "1er Trimestre" : `${trimestre}ème Trimestre`
+
+  if (loading) {
+    return (
+      <div className="bg-[#FFFAF3] min-h-[calc(100vh-5rem)] -mx-4 -mt-4 md:-mx-8 md:-mt-8 flex flex-col items-center justify-center py-12">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mb-2" />
+        <p className="text-slate-500 font-medium">Chargement des élèves et des notes...</p>
+      </div>
+    )
+  }
+
 
   return (
     <div className="bg-[#FFFAF3] min-h-[calc(100vh-5rem)] -mx-4 -mt-4 md:-mx-8 md:-mt-8 px-4 py-6 md:px-8 md:py-8 pb-32 relative">
@@ -186,7 +313,36 @@ function SubjectEvaluationGrid({ classId, subject, trimestre }: { classId: strin
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${student.avatarColor}`}>
                       {student.name.charAt(0)}
                     </div>
-                    <span className="font-bold text-slate-800 whitespace-nowrap">{student.name}</span>
+                    <div className="flex flex-col">
+                      <Link href={`/students/${student.id}`} className="font-bold text-slate-800 whitespace-nowrap transition-opacity hover:opacity-75">
+                        {student.name}
+                      </Link>
+                      {subject === 'lecture' && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="text-[10px] font-bold text-slate-400">Mots/min :</span>
+                          <input
+                            type="number"
+                            placeholder="0"
+                            className="w-12 px-1 py-0.2 text-[10px] font-black border border-slate-300 focus:border-indigo-500 rounded outline-none"
+                            value={wordCounts[student.id] || ''}
+                            onChange={(e) => {
+                              const valStr = e.target.value;
+                              setWordCounts(prev => ({ ...prev, [student.id]: valStr }));
+                              if (valStr !== '') {
+                                const val = parseInt(valStr);
+                                let grade: 'A' | 'B' | 'C' | 'D' = 'D';
+                                if (val >= 40) grade = 'A';
+                                else if (val >= 30) grade = 'B';
+                                else if (val >= 20) grade = 'C';
+                                handleGradeChange(student.id, 'c2', grade);
+                              } else {
+                                handleGradeChange(student.id, 'c2', null);
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </td>
                 {data.criteria.map((criterion, index) => (
@@ -241,7 +397,9 @@ function SubjectEvaluationGrid({ classId, subject, trimestre }: { classId: strin
               <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-sm font-bold shadow-inner ${student.avatarColor}`}>
                 {student.name.charAt(0)}
               </div>
-              <span className="font-bold text-slate-800 text-xl tracking-tight">{student.name}</span>
+              <Link href={`/students/${student.id}`} className="font-bold text-slate-800 text-xl tracking-tight transition-opacity hover:opacity-75">
+                {student.name}
+              </Link>
             </div>
 
             {/* Criteria List */}
@@ -249,6 +407,34 @@ function SubjectEvaluationGrid({ classId, subject, trimestre }: { classId: strin
               {data.criteria.map((criterion) => (
                 <div key={`${student.id}-${criterion.id}`} className="space-y-3">
                   <p className="text-sm font-bold text-slate-700 leading-tight">{criterion.label}</p>
+                  
+                  {criterion.id === 'c2' && subject === 'lecture' && (
+                    <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                      <span className="text-xs font-bold text-slate-500">Calculateur :</span>
+                      <input
+                        type="number"
+                        placeholder="Mots lus"
+                        className="w-20 px-2 py-1 text-xs font-black border border-slate-300 focus:border-indigo-500 rounded-lg outline-none bg-white"
+                        value={wordCounts[student.id] || ''}
+                        onChange={(e) => {
+                          const valStr = e.target.value;
+                          setWordCounts(prev => ({ ...prev, [student.id]: valStr }));
+                          if (valStr !== '') {
+                            const val = parseInt(valStr);
+                            let grade: 'A' | 'B' | 'C' | 'D' = 'D';
+                            if (val >= 40) grade = 'A';
+                            else if (val >= 30) grade = 'B';
+                            else if (val >= 20) grade = 'C';
+                            handleGradeChange(student.id, 'c2', grade);
+                          } else {
+                            handleGradeChange(student.id, 'c2', null);
+                          }
+                        }}
+                      />
+                      <span className="text-[10px] font-black text-slate-400 uppercase">mots/min</span>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2">
                     {(['A', 'B', 'C', 'D'] as Grade[]).map((grade) => {
                       if (!grade) return null
@@ -282,8 +468,12 @@ function SubjectEvaluationGrid({ classId, subject, trimestre }: { classId: strin
 
       {/* Static Footer */}
       <div className="mt-8 mb-8 flex justify-end">
-        <button className="flex items-center justify-center gap-3 bg-orange-500 text-white px-8 py-4 rounded-full font-black text-base sm:text-lg shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 hover:-translate-y-1 transition-all active:translate-y-0 w-full sm:w-auto">
-          Enregistrer l&apos;évaluation 🚀
+        <button 
+          onClick={handleSave}
+          disabled={isSaving}
+          className="flex items-center justify-center gap-3 bg-orange-500 text-white px-8 py-4 rounded-full font-black text-base sm:text-lg shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 hover:-translate-y-1 transition-all active:translate-y-0 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isSaving ? "Enregistrement en cours... ⏳" : "Enregistrer l'évaluation 🚀"}
         </button>
       </div>
     </div>

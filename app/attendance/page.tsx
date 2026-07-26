@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { CheckCircle2, ChevronLeft, ChevronRight, ChevronDown, Check, Calendar, Users, Sparkles, UserCheck, School } from "lucide-react"
-import { db } from "@/firebase"
-import { collection, query, where, getDocs, setDoc, doc } from "firebase/firestore"
+import { createBrowserClient } from "@/lib/supabase"
 import { useAuth } from "@/components/AuthProvider"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
 import Link from 'next/link'
 
 interface ClassData {
@@ -46,6 +44,8 @@ export default function AttendancePage() {
   const [saveMessage, setSaveMessage] = useState({ text: "", type: "" })
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
+  const supabase = createBrowserClient()
+
   const changeDate = (days: number) => {
     if (hasUnsavedChanges) {
       if (!window.confirm("Vous avez des modifications non sauvegardées. Voulez-vous vraiment changer de date ?")) {
@@ -61,17 +61,22 @@ export default function AttendancePage() {
   // Fetch classes
   useEffect(() => {
     const fetchClasses = async () => {
-      if (!isAuthReady || !user?.uid) return
+      if (!isAuthReady || !user?.id) return
       try {
-        const q = query(collection(db, "classes"), where("teacherId", "==", user.uid))
-        const snapshot = await getDocs(q)
-        const classList = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }))
+        const { data, error } = await supabase
+          .from('classes')
+          .select('id, name')
+          .eq('teacher_id', user.id)
+
+        if (error) throw error
+
+        const classList = (data || []).map((c: any) => ({ id: c.id, name: c.name }))
         setClasses(classList)
         if (classList.length > 0 && !selectedClass) {
           setSelectedClass(classList[0].id)
         }
       } catch (error) {
-        handleFirestoreError(error, OperationType.GET, "classes")
+        console.error("Error fetching classes from Supabase:", error)
       } finally {
         setIsLoading(false)
       }
@@ -83,33 +88,47 @@ export default function AttendancePage() {
   useEffect(() => {
     let isCurrent = true;
     const fetchStudentsAndAttendance = async () => {
-      if (!selectedClass || !user?.uid) return
+      if (!selectedClass || !user?.id) return
       setIsLoading(true)
       setSaveMessage({ text: "", type: "" })
       
       try {
-        const sq = query(collection(db, "students"), where("teacherId", "==", user.uid), where("classId", "==", selectedClass))
-        const studentSnap = await getDocs(sq)
-        let studentList = studentSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name }))
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('students')
+          .select('id, name')
+          .eq('teacher_id', user.id)
+          .eq('class_id', selectedClass)
+
+        if (studentsError) throw studentsError
+
+        let studentList = (studentsData || []).map((s: any) => ({ id: s.id, name: s.name }))
         
-        // Trier par nom de famille (ou prénom si un seul mot)
         studentList.sort((a, b) => a.name.localeCompare(b.name))
         
         if (isCurrent) setStudents(studentList)
 
-        const aq = query(collection(db, "attendances"), where("teacherId", "==", user.uid), where("classId", "==", selectedClass), where("date", "==", date))
-        const attendanceSnap = await getDocs(aq)
+        const { data: attData, error: attError } = await supabase
+          .from('attendances')
+          .select('*')
+          .eq('teacher_id', user.id)
+          .eq('class_id', selectedClass)
+          .eq('date', date)
+
+        if (attError) throw attError
         
         if (isCurrent) {
-          if (!attendanceSnap.empty) {
-            const existingData = attendanceSnap.docs[0].data()
-            setAttendance(existingData.records || {})
+          if (attData && attData.length > 0) {
+            const records: Record<string, AttendanceStatus> = {}
+            attData.forEach((row: any) => {
+              records[row.student_id] = row.status as AttendanceStatus
+            })
+            setAttendance(records)
           } else {
             setAttendance({})
           }
         }
       } catch (error) {
-        if (isCurrent) handleFirestoreError(error, OperationType.GET, "students/attendances")
+        console.error("Error fetching students or attendances from Supabase:", error)
       } finally {
         if (isCurrent) setIsLoading(false)
       }
@@ -134,26 +153,43 @@ export default function AttendancePage() {
   }
 
   const handleSave = async () => {
-    if (!user?.uid || !selectedClass) return
+    if (!user?.id || !selectedClass) return
     setIsSaving(true)
     setSaveMessage({ text: "", type: "" })
 
     try {
-      const docId = `${selectedClass}_${date}`
+      // Delete existing records for this class, teacher, and date
+      const { error: deleteError } = await supabase
+        .from('attendances')
+        .delete()
+        .eq('class_id', selectedClass)
+        .eq('teacher_id', user.id)
+        .eq('date', date)
 
-      await setDoc(doc(db, "attendances", docId), {
-        teacherId: user.uid,
-        classId: selectedClass,
-        date: date,
-        records: attendance,
-        createdAt: new Date().toISOString()
-      }, { merge: true })
+      if (deleteError) throw deleteError
+
+      // Insert new rows
+      const rowsToInsert = Object.entries(attendance).map(([studentId, status]) => ({
+        student_id: studentId,
+        teacher_id: user.id,
+        class_id: selectedClass,
+        status,
+        date
+      }))
+
+      if (rowsToInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from('attendances')
+          .insert(rowsToInsert)
+
+        if (insertError) throw insertError
+      }
 
       setHasUnsavedChanges(false)
       setSaveMessage({ text: "Appel enregistré avec succès !", type: "success" })
       setTimeout(() => setSaveMessage({ text: "", type: "" }), 4000)
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, "attendances")
+      console.error("Error saving attendance to Supabase:", error)
       setSaveMessage({ text: "Erreur lors de l'enregistrement", type: "error" })
       setTimeout(() => setSaveMessage({ text: "", type: "" }), 4000)
     } finally {
@@ -286,7 +322,9 @@ export default function AttendancePage() {
                         {student.name.split(' ').map(n => n.charAt(0)).join('').substring(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-extrabold text-slate-800 text-lg truncate pr-4">{student.name}</h3>
+                        <Link href={`/students/${student.id}`} className="transition-opacity hover:opacity-75">
+                          <h3 className="font-extrabold text-slate-800 text-lg truncate pr-4">{student.name}</h3>
+                        </Link>
                       </div>
                     </div>
                     

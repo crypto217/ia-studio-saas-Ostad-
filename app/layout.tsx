@@ -38,6 +38,7 @@ import { ClientLayout } from '@/components/layout/ClientLayout';
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en" className={font.className}>
+
       <body className="relative min-h-screen bg-slate-100/80 text-slate-900 antialiased selection:bg-sky-100 selection:text-sky-900 max-w-full w-full overflow-x-hidden" suppressHydrationWarning>
         <ErrorBoundary>
           <AuthProvider>

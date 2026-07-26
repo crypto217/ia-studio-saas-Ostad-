@@ -4,9 +4,7 @@ import { useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/AuthProvider"
-import { db } from "@/firebase"
-import { doc, writeBatch, collection } from "firebase/firestore"
-import { OperationType, handleFirestoreError } from "@/lib/firebase-error"
+import { createBrowserClient } from '@/lib/supabase'
 import { Check, Lock, Plus, Trash2, ChevronDown, LogOut } from "lucide-react"
 
 type Gender = "M." | "Mme." | null
@@ -87,45 +85,50 @@ export default function Onboarding() {
 
     setIsSaving(true)
     try {
-      const batch = writeBatch(db)
-
+      const supabase = createBrowserClient()
       const displayName = gender ? `${gender} ${lastName.trim()}` : lastName.trim()
 
       // Update User
-      const userRef = doc(db, "users", user.uid)
-      batch.update(userRef, {
-        displayName,
-        firstName: lastName.trim(), // keeping signature if used elsewhere
-        schoolName: schoolName.trim(),
-        wilaya: selectedWilaya,
-        cycle,
-        subject,
-        onboardingCompleted: true,
-        updatedAt: new Date().toISOString()
-      })
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          name: displayName,
+          first_name: lastName.trim(), // keeping signature if used elsewhere
+          school_name: schoolName.trim(),
+          wilaya: selectedWilaya,
+          cycle,
+          subject,
+          onboarding_completed: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+
+      if (profileError) throw profileError
 
       // Add classes
-      classes.forEach((cls) => {
-        const classRef = doc(collection(db, "classes"))
-        batch.set(classRef, {
-          id: classRef.id,
-          teacherId: user.uid,
-          name: cls.name,
-          level: cls.level,
-          cycle: cycle,
-          subject: subject,
-          theme: cls.theme,
-          schoolYear: "2025-2026",
-          createdAt: new Date().toISOString()
-        })
-      })
+      const classesToInsert = classes.map((cls) => ({
+        teacher_id: user.id,
+        name: cls.name,
+        level: cls.level,
+        cycle: cycle,
+        subject: subject,
+        theme: cls.theme,
+        school_year: "2025-2026",
+        created_at: new Date().toISOString()
+      }))
 
-      await batch.commit()
+      if (classesToInsert.length > 0) {
+        const { error: classesError } = await supabase
+          .from('classes')
+          .insert(classesToInsert)
+
+        if (classesError) throw classesError
+      }
+
       setOnboardingCompleted(true)
       router.push("/")
-    } catch (error: boolean | Error | unknown) {
-      console.error(error)
-      handleFirestoreError(error, OperationType.WRITE, "onboarding")
+    } catch (error: any) {
+      console.error("Erreur lors de la sauvegarde de l'onboarding :", error)
     } finally {
       setIsSaving(false)
     }

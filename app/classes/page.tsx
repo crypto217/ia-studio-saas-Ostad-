@@ -21,10 +21,8 @@ import {
   ArrowLeft
 } from "lucide-react"
 
-import { db } from "@/firebase"
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc } from "firebase/firestore"
+import { createBrowserClient } from "@/lib/supabase"
 import { useAuth } from "@/components/AuthProvider"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
 
 // --- TYPES ---
 type StudentStatus = "excellent" | "good" | "needs_help"
@@ -44,8 +42,8 @@ interface ClassData {
   theme: "amber" | "emerald" | "violet" | "sky" | "rose"
   studentsCount?: number
   average?: number
-  schedule: string
-  room: string
+  schedule?: string
+  room?: string
   students?: Student[]
 }
 
@@ -120,60 +118,84 @@ export default function StudentsPage() {
   const [newName, setNewName] = useState("")
   const [newCycle, setNewCycle] = useState("Primaire")
   const [newTheme, setNewTheme] = useState<ClassData['theme']>("emerald")
+  
+  const supabase = createBrowserClient()
 
   useEffect(() => {
-    if (!isAuthReady || !user?.uid) return
+    if (!isAuthReady || !user?.id) return
 
-    const q = query(collection(db, "classes"), where("teacherId", "==", user.uid))
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const clsData = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      })) as ClassData[]
-      setClasses(clsData)
+    const fetchClasses = async () => {
+      setIsLoading(true)
+      const { data, error } = await supabase
+        .from('classes')
+        .select('*')
+        .eq('teacher_id', user.id)
+      
+      if (!error && data) {
+        setClasses(data)
+      } else {
+        console.error("Error loading classes from Supabase:", error ? (error.message || JSON.stringify(error)) : "Unknown error")
+      }
       setIsLoading(false)
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "classes")
-      setIsLoading(false)
-    })
+    }
 
-    return () => unsubscribe()
+    fetchClasses()
+
+    const channel = supabase
+      .channel('classes-page-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'classes', filter: `teacher_id=eq.${user.id}` },
+        () => fetchClasses()
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [user, isAuthReady])
 
   const deleteClass = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation() // Prevent opening the details modal
+    if (!user?.id) return
     if (window.confirm("Êtes-vous sûr de vouloir supprimer cette classe ?")) {
       try {
-        await deleteDoc(doc(db, "classes", id))
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `classes/${id}`)
+        const { error } = await supabase
+          .from('classes')
+          .delete()
+          .eq('id', id)
+          .eq('teacher_id', user.id)
+        if (error) throw error
+      } catch (error: any) {
+        console.error("Error deleting class:", error?.message || error)
       }
     }
   }
 
   const addClass = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newName.trim() || !user?.uid) return
+    if (!newName.trim() || !user?.id) return
 
     try {
-      await addDoc(collection(db, "classes"), {
-        teacherId: user.uid,
-        name: newName,
-        cycle: newCycle,
-        theme: newTheme,
-        studentsCount: 0,
-        average: 0,
-        schedule: "À définir",
-        room: "À définir",
-        createdAt: serverTimestamp()
-      })
+      const { error } = await supabase
+        .from('classes')
+        .insert([{
+          teacher_id: user.id,
+          name: newName,
+          cycle: newCycle,
+          theme: newTheme,
+          level: newCycle,
+          school_year: "2025-2026"
+        }])
+
+      if (error) throw error
 
       setIsAddModalOpen(false)
       setNewName("")
       setNewCycle("Primaire")
       setNewTheme("emerald")
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, "classes")
+    } catch (error: any) {
+      console.error("Error adding class:", error?.message || error)
     }
   }
 

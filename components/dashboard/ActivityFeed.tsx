@@ -4,9 +4,7 @@ import { useState, useEffect } from "react"
 import { FileText, CheckCircle, Calendar as CalendarIcon, ClipboardList, Activity } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/components/AuthProvider"
-import { db } from "@/firebase"
-import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import { createBrowserClient } from "@/lib/supabase"
 
 type ActivityItem = {
   id: string
@@ -63,44 +61,33 @@ export function ActivityFeed() {
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { user, isAuthReady } = useAuth()
+  const supabase = createBrowserClient()
 
   useEffect(() => {
     const fetchActivities = async () => {
-      if (!isAuthReady || !user) return
+      if (!isAuthReady || !user?.id) return
 
       try {
-        const q = query(
-          collection(db, "activities"),
-          where("teacherId", "==", user.uid),
-          orderBy("createdAt", "desc"),
-          limit(5)
-        )
-        const snapshot = await getDocs(q)
-        
-        const activitiesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as ActivityItem[]
+        const { data, error } = await supabase
+          .from('activities')
+          .select('*')
+          .eq('teacher_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5)
+
+        if (error) throw error
+
+        const activitiesData = (data || []).map((d: any) => ({
+          id: d.id,
+          title: d.title,
+          description: d.description,
+          type: d.type as any,
+          createdAt: d.created_at
+        }))
         
         setActivities(activitiesData)
       } catch (error) {
-        // Fallback if index is missing
-        try {
-          const fallbackQ = query(collection(db, "activities"), where("teacherId", "==", user.uid))
-          const snapshot = await getDocs(fallbackQ)
-          const activitiesData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          })) as ActivityItem[]
-          
-          const sorted = activitiesData
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .slice(0, 5)
-            
-          setActivities(sorted)
-        } catch (fallbackError) {
-          handleFirestoreError(fallbackError, OperationType.GET, "activities")
-        }
+        console.error("Error fetching activities from Supabase:", error)
       } finally {
         setIsLoading(false)
       }

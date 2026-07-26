@@ -1,18 +1,18 @@
 "use client"
 
-import { GraduationCap, UserCheck, Sparkles, BarChart3, Presentation } from "lucide-react"
+import { GraduationCap, UserCheck, Sparkles, BarChart3, MonitorPlay } from "lucide-react"
 import Link from "next/link"
 
 const actions = [
   {
     name: "Vision classe",
-    icon: Presentation,
-    color: "text-amber-600",
+    icon: MonitorPlay,
+    color: "text-indigo-600",
     bgColor: "bg-white",
-    cardBg: "bg-amber-50",
-    borderColor: "border-amber-200 border-b-amber-300",
-    textColor: "text-amber-900",
-    hoverColor: "group-hover:text-amber-700",
+    cardBg: "bg-indigo-50",
+    borderColor: "border-indigo-200 border-b-indigo-300",
+    textColor: "text-indigo-900",
+    hoverColor: "group-hover:text-indigo-700",
     shadow: "shadow-sm",
     href: "/live-session/1",
     hideOnMobile: true,

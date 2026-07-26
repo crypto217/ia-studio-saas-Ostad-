@@ -1,13 +1,18 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
-import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth"
-import { auth, db } from "@/firebase"
-import { doc, getDoc, setDoc } from "firebase/firestore"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import { createContext, useContext, useState, useEffect } from "react"
+import { createBrowserClient } from "@/lib/supabase"
+
+export type AuthUser = { 
+  uid: string;
+  id: string;
+  email?: string;
+  displayName?: string;
+  photoURL?: string;
+}
 
 interface AuthContextType {
-  user: User | null
+  user: AuthUser | null
   isAuthReady: boolean
   signIn: () => Promise<void>
   logOut: () => Promise<void>
@@ -15,81 +20,96 @@ interface AuthContextType {
   setOnboardingCompleted: (val: boolean) => void
 }
 
+const mockUser: AuthUser = {
+  uid: "d3b07384-d113-4956-809e-206af520d0e2",
+  id: "d3b07384-d113-4956-809e-206af520d0e2",
+  email: "dev@example.com",
+  displayName: "Dev Teacher",
+  photoURL: "https://api.dicebear.com/7.x/adventurer/svg?seed=dev"
+}
+
 const AuthContext = createContext<AuthContextType>({
-  user: null,
+  user: mockUser,
   isAuthReady: false,
   signIn: async () => {},
   logOut: async () => {},
-  onboardingCompleted: false,
+  onboardingCompleted: true,
   setOnboardingCompleted: () => {}
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [isAuthReady, setIsAuthReady] = useState(false)
-  const [onboardingCompleted, setOnboardingCompleted] = useState(false)
+  const [onboardingCompleted, setOnboardingCompleted] = useState(true)
+  const supabase = createBrowserClient()
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser)
+    const initAuth = async () => {
+      // 1. Essayer de récupérer la session actuelle
+      const { data: { session } } = await supabase.auth.getSession()
       
-      if (currentUser) {
+      if (session?.user) {
+        setUser({
+          uid: session.user.id,
+          id: session.user.id,
+          email: session.user.email,
+          displayName: session.user.user_metadata?.full_name || "Dev Teacher"
+        })
+        setIsAuthReady(true)
+      } else {
+        // 2. Connexion auto en tâche de fond avec le compte de dev
         try {
-          const userDoc = await getDoc(doc(db, "users", currentUser.uid))
-          if (userDoc.exists()) {
-            setOnboardingCompleted(userDoc.data().onboardingCompleted || false)
-          } else {
-            // Create user profile
-            const userData: any = {
-              uid: currentUser.uid,
-              email: currentUser.email || "",
-              onboardingCompleted: false,
-              createdAt: new Date().toISOString()
-            }
-            if (currentUser.displayName) {
-              userData.displayName = currentUser.displayName
-            }
-            try {
-              await setDoc(doc(db, "users", currentUser.uid), userData)
-              setOnboardingCompleted(false)
-            } catch (err) {
-              handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}`)
-            }
+          const { data: { session: newSession }, error } = await supabase.auth.signInWithPassword({
+            email: 'dev@example.com',
+            password: 'password123'
+          })
+          
+          if (newSession?.user) {
+            setUser({
+              uid: newSession.user.id,
+              id: newSession.user.id,
+              email: newSession.user.email,
+              displayName: newSession.user.user_metadata?.full_name || "Dev Teacher"
+            })
           }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`)
+        } catch (e) {
+          console.error("Auto sign in failed:", e)
+        } finally {
+          setIsAuthReady(true)
         }
       }
-      
+    }
+
+    initAuth()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          uid: session.user.id,
+          id: session.user.id,
+          email: session.user.email,
+          displayName: session.user.user_metadata?.full_name || "Dev Teacher"
+        })
+      } else {
+        setUser(null)
+      }
       setIsAuthReady(true)
     })
 
-    return () => unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
-  const signIn = async () => {
-    const provider = new GoogleAuthProvider()
-    try {
-      await signInWithPopup(auth, provider)
-    } catch (error: any) {
-      if (error?.code === 'auth/popup-closed-by-user') {
-        console.log("Sign-in popup closed by user.")
-      } else {
-        console.error("Error signing in", error)
-      }
-    }
-  }
-
-  const logOut = async () => {
-    try {
-      await signOut(auth)
-    } catch (error) {
-      console.error("Error signing out", error)
-    }
-  }
-
   return (
-    <AuthContext.Provider value={{ user, isAuthReady, signIn, logOut, onboardingCompleted, setOnboardingCompleted }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      isAuthReady, 
+      signIn: async () => {}, 
+      logOut: async () => {}, 
+      onboardingCompleted, 
+      setOnboardingCompleted: () => {} 
+    }}>
       {children}
     </AuthContext.Provider>
   )

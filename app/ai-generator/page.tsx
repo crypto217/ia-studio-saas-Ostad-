@@ -5,9 +5,8 @@ import { Sparkles, FileText, PenTool, BookOpen, Loader2, Wand2, Star, Circle, Tr
 import { motion, AnimatePresence } from "motion/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { GoogleGenAI } from "@google/genai"
-import { db, auth } from "@/firebase"
-import { collection, addDoc, serverTimestamp } from "firebase/firestore"
-import { handleFirestoreError, OperationType } from "@/lib/firebase-error"
+import { createBrowserClient } from "@/lib/supabase"
+import { useAuth } from "@/components/AuthProvider"
 import Link from "next/link"
 
 const magicTools = [
@@ -55,6 +54,8 @@ const compressImage = async (base64Str: string): Promise<string> => {
 };
 
 export default function AIGeneratorPage() {
+  const { user } = useAuth()
+  const supabase = createBrowserClient()
   const [selectedType, setSelectedType] = useState('lesson')
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedContent, setGeneratedContent] = useState<string | null>(null)
@@ -106,8 +107,7 @@ export default function AIGeneratorPage() {
 
   const handleSaveToDatabase = async () => {
     if (!saveTitle.trim()) return;
-    const user = auth.currentUser;
-    if (!user) {
+    if (!user?.id) {
       setError("Vous devez être connecté pour sauvegarder.");
       return;
     }
@@ -130,27 +130,31 @@ export default function AIGeneratorPage() {
         bgColor = "bg-orange-50";
       }
 
-      await addDoc(collection(db, "courses"), {
-        teacherId: user.uid,
-        title: saveTitle,
-        type: saveType,
-        className: saveClass,
-        term: saveTerm,
-        content: generatedContent,
-        createdAt: serverTimestamp(),
-        color,
-        iconColor,
-        bgColor
-      });
+      const { error: insertError } = await supabase
+        .from('courses')
+        .insert([{
+          teacher_id: user.id,
+          title: saveTitle,
+          type: saveType,
+          class_name: saveClass,
+          term: saveTerm,
+          content: generatedContent,
+          color,
+          icon_color: iconColor,
+          bg_color: bgColor,
+          project_number: projet,
+          sequence_number: sequence
+        }])
+
+      if (insertError) throw insertError;
       
       setSaveSuccess(true);
       setTimeout(() => {
         setIsSaveModalOpen(false);
       }, 2000);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      handleFirestoreError(err, OperationType.CREATE, "courses");
-      setError("Erreur lors de la sauvegarde.");
+      setError("Erreur lors de la sauvegarde : " + (err.message || err));
     } finally {
       setIsSaving(false);
     }
@@ -318,25 +322,19 @@ REQUIREMENTS:
 - Personnage : If a teacher is present, they MUST wear a white professional lab coat (like a doctor's coat), NEVER a cooking apron.
 - Texte : DO NOT generate any text, words, or letters inside the image. Leave empty space.`;
 
-      const [textResponse, imageResponse] = await Promise.all([
-        ai.models.generateContent({
+      let textResponse;
+      try {
+        textResponse = await ai.models.generateContent({
           model: targetModel,
           contents: finalPrompt,
-        }),
-        ai.models.generateContent({
-          model: "gemini-2.5-flash-image",
-          contents: imagePromptText,
-          config: {
-            imageConfig: {
-              aspectRatio: "16:9",
-              imageSize: "1K"
-            }
-          }
-        }).catch(err => {
-          console.error("Erreur génération image:", err);
-          return null;
-        })
-      ]);
+        });
+      } catch (err: any) {
+        if (err?.status === 'RESOURCE_EXHAUSTED' || err?.message?.includes('429') || err?.message?.includes('RESOURCE_EXHAUSTED')) {
+          setError("Désolé, le quota quotidien de l'IA est atteint ! Réessayez demain ou passez à la formule Premium.");
+          return;
+        }
+        throw err;
+      }
 
       // Nettoyer la réponse au cas où l'IA ajouterait des balises markdown ```html
       let htmlContent = textResponse.text || "";
@@ -347,16 +345,33 @@ REQUIREMENTS:
 
       setGeneratedContent(htmlContent);
 
-      if (imageResponse && imageResponse.candidates && imageResponse.candidates.length > 0) {
-        const parts = imageResponse.candidates[0].content?.parts || [];
-        for (const part of parts) {
-          if (part.inlineData) {
-             const base64 = part.inlineData.data;
-             const compressed = await compressImage(`data:image/jpeg;base64,${base64}`);
-             setGeneratedImage(compressed);
-             break;
+      // Génération de l'image de manière découplée pour ne pas bloquer le texte
+      try {
+        const imageResponse = await ai.models.generateContent({
+          model: "gemini-2.5-flash-image",
+          contents: imagePromptText,
+          config: {
+            imageConfig: {
+              aspectRatio: "16:9",
+              imageSize: "1K"
+            }
+          }
+        });
+
+        if (imageResponse && imageResponse.candidates && imageResponse.candidates.length > 0) {
+          const parts = imageResponse.candidates[0].content?.parts || [];
+          for (const part of parts) {
+            if (part.inlineData) {
+               const base64 = part.inlineData.data;
+               const compressed = await compressImage(`data:image/jpeg;base64,${base64}`);
+               setGeneratedImage(compressed);
+               break;
+            }
           }
         }
+      } catch (err) {
+        console.error("Erreur génération image (découplée):", err);
+        // On n'échoue pas la génération globale si seule l'image a un problème de quota
       }
 
     } catch (err: any) {
