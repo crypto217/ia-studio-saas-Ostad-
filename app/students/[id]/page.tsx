@@ -416,7 +416,7 @@ export default function StudentProfile() {
   const countC = competencies.filter(c => c.grade === 'C').length
   const countD = competencies.filter(c => c.grade === 'D').length
 
-  const dominantGrade = (() => {
+  const dominantGrade: string = (() => {
     if (competencies.length === 0) return "--";
     const counts = { A: countA, B: countB, C: countC, D: countD };
     let maxGrade: 'A' | 'B' | 'C' | 'D' = 'B';
@@ -427,7 +427,7 @@ export default function StudentProfile() {
         maxGrade = k;
       }
     });
-    return maxGrade;
+    return maxGrade as 'A' | 'B' | 'C' | 'D';
   })();
 
   const strengths = studentData.strengths || (overallAverage && parseFloat(overallAverage) >= 7.5 ? ["Participatif", "Travailleur"] : ["Volontaire"])
