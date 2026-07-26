@@ -7,6 +7,7 @@ import {
   User, Bell, Shield, Palette, ChevronRight, 
   ArrowLeft, LogOut, Mail, Sparkles, Check
 } from "lucide-react"
+import { useAuth } from "@/components/AuthProvider"
 
 type Tab = 'profile' | 'notifications' | 'appearance' | 'security'
 
@@ -96,6 +97,7 @@ const PlaceholderSettings = ({ title, desc }: { title: string, desc: string }) =
 )
 
 export default function SettingsPage() {
+  const { user, logOut } = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>('profile')
   const [isMobileMenu, setIsMobileMenu] = useState(true)
 
@@ -163,7 +165,10 @@ export default function SettingsPage() {
 
             {/* Danger Zone Group */}
             <div className="bg-white md:bg-transparent rounded-[2rem] md:rounded-none overflow-hidden shadow-sm md:shadow-none border border-slate-100 md:border-none p-2 md:p-0">
-              <button className="flex items-center justify-between gap-4 px-3 py-3 md:px-4 md:py-4 rounded-[1.5rem] w-full text-left bg-transparent hover:bg-red-50 transition-colors group border border-transparent">
+              <button 
+                onClick={() => logOut()}
+                className="flex items-center justify-between gap-4 px-3 py-3 md:px-4 md:py-4 rounded-[1.5rem] w-full text-left bg-transparent hover:bg-red-50 transition-colors group border border-transparent"
+              >
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-2xl shrink-0 bg-red-100 text-red-600 group-hover:scale-105 transition-transform">
                     <LogOut className="w-5 h-5" />

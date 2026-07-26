@@ -88,12 +88,13 @@ export default function Onboarding() {
       const supabase = createBrowserClient()
       const displayName = gender ? `${gender} ${lastName.trim()}` : lastName.trim()
 
-      // Update User
+      // Upsert Profile
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: user.id,
           name: displayName,
-          first_name: lastName.trim(), // keeping signature if used elsewhere
+          first_name: lastName.trim(),
           school_name: schoolName.trim(),
           wilaya: selectedWilaya,
           cycle,
@@ -101,7 +102,6 @@ export default function Onboarding() {
           onboarding_completed: true,
           updated_at: new Date().toISOString()
         })
-        .eq('id', user.id)
 
       if (profileError) throw profileError
 

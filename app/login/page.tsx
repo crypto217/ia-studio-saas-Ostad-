@@ -36,8 +36,25 @@ export default function LoginPage() {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password })
         if (signInError) throw signInError
       } else {
-        const { error: signUpError } = await supabase.auth.signUp({ email: cleanEmail, password })
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+          options: {
+            data: {
+              full_name: cleanEmail.split('@')[0]
+            }
+          }
+        })
         if (signUpError) throw signUpError
+
+        if (signUpData?.user) {
+          await supabase.from('profiles').upsert({
+            id: signUpData.user.id,
+            first_name: cleanEmail.split('@')[0],
+            onboarding_completed: false,
+            updated_at: new Date().toISOString()
+          })
+        }
       }
     } catch (err: any) {
       console.error(err)

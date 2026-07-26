@@ -20,16 +20,8 @@ interface AuthContextType {
   setOnboardingCompleted: (val: boolean) => void
 }
 
-const mockUser: AuthUser = {
-  uid: "d3b07384-d113-4956-809e-206af520d0e2",
-  id: "d3b07384-d113-4956-809e-206af520d0e2",
-  email: "dev@example.com",
-  displayName: "Dev Teacher",
-  photoURL: "https://api.dicebear.com/7.x/adventurer/svg?seed=dev"
-}
-
 const AuthContext = createContext<AuthContextType>({
-  user: mockUser,
+  user: null,
   isAuthReady: false,
   signIn: async () => {},
   logOut: async () => {},
@@ -43,53 +35,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [onboardingCompleted, setOnboardingCompleted] = useState(true)
   const supabase = createBrowserClient()
 
+  const mapSupabaseUser = (sbUser: any): AuthUser => {
+    const name = sbUser.user_metadata?.full_name || sbUser.user_metadata?.name || sbUser.email?.split('@')[0] || "Professeur"
+    const photo = sbUser.user_metadata?.avatar_url || sbUser.user_metadata?.picture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${sbUser.id}`
+    return {
+      uid: sbUser.id,
+      id: sbUser.id,
+      email: sbUser.email,
+      displayName: name,
+      photoURL: photo
+    }
+  }
+
+  const checkOnboardingStatus = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('onboarding_completed')
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (data && typeof data.onboarding_completed === 'boolean') {
+        setOnboardingCompleted(data.onboarding_completed)
+      } else {
+        setOnboardingCompleted(true)
+      }
+    } catch (e) {
+      console.error("Error checking onboarding status:", e)
+      setOnboardingCompleted(true)
+    }
+  }
+
   useEffect(() => {
     const initAuth = async () => {
-      // 1. Essayer de récupérer la session actuelle
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (session?.user) {
-        setUser({
-          uid: session.user.id,
-          id: session.user.id,
-          email: session.user.email,
-          displayName: session.user.user_metadata?.full_name || "Dev Teacher"
-        })
-        setIsAuthReady(true)
-      } else {
-        // 2. Connexion auto en tâche de fond avec le compte de dev
-        try {
-          const { data: { session: newSession }, error } = await supabase.auth.signInWithPassword({
-            email: 'dev@example.com',
-            password: 'password123'
-          })
-          
-          if (newSession?.user) {
-            setUser({
-              uid: newSession.user.id,
-              id: newSession.user.id,
-              email: newSession.user.email,
-              displayName: newSession.user.user_metadata?.full_name || "Dev Teacher"
-            })
-          }
-        } catch (e) {
-          console.error("Auto sign in failed:", e)
-        } finally {
-          setIsAuthReady(true)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (session?.user) {
+          setUser(mapSupabaseUser(session.user))
+          await checkOnboardingStatus(session.user.id)
+        } else {
+          setUser(null)
         }
+      } catch (e) {
+        console.error("Init auth error:", e)
+        setUser(null)
+      } finally {
+        setIsAuthReady(true)
       }
     }
 
     initAuth()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        setUser({
-          uid: session.user.id,
-          id: session.user.id,
-          email: session.user.email,
-          displayName: session.user.user_metadata?.full_name || "Dev Teacher"
-        })
+        setUser(mapSupabaseUser(session.user))
+        await checkOnboardingStatus(session.user.id)
       } else {
         setUser(null)
       }
@@ -101,14 +102,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const signIn = async () => {
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined
+        }
+      })
+    } catch (err) {
+      console.error("Google signIn error:", err)
+    }
+  }
+
+  const logOut = async () => {
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error("Logout error:", err)
+    } finally {
+      setUser(null)
+    }
+  }
+
   return (
     <AuthContext.Provider value={{ 
       user, 
       isAuthReady, 
-      signIn: async () => {}, 
-      logOut: async () => {}, 
+      signIn, 
+      logOut, 
       onboardingCompleted, 
-      setOnboardingCompleted: () => {} 
+      setOnboardingCompleted: (val: boolean) => setOnboardingCompleted(val)
     }}>
       {children}
     </AuthContext.Provider>
