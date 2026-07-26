@@ -120,7 +120,7 @@ export default function ClassEvaluationsMenu({ params }: { params: Promise<{ cla
                       {type.title}
                     </h3>
                     <span className={`inline-flex items-center text-xs sm:px-3 sm:py-1 sm:rounded-lg sm:text-sm font-bold sm:bg-slate-50 ${type.textColor}`}>
-                      {type.criteriaCount === 'Notes' ? 'Notes sur 10' : `${type.criteriaCount} critères`}
+                      {String(type.criteriaCount) === 'Notes' ? 'Notes sur 10' : `${type.criteriaCount} critères`}
                     </span>
                   </div>
                 </div>
